@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
 
-/** Файлы для `prisma migrate deploy` в рантайме (Vercel serverless + SQLite) */
+/** Prisma Client + чтение `prisma/migrations/*.sql` в рантайме (без Prisma CLI) */
 const prismaRuntimeTrace = [
-  "./node_modules/prisma/**/*",
   "./node_modules/@prisma/engines/**/*",
   "./node_modules/.prisma/**/*",
   "./prisma/migrations/**/*",
@@ -12,7 +11,7 @@ const prismaRuntimeTrace = [
 const nextConfig: NextConfig = {
   /** Уменьшает предупреждения при строгих проверках пакетов на Vercel */
   serverExternalPackages: ["@prisma/client", "prisma"],
-  /** Иначе CLI/engines/migrations не попадают в serverless-артефакт */
+  /** Engines + SQL миграций для Prisma Client и `node:sqlite` на Vercel */
   outputFileTracingIncludes: {
     "/api/**/*": prismaRuntimeTrace,
     instrumentation: prismaRuntimeTrace,

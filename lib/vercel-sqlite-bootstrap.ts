@@ -1,11 +1,11 @@
 import { hash } from "bcryptjs";
 
 import { db, syncPrismaClientWithEnv } from "./db";
-import { runPrismaMigrateDeploySync } from "./run-prisma-migrate-deploy";
+import { applyVercelSqliteInitSchemaFromMigration } from "./sqlite-vercel-apply-schema";
 import { ensureVercelSqliteFileInTmp, isSqliteFileDatabaseUrl } from "./vercel-sqlite-url";
 
-const globalForMigrate = globalThis as unknown as {
-  __agraiPrismaMigrateDeployed?: boolean;
+const globalForSchema = globalThis as unknown as {
+  __agraiSqliteInitSchemaApplied?: boolean;
 };
 
 async function seedDemoUsersIfEmpty(): Promise<void> {
@@ -55,8 +55,8 @@ async function seedDemoUsersIfEmpty(): Promise<void> {
 }
 
 /**
- * На Vercel + SQLite в `/tmp` каждый холодный старт — пустая БД: миграции + демо-учётки (как в seed).
- * @returns false если миграции/сид не удались — тогда нельзя дергать Prisma (нет таблиц).
+ * Vercel + SQLite в `/tmp`: схема через `node:sqlite` + тот же SQL, что в миграции (без Prisma CLI в рантайме).
+ * @returns false если схема/сид не удались.
  */
 export async function ensureVercelSqliteReady(): Promise<boolean> {
   if (process.env.VERCEL !== "1") return true;
@@ -65,14 +65,12 @@ export async function ensureVercelSqliteReady(): Promise<boolean> {
 
   syncPrismaClientWithEnv();
 
-  if (!globalForMigrate.__agraiPrismaMigrateDeployed) {
-    try {
-      runPrismaMigrateDeploySync();
-      globalForMigrate.__agraiPrismaMigrateDeployed = true;
-    } catch (e) {
-      console.error("[agrai] prisma migrate deploy:", e);
+  if (!globalForSchema.__agraiSqliteInitSchemaApplied) {
+    const ok = applyVercelSqliteInitSchemaFromMigration();
+    if (!ok) {
       return false;
     }
+    globalForSchema.__agraiSqliteInitSchemaApplied = true;
   }
 
   try {
