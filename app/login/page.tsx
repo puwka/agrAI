@@ -50,10 +50,6 @@ export default function LoginPage() {
         <p className="mt-2 text-sm text-zinc-400">
           Доступ выдаёт администратор. Самостоятельная регистрация отключена.
         </p>
-        <p className="mt-2 text-xs text-zinc-500">
-          Демо admin: <span className="font-mono text-zinc-400">admin@agrai.dev</span> /{" "}
-          <span className="font-mono text-zinc-400">admin12345</span>
-        </p>
 
         <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
           <label className="block space-y-2">
