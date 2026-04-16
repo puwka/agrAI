@@ -1,0 +1,375 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Loader2, Send, Trash2, Upload } from "lucide-react";
+
+type AdminGeneration = {
+  id: string;
+  userId: string;
+  modelId: string;
+  modelName: string;
+  prompt: string;
+  aspectRatio: string;
+  status: string;
+  inputMode?: string;
+  referenceImageUrl: string | null;
+  resultUrl: string | null;
+  resultMessage: string | null;
+  createdAt: string;
+  user: { id: string; name: string; email: string };
+};
+
+export function AdminGenerationsClient() {
+  const [items, setItems] = useState<AdminGeneration[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({});
+  const [messageDrafts, setMessageDrafts] = useState<Record<string, string>>({});
+
+  const load = useCallback(async () => {
+    setError(null);
+    const response = await fetch("/api/admin/generations");
+    if (!response.ok) {
+      setError("Не удалось загрузить генерации");
+      setLoading(false);
+      return;
+    }
+    const data = (await response.json()) as AdminGeneration[];
+    setItems(data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const setUrlDraft = (id: string, value: string) => {
+    setUrlDrafts((d) => ({ ...d, [id]: value }));
+  };
+
+  const setMessageDraft = (id: string, value: string) => {
+    setMessageDrafts((d) => ({ ...d, [id]: value }));
+  };
+
+  const uploadFile = async (id: string, file: File) => {
+    setError(null);
+    setUploadingId(id);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const response = await fetch(`/api/admin/generations/${id}/upload`, {
+        method: "POST",
+        body: fd,
+      });
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        setError(data?.error ?? "Не удалось загрузить файл");
+        return;
+      }
+      await load();
+    } finally {
+      setUploadingId(null);
+    }
+  };
+
+  const submitUrlResult = async (id: string) => {
+    const resultUrl = (urlDrafts[id] ?? "").trim();
+    if (!resultUrl) {
+      setError("Вставьте URL или data:… результата");
+      return;
+    }
+    setError(null);
+    setSavingId(id);
+    try {
+      const response = await fetch(`/api/admin/generations/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resultUrl, resultMessage: null }),
+      });
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        setError(data?.error ?? "Не удалось сохранить");
+        return;
+      }
+      setUrlDrafts((d) => {
+        const next = { ...d };
+        delete next[id];
+        return next;
+      });
+      await load();
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const submitTextOnly = async (id: string) => {
+    const resultMessage = (messageDrafts[id] ?? "").trim();
+    if (!resultMessage) {
+      setError("Введите текст для клиента");
+      return;
+    }
+    setError(null);
+    setSavingId(id);
+    try {
+      const response = await fetch(`/api/admin/generations/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resultUrl: null, resultMessage }),
+      });
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        setError(data?.error ?? "Не удалось сохранить");
+        return;
+      }
+      setMessageDrafts((d) => {
+        const next = { ...d };
+        delete next[id];
+        return next;
+      });
+      await load();
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const deleteGeneration = async (id: string) => {
+    if (
+      !window.confirm(
+        "Удалить эту генерацию у пользователя? Запись исчезнет из кабинета; загруженный на сервер файл результата будет удалён.",
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setDeletingId(id);
+    try {
+      const response = await fetch(`/api/admin/generations/${id}`, { method: "DELETE" });
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        setError(data?.error ?? "Не удалось удалить");
+        return;
+      }
+      setUrlDrafts((d) => {
+        const next = { ...d };
+        delete next[id];
+        return next;
+      });
+      setMessageDrafts((d) => {
+        const next = { ...d };
+        delete next[id];
+        return next;
+      });
+      await load();
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-3 text-zinc-400">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        Загрузка…
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-semibold text-white">Все генерации</h1>
+        <p className="mt-2 text-sm text-zinc-400">
+          Для заявок в ожидании: загрузите файл, вставьте URL / data:URL или отправьте текст (ошибка
+          генерации, отказ по авторским правам и т.д.) — пользователь увидит результат в кабинете и
+          сможет скачать файл или ответ в виде .txt.
+        </p>
+      </div>
+
+      {error && (
+        <p className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {error}
+        </p>
+      )}
+
+      <div className="space-y-6">
+        {items.map((g) => {
+          const pending = g.status === "PENDING" || g.status === "QUEUED";
+          const hasResult = Boolean(
+            g.status === "SUCCESS" && (g.resultUrl || g.resultMessage),
+          );
+
+          return (
+            <article
+              key={g.id}
+              className="grid gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]"
+            >
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-zinc-300">
+                      {g.user.name}
+                    </span>
+                    <span className="text-zinc-500">{g.user.email}</span>
+                    <span
+                      className={
+                        pending
+                          ? "rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-amber-200"
+                          : "rounded-full border border-emerald-400/25 bg-emerald-500/10 px-3 py-1 text-emerald-200"
+                      }
+                    >
+                      {g.status}
+                    </span>
+                    <span className="text-zinc-500">{g.aspectRatio}</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={
+                      savingId === g.id || uploadingId === g.id || deletingId === g.id
+                    }
+                    onClick={() => void deleteGeneration(g.id)}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/20 disabled:opacity-50"
+                  >
+                    {deletingId === g.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                    Удалить
+                  </button>
+                </div>
+                <p className="text-sm font-medium text-white">{g.modelName}</p>
+                <p className="text-sm leading-6 text-zinc-300">{g.prompt}</p>
+                {g.referenceImageUrl ? (
+                  <div className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+                    <p className="border-b border-white/10 bg-black/50 px-3 py-2 text-xs font-medium text-fuchsia-200/90">
+                      Исходное фото пользователя
+                    </p>
+                    <img
+                      src={g.referenceImageUrl}
+                      alt="Референс"
+                      className="max-h-48 w-full object-contain"
+                    />
+                  </div>
+                ) : null}
+                <p className="text-xs text-zinc-500">
+                  {new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(
+                    new Date(g.createdAt),
+                  )}
+                </p>
+
+                {pending && (
+                  <div className="space-y-3 rounded-2xl border border-amber-400/20 bg-amber-500/5 p-4">
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-amber-200/90">
+                        Файл с компьютера
+                      </p>
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-white/15 bg-black/40 px-4 py-2.5 text-sm text-amber-100 transition hover:border-amber-400/40 hover:bg-black/50">
+                        <Upload className="h-4 w-4" />
+                        <span>Выбрать и загрузить</span>
+                        <input
+                          type="file"
+                          className="sr-only"
+                          accept="image/png,image/jpeg,image/webp,image/gif,image/avif,video/mp4,video/webm,audio/mpeg,audio/wav,.mp4,.webm,.mp3,.wav"
+                          disabled={uploadingId === g.id || savingId === g.id}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = "";
+                            if (file) void uploadFile(g.id, file);
+                          }}
+                        />
+                      </label>
+                      {uploadingId === g.id ? (
+                        <p className="flex items-center gap-2 text-xs text-amber-200/80">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Загрузка…
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="border-t border-white/10 space-y-3 pt-3">
+                      <div className="space-y-2">
+                        <label className="block text-xs font-medium uppercase tracking-wide text-amber-200/90">
+                          Или URL / data для пользователя
+                        </label>
+                        <textarea
+                          value={urlDrafts[g.id] ?? ""}
+                          onChange={(e) => setUrlDraft(g.id, e.target.value)}
+                          rows={3}
+                          placeholder="https://… или data:image/png;base64,…"
+                          className="w-full resize-y rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-amber-400/40"
+                        />
+                        <button
+                          type="button"
+                          disabled={savingId === g.id || uploadingId === g.id}
+                          onClick={() => void submitUrlResult(g.id)}
+                          className="inline-flex items-center gap-2 rounded-xl border border-amber-400/35 bg-amber-500/20 px-4 py-2.5 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/30 disabled:opacity-50"
+                        >
+                          {savingId === g.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
+                          Отправить по ссылке
+                        </button>
+                      </div>
+                      <div className="space-y-2 border-t border-white/10 pt-3">
+                        <label className="block text-xs font-medium uppercase tracking-wide text-amber-200/90">
+                          Текст вместо файла
+                        </label>
+                        <textarea
+                          value={messageDrafts[g.id] ?? ""}
+                          onChange={(e) => setMessageDraft(g.id, e.target.value)}
+                          rows={4}
+                          placeholder="Например: не удалось сгенерировать; запрос нарушает авторские права…"
+                          className="w-full resize-y rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-amber-400/40"
+                        />
+                        <button
+                          type="button"
+                          disabled={savingId === g.id || uploadingId === g.id}
+                          onClick={() => void submitTextOnly(g.id)}
+                          className="inline-flex items-center gap-2 rounded-xl border border-zinc-500/40 bg-zinc-600/30 px-4 py-2.5 text-sm font-semibold text-zinc-100 transition hover:bg-zinc-600/45 disabled:opacity-50"
+                        >
+                          {savingId === g.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
+                          Отправить только текст
+                        </button>
+                        <p className="text-[11px] leading-relaxed text-zinc-500">
+                          Текущая ссылка на файл будет снята. Чтобы отдать файл — загрузите его кнопкой
+                          выше или отправьте по ссылке.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/80">
+                {hasResult && g.resultUrl ? (
+                  <img
+                    src={g.resultUrl}
+                    alt={`Результат ${g.id}`}
+                    className="h-full w-full max-h-72 object-contain"
+                  />
+                ) : hasResult && g.resultMessage ? (
+                  <div className="max-h-72 overflow-y-auto p-4 text-left text-sm leading-relaxed text-zinc-200">
+                    {g.resultMessage}
+                  </div>
+                ) : (
+                  <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 p-6 text-center text-sm text-zinc-500">
+                    <p>Нет превью</p>
+                    {pending && <p className="text-xs text-zinc-600">Ожидает загрузки результата</p>}
+                  </div>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

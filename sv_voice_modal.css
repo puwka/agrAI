@@ -1,0 +1,439 @@
+/* ===================================
+   Voice Selector Modal Styles
+   Современный темный дизайн для выбора голосов
+   =================================== */
+
+/* Модальное окно */
+#voiceSelectorModal .modal-content {
+    background: #1a1a1a;
+    border: 1px solid #333;
+}
+
+#voiceSelectorModal .modal-header {
+    border-bottom: 1px solid #333;
+    padding: 1.5rem;
+}
+
+/* Боковая панель фильтров */
+.voice-filters-sidebar {
+    background: rgba(0, 0, 0, 0.2);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.voice-filters-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.voice-filters-sidebar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.voice-filters-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+.voice-filters-sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Чекбоксы */
+.form-check-input {
+    background-color: transparent;
+    border-color: #666;
+    cursor: pointer;
+}
+
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.form-check-label {
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Карточка голоса */
+.voice-card,
+.tw-voice-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 1px solid #333;
+    background: #222 !important;
+    position: relative;
+    min-height: 180px; /* Минимальная высота для единообразия */
+}
+
+.voice-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    border-color: #0d6efd;
+}
+
+.voice-card.selected {
+    border-color: #0d6efd;
+    background: rgba(13, 110, 253, 0.1) !important;
+}
+
+/* Аватарка голоса */
+.voice-avatar .avatar-circle {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.voice-avatar img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* Имя голоса */
+.voice-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    padding-right: 28px; /* Отступ для сердечка */
+}
+
+/* Описание голоса */
+.voice-description {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.75rem;
+    line-height: 1.3;
+    max-height: 2.6rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+/* Бейджи популярности */
+.badge-popularity {
+    font-size: 0.7rem;
+    padding: 0.25em 0.5em;
+}
+
+.badge-popular {
+    background-color: #dc3545;
+}
+
+.badge-trending {
+    background-color: #ffc107;
+    color: #000;
+}
+
+.badge-new {
+    background-color: #20c997;
+}
+
+/* Теги стиля (Bootstrap) */
+.voice-tags .badge {
+    font-size: 0.65rem;
+    padding: 0.2em 0.5em;
+    background: rgba(13, 110, 253, 0.2);
+    color: #6ea8fe;
+    border: 1px solid rgba(13, 110, 253, 0.3);
+    font-weight: normal;
+}
+
+/* Теги стиля (DaisyUI/Tailwind) - исправлен padding */
+.voice-tags .tw-badge {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    height: auto;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+/* Кнопка избранного */
+.voice-favorite-btn {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    max-width: 24px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    opacity: 0.5;
+    transition: all 0.2s ease;
+    background: transparent;
+    border: none;
+}
+
+.voice-favorite-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.voice-favorite-btn.tw-text-error,
+.voice-favorite-btn.is-favorite {
+    opacity: 1;
+}
+
+/* Анимация сердечка */
+@keyframes heartBeat {
+    0% { transform: scale(1); }
+    25% { transform: scale(1.3); }
+    50% { transform: scale(1); }
+    75% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+}
+
+.voice-favorite-btn.tw-animate-bounce {
+    animation: heartBeat 0.5s ease-in-out;
+}
+
+/* Кнопка воспроизведения */
+.voice-play-btn {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    border-color: #0d6efd;
+    color: #0d6efd;
+}
+
+.voice-play-btn:hover {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+}
+
+.voice-play-btn.playing {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: #fff;
+}
+
+/* Счетчик результатов */
+#voiceResultsCount {
+    font-size: 0.9rem;
+}
+
+#voiceResultsCount span {
+    font-size: 1.1rem;
+}
+
+/* Сортировка */
+#voiceSortSelect {
+    max-width: 200px;
+}
+
+/* Скелетон загрузки */
+#voiceLoadingSkeleton .spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Пустое состояние */
+#voiceEmptyState i {
+    font-size: 3rem;
+    color: rgba(255, 255, 255, 0.2);
+}
+
+/* Адаптивность */
+@media (max-width: 991px) {
+    .voice-filters-sidebar {
+        border-right: none;
+        border-bottom: 1px solid #333;
+        max-height: none;
+    }
+
+    #voiceSelectorModal .modal-dialog {
+        margin: 0;
+    }
+
+    #voiceSelectorModal .modal-content {
+        height: 100vh;
+        border-radius: 0;
+    }
+}
+
+@media (max-width: 767px) {
+    .voice-card .card-body {
+        padding: 0.75rem !important;
+    }
+
+    .voice-avatar .avatar-circle,
+    .voice-avatar img {
+        width: 40px;
+        height: 40px;
+    }
+
+    .voice-name {
+        font-size: 0.9rem;
+    }
+
+    .voice-description {
+        font-size: 0.7rem;
+    }
+}
+
+/* Анимации */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.voice-card-item {
+    animation: fadeIn 0.3s ease-out;
+    height: 100%;
+}
+
+/* Grid контейнер - одинаковая высота карточек в строке */
+#voiceCardsContainer {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+    #voiceCardsContainer {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1200px) {
+    #voiceCardsContainer {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+#voiceCardsContainer > .voice-card-item {
+    display: flex;
+    min-width: 0;
+    width: 100%;
+}
+
+#voiceCardsContainer > .voice-card-item > .tw-voice-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* Утилиты */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.min-w-0 {
+    min-width: 0;
+}
+
+/* ===================================
+   Tailwind Voice Cards (tw-voice-card)
+   =================================== */
+
+/* Фиксированная высота карточек */
+.tw-voice-card {
+    height: 180px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+/* Контент карточки - растягиваемая область */
+.tw-voice-card .voice-content {
+    flex-grow: 1;
+    min-height: 0;
+}
+
+/* Кнопка прослушивания - всегда внизу */
+.tw-voice-card .voice-play-btn {
+    margin-top: auto;
+    flex-shrink: 0;
+}
+
+/* Теги стилей голосов - pills с мягким фоном */
+.tw-voice-card .voice-tags .tw-badge {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+    border: none;
+    padding: 0.15rem 0.5rem;
+}
+
+/* ===================================
+   Кнопка избранного (сердечко)
+   =================================== */
+.tw-voice-card .favorite-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 20;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent; /* Без фона */
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tw-voice-card .favorite-btn:hover {
+    background: rgba(0, 0, 0, 0.5); /* Фон только при hover */
+    transform: scale(1.15);
+}
+
+.tw-voice-card .favorite-btn svg {
+    width: 18px;
+    height: 18px;
+    transition: all 0.2s ease;
+    /* Тень для читаемости на любом фоне */
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+/* Пустое сердце - светло-серое */
+.tw-voice-card .favorite-btn .favorite-icon-empty {
+    color: rgba(255, 255, 255, 0.5);
+    display: block;
+}
+
+.tw-voice-card .favorite-btn .favorite-icon-filled {
+    color: #ef4444;
+    display: none;
+}
+
+/* Hover на пустом сердце - розовеет */
+.tw-voice-card .favorite-btn:hover .favorite-icon-empty {
+    color: #fca5a5;
+}
+
+/* Активное состояние (is-favorite) */
+.tw-voice-card .favorite-btn.is-favorite .favorite-icon-empty {
+    display: none;
+}
+
+.tw-voice-card .favorite-btn.is-favorite .favorite-icon-filled {
+    display: block;
+}
+
+/* Анимация при клике */
+.tw-voice-card .favorite-btn.is-favorite {
+    animation: heartPop 0.3s ease;
+}
+
+@keyframes heartPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+}

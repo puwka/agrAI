@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# next
+.next/
+out/
+
+# env
+.env
+.env*.local
+
+# sqlite (локально и артефакты сборки)
+*.db
+*.db-journal
+prisma/*.db
+prisma/*.db-journal
+
+# vercel
+.vercel
+
+# os / ide
+.DS_Store
+Thumbs.db
+*.log
+tsconfig.tsbuildinfo

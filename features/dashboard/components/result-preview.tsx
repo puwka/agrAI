@@ -1,0 +1,115 @@
+"use client";
+
+import { ImagePlus, LoaderCircle } from "lucide-react";
+import { motion } from "framer-motion";
+
+import type { AspectRatio } from "../types";
+
+type ResultPreviewProps = {
+  isLoading: boolean;
+  /** Ожидание выгрузки результата администратором (после успешной отправки заявки) */
+  deliveryPending: boolean;
+  resultUrl: string;
+  /** Текст от администратора, если файла нет или как пояснение */
+  resultMessage: string;
+  aspectRatio: AspectRatio;
+};
+
+const previewAspectClass: Record<AspectRatio, string> = {
+  "16:9": "aspect-video",
+  "4:3": "aspect-[4/3]",
+  "1:1": "aspect-square",
+  "3:4": "aspect-[3/4]",
+  "9:16": "aspect-[9/16]",
+};
+
+export function ResultPreview({
+  isLoading,
+  deliveryPending,
+  resultUrl,
+  resultMessage,
+  aspectRatio,
+}: ResultPreviewProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 16 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className="rounded-[28px] border border-white/10 bg-black/25 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]"
+    >
+      <div className="mb-5 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm uppercase tracking-[0.24em] text-zinc-500">Preview</p>
+          <h3 className="mt-2 text-xl font-semibold text-white">Результат генерации</h3>
+        </div>
+        <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-400">
+          {aspectRatio}
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-[28px] border border-white/10 bg-zinc-950/80">
+        <div
+          className={[
+            "w-full max-h-[540px]",
+            previewAspectClass[aspectRatio],
+          ].join(" ")}
+        >
+          {resultUrl ? (
+            <div className="flex h-full min-h-0 flex-col">
+              <img
+                src={resultUrl}
+                alt="Generated preview"
+                className="h-full w-full min-h-0 flex-1 object-cover"
+              />
+              {resultMessage ? (
+                <div className="shrink-0 border-t border-white/10 bg-black/50 px-4 py-3 text-left text-sm leading-relaxed text-zinc-200">
+                  {resultMessage}
+                </div>
+              ) : null}
+            </div>
+          ) : resultMessage ? (
+            <div className="flex h-full flex-col justify-center gap-3 overflow-y-auto rounded-[28px] border border-violet-400/20 bg-gradient-to-b from-violet-500/10 to-black/50 px-6 py-8">
+              <p className="text-center text-xs font-medium uppercase tracking-wide text-violet-200/90">
+                Ответ администратора
+              </p>
+              <p className="text-center text-sm leading-relaxed text-zinc-100">{resultMessage}</p>
+            </div>
+          ) : deliveryPending ? (
+            <div className="flex h-full flex-col items-center justify-center gap-5 rounded-[28px] border border-amber-400/15 bg-gradient-to-b from-amber-500/10 to-black/40 px-6">
+              <LoaderCircle className="h-14 w-14 animate-spin text-amber-300" />
+              <div className="max-w-md space-y-3 text-center">
+                <p className="text-base font-semibold text-white">Заявка принята</p>
+                <p className="text-sm leading-7 text-zinc-300">
+                  Результат обычно доступен в течение{" "}
+                  <span className="font-semibold text-amber-200">5–15 минут</span>. После проверки
+                  администратор прикрепит файл — здесь появится превью, в списке ниже можно будет
+                  скачать результат.
+                </p>
+              </div>
+            </div>
+          ) : isLoading ? (
+            <div className="flex h-full flex-col items-center justify-center gap-5 rounded-[28px] border border-white/10 bg-black/30">
+              <LoaderCircle className="h-14 w-14 animate-spin text-violet-400" />
+              <div className="space-y-2 text-center">
+                <p className="text-base font-medium text-white">Отправка заявки...</p>
+                <p className="text-sm text-zinc-400">Сохраняем параметры генерации</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center rounded-[28px] border border-dashed border-white/10 bg-black/25 px-6 text-center">
+              <div className="mb-5 rounded-full border border-white/10 bg-white/5 p-4 text-violet-200">
+                <ImagePlus className="h-9 w-9" />
+              </div>
+              <p className="max-w-sm text-base font-medium text-white">
+                Здесь появится результат вашей генерации
+              </p>
+              <p className="mt-2 max-w-sm text-sm leading-6 text-zinc-400">
+                Выберите модель, введите промпт и запустите генерацию.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}

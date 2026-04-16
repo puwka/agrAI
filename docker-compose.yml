@@ -1,0 +1,15 @@
+# Локальная PostgreSQL для разработки (совместимо с Prisma schema)
+services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: agrai
+      POSTGRES_PASSWORD: agrai
+      POSTGRES_DB: agrai
+    volumes:
+      - agrai_pg_data:/var/lib/postgresql/data
+
+volumes:
+  agrai_pg_data:
