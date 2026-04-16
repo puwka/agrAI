@@ -3,7 +3,6 @@ import type { NextAuthOptions } from "next-auth";
 import { getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
-import { ensureVercelSqliteReady } from "./lib/vercel-sqlite-bootstrap";
 import { db } from "./lib/db";
 import type { AppRole } from "./lib/auth/roles";
 
@@ -24,6 +23,7 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        const { ensureVercelSqliteReady } = await import("./lib/vercel-sqlite-bootstrap");
         if (!(await ensureVercelSqliteReady())) {
           return null;
         }

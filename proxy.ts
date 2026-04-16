@@ -3,10 +3,16 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 export async function proxy(request: NextRequest) {
-  const token = await getToken({
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET,
-  });
+  let token: Awaited<ReturnType<typeof getToken>> = null;
+  try {
+    token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+  } catch (err) {
+    console.error("[proxy] getToken:", err);
+    /* не роняем /login из‑за JWT/секрета */
+  }
 
   const { pathname } = request.nextUrl;
 

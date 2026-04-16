@@ -1,7 +1,6 @@
 import { hash } from "bcryptjs";
 
 import { db, syncPrismaClientWithEnv } from "./db";
-import { applyVercelSqliteInitSchemaFromMigration } from "./sqlite-vercel-apply-schema";
 import { ensureVercelSqliteFileInTmp, isSqliteFileDatabaseUrl } from "./vercel-sqlite-url";
 
 const globalForSchema = globalThis as unknown as {
@@ -66,7 +65,8 @@ export async function ensureVercelSqliteReady(): Promise<boolean> {
   syncPrismaClientWithEnv();
 
   if (!globalForSchema.__agraiSqliteInitSchemaApplied) {
-    const ok = applyVercelSqliteInitSchemaFromMigration();
+    const { applyVercelSqliteInitSchemaFromMigration } = await import("./sqlite-vercel-apply-schema");
+    const ok = await applyVercelSqliteInitSchemaFromMigration();
     if (!ok) {
       return false;
     }
