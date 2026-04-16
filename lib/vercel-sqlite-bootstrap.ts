@@ -3,24 +3,13 @@ import { hash } from "bcryptjs";
 import { db } from "./db";
 import { ensureVercelSqliteFileInTmp, isSqliteFileDatabaseUrl } from "./vercel-sqlite-url";
 
-/**
- * На Vercel + SQLite в `/tmp` каждый холодный старт — новый файл БД: миграции есть, строк нет.
- * Создаём тех же демо-пользователей, что и в `prisma/seed.ts`, чтобы вход на preview работал.
- * Прод: только при `AGRAI_BOOTSTRAP_DEMO=1` (временная демо-БД в /tmp без Turso).
- */
-export async function bootstrapVercelSqliteIfEmpty(): Promise<void> {
-  if (process.env.VERCEL !== "1") return;
-  ensureVercelSqliteFileInTmp();
-  const dbUrl = process.env.DATABASE_URL ?? "";
-  if (!isSqliteFileDatabaseUrl(dbUrl)) return;
+const globalForMigrate = globalThis as unknown as {
+  __agraiPrismaMigrateDeployed?: boolean;
+};
 
+async function seedDemoUsersIfEmpty(): Promise<void> {
   const count = await db.user.count();
   if (count > 0) return;
-
-  const allow =
-    process.env.VERCEL_ENV === "preview" ||
-    process.env.AGRAI_BOOTSTRAP_DEMO === "1";
-  if (!allow) return;
 
   const adminPasswordHash = await hash("admin12345", 10);
   const userPasswordHash = await hash("user12345", 10);
@@ -62,4 +51,30 @@ export async function bootstrapVercelSqliteIfEmpty(): Promise<void> {
       telegram: "@demo_user",
     },
   });
+}
+
+/**
+ * На Vercel + SQLite в `/tmp` каждый холодный старт — пустая БД: миграции + демо-учётки (как в seed).
+ * Вызывается из instrumentation и из NextAuth `authorize`, чтобы сработало и при `VERCEL_ENV=production`.
+ */
+export async function ensureVercelSqliteReady(): Promise<void> {
+  if (process.env.VERCEL !== "1") return;
+  ensureVercelSqliteFileInTmp();
+  if (!isSqliteFileDatabaseUrl(process.env.DATABASE_URL ?? "")) return;
+
+  if (!globalForMigrate.__agraiPrismaMigrateDeployed) {
+    try {
+      const { execSync } = await import("node:child_process");
+      execSync("npx prisma migrate deploy", {
+        cwd: process.cwd(),
+        env: process.env,
+        stdio: "ignore",
+      });
+    } catch (e) {
+      console.error("[agrai] prisma migrate deploy:", e);
+    }
+    globalForMigrate.__agraiPrismaMigrateDeployed = true;
+  }
+
+  await seedDemoUsersIfEmpty();
 }
