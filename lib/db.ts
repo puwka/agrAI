@@ -1,5 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 
+import { ensureVercelSqliteFileInTmp } from "./vercel-sqlite-url";
+
+ensureVercelSqliteFileInTmp();
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };

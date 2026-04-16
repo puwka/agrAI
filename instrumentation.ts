@@ -1,11 +1,14 @@
+import { ensureVercelSqliteFileInTmp, isSqliteFileDatabaseUrl } from "./lib/vercel-sqlite-url";
+
 /**
  * На Vercel файловая система функции доступна для записи в основном в `/tmp`.
- * Если `DATABASE_URL` указывает на SQLite в `/tmp`, при старте инстанса применяем миграции,
- * чтобы схема существовала (данные при холодном старте с пустой БД — ограничение serverless + SQLite).
+ * Для SQLite `file:` применяем миграции при старте (пустая БД / неверный путь → нет таблиц).
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME === "edge") return;
   if (process.env.VERCEL !== "1") return;
+
+  ensureVercelSqliteFileInTmp();
 
   /* next-auth v4: на preview хост меняется; иначе CSRF/куки и POST /callback/credentials дают 401 */
   if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL) {
@@ -13,7 +16,7 @@ export async function register() {
   }
 
   const url = process.env.DATABASE_URL ?? "";
-  if (!url.includes("/tmp")) return;
+  if (!isSqliteFileDatabaseUrl(url)) return;
 
   try {
     const { execSync } = await import("node:child_process");

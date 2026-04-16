@@ -1,6 +1,7 @@
 import { hash } from "bcryptjs";
 
 import { db } from "./db";
+import { ensureVercelSqliteFileInTmp, isSqliteFileDatabaseUrl } from "./vercel-sqlite-url";
 
 /**
  * На Vercel + SQLite в `/tmp` каждый холодный старт — новый файл БД: миграции есть, строк нет.
@@ -9,8 +10,9 @@ import { db } from "./db";
  */
 export async function bootstrapVercelSqliteIfEmpty(): Promise<void> {
   if (process.env.VERCEL !== "1") return;
+  ensureVercelSqliteFileInTmp();
   const dbUrl = process.env.DATABASE_URL ?? "";
-  if (!dbUrl.includes("/tmp")) return;
+  if (!isSqliteFileDatabaseUrl(dbUrl)) return;
 
   const count = await db.user.count();
   if (count > 0) return;
