@@ -6,9 +6,8 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "./lib/db";
 import type { AppRole } from "./lib/auth/roles";
 
+/** next-auth v4: задайте NEXTAUTH_URL на Vercel (прод и preview), trustHost есть только в Auth.js v5 */
 export const authOptions: NextAuthOptions = {
-  /** Нужно для деплоя на Vercel (динамический хост / preview URL) */
-  trustHost: true,
   session: {
     strategy: "jwt",
   },
