@@ -1,6 +1,6 @@
 import { hash } from "bcryptjs";
 
-import { db, syncPrismaClientWithEnv } from "./db";
+import { db, resetPrismaClient, syncPrismaClientWithEnv } from "./db";
 import { ensureVercelSqliteFileInTmp, isSqliteFileDatabaseUrl } from "./vercel-sqlite-url";
 
 const globalForSchema = globalThis as unknown as {
@@ -54,24 +54,28 @@ async function seedDemoUsersIfEmpty(): Promise<void> {
 }
 
 /**
- * Vercel + SQLite в `/tmp`: схема через `node:sqlite` + тот же SQL, что в миграции (без Prisma CLI в рантайме).
- * @returns false если схема/сид не удались.
+ * Vercel + SQLite в `/tmp`: схема через `node:sqlite` + демо-учётки.
+ * Флаг «готово» только после успешного seed — иначе ловили «User не существует» при следующем запросе.
  */
 export async function ensureVercelSqliteReady(): Promise<boolean> {
   if (process.env.VERCEL !== "1") return true;
   ensureVercelSqliteFileInTmp();
   if (!isSqliteFileDatabaseUrl(process.env.DATABASE_URL ?? "")) return true;
 
+  if (globalForSchema.__agraiSqliteInitSchemaApplied) {
+    return true;
+  }
+
   syncPrismaClientWithEnv();
 
-  if (!globalForSchema.__agraiSqliteInitSchemaApplied) {
-    const { applyVercelSqliteInitSchemaFromMigration } = await import("./sqlite-vercel-apply-schema");
-    const ok = await applyVercelSqliteInitSchemaFromMigration();
-    if (!ok) {
-      return false;
-    }
-    globalForSchema.__agraiSqliteInitSchemaApplied = true;
+  const { applyVercelSqliteInitSchemaFromMigration } = await import("./sqlite-vercel-apply-schema");
+  const ok = await applyVercelSqliteInitSchemaFromMigration();
+  if (!ok) {
+    return false;
   }
+
+  resetPrismaClient();
+  syncPrismaClientWithEnv();
 
   try {
     await seedDemoUsersIfEmpty();
@@ -80,5 +84,6 @@ export async function ensureVercelSqliteReady(): Promise<boolean> {
     return false;
   }
 
+  globalForSchema.__agraiSqliteInitSchemaApplied = true;
   return true;
 }

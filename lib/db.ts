@@ -31,6 +31,16 @@ export function syncPrismaClientWithEnv(): void {
   getPrismaClient();
 }
 
+/** После `node:sqlite` exec схема на диске обновилась — переподключаем Prisma, иначе seed видит «таблицы нет». */
+export function resetPrismaClient(): void {
+  const existing = globalForPrisma.prisma;
+  if (existing) {
+    void existing.$disconnect();
+    globalForPrisma.prisma = undefined;
+    globalForPrisma.prismaDatasourceUrl = undefined;
+  }
+}
+
 export const db = new Proxy({} as PrismaClient, {
   get(_target, prop, _receiver) {
     const client = getPrismaClient();
