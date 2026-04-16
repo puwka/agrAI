@@ -1,6 +1,7 @@
 import { hash } from "bcryptjs";
 
 import { db } from "./db";
+import { runPrismaMigrateDeploySync } from "./run-prisma-migrate-deploy";
 import { ensureVercelSqliteFileInTmp, isSqliteFileDatabaseUrl } from "./vercel-sqlite-url";
 
 const globalForMigrate = globalThis as unknown as {
@@ -64,16 +65,12 @@ export async function ensureVercelSqliteReady(): Promise<void> {
 
   if (!globalForMigrate.__agraiPrismaMigrateDeployed) {
     try {
-      const { execSync } = await import("node:child_process");
-      execSync("npx prisma migrate deploy", {
-        cwd: process.cwd(),
-        env: process.env,
-        stdio: "ignore",
-      });
+      runPrismaMigrateDeploySync();
+      globalForMigrate.__agraiPrismaMigrateDeployed = true;
     } catch (e) {
       console.error("[agrai] prisma migrate deploy:", e);
+      return;
     }
-    globalForMigrate.__agraiPrismaMigrateDeployed = true;
   }
 
   await seedDemoUsersIfEmpty();
