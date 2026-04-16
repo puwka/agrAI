@@ -24,7 +24,9 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        await ensureVercelSqliteReady();
+        if (!(await ensureVercelSqliteReady())) {
+          return null;
+        }
 
         const email = credentials?.email?.trim().toLowerCase();
         const password = credentials?.password;

@@ -12,7 +12,10 @@ export async function register() {
 
   try {
     const { ensureVercelSqliteReady } = await import("./lib/vercel-sqlite-bootstrap");
-    await ensureVercelSqliteReady();
+    const ok = await ensureVercelSqliteReady();
+    if (!ok) {
+      console.error("[instrumentation] ensureVercelSqliteReady: миграции или сид не прошли");
+    }
   } catch (err) {
     console.error("[instrumentation] ensureVercelSqliteReady:", err);
   }

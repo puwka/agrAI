@@ -1,6 +1,6 @@
 import { hash } from "bcryptjs";
 
-import { db } from "./db";
+import { db, syncPrismaClientWithEnv } from "./db";
 import { runPrismaMigrateDeploySync } from "./run-prisma-migrate-deploy";
 import { ensureVercelSqliteFileInTmp, isSqliteFileDatabaseUrl } from "./vercel-sqlite-url";
 
@@ -56,12 +56,14 @@ async function seedDemoUsersIfEmpty(): Promise<void> {
 
 /**
  * На Vercel + SQLite в `/tmp` каждый холодный старт — пустая БД: миграции + демо-учётки (как в seed).
- * Вызывается из instrumentation и из NextAuth `authorize`, чтобы сработало и при `VERCEL_ENV=production`.
+ * @returns false если миграции/сид не удались — тогда нельзя дергать Prisma (нет таблиц).
  */
-export async function ensureVercelSqliteReady(): Promise<void> {
-  if (process.env.VERCEL !== "1") return;
+export async function ensureVercelSqliteReady(): Promise<boolean> {
+  if (process.env.VERCEL !== "1") return true;
   ensureVercelSqliteFileInTmp();
-  if (!isSqliteFileDatabaseUrl(process.env.DATABASE_URL ?? "")) return;
+  if (!isSqliteFileDatabaseUrl(process.env.DATABASE_URL ?? "")) return true;
+
+  syncPrismaClientWithEnv();
 
   if (!globalForMigrate.__agraiPrismaMigrateDeployed) {
     try {
@@ -69,9 +71,16 @@ export async function ensureVercelSqliteReady(): Promise<void> {
       globalForMigrate.__agraiPrismaMigrateDeployed = true;
     } catch (e) {
       console.error("[agrai] prisma migrate deploy:", e);
-      return;
+      return false;
     }
   }
 
-  await seedDemoUsersIfEmpty();
+  try {
+    await seedDemoUsersIfEmpty();
+  } catch (e) {
+    console.error("[agrai] seed demo users:", e);
+    return false;
+  }
+
+  return true;
 }
