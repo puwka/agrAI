@@ -13,6 +13,7 @@ export type AdminUserRow = {
   apiKeysCount: number;
   restrictedUntil: string | null;
   restrictedReason: string | null;
+  subscriptionUntil: string | null;
 };
 
 function formatDate(value: string | null) {
@@ -23,6 +24,13 @@ function formatDate(value: string | null) {
 }
 
 function isActiveRestriction(until: string | null) {
+  if (!until) return false;
+  const dt = new Date(until);
+  if (Number.isNaN(dt.getTime())) return false;
+  return dt.getTime() > Date.now();
+}
+
+function isActiveSubscription(until: string | null) {
   if (!until) return false;
   const dt = new Date(until);
   if (Number.isNaN(dt.getTime())) return false;
@@ -40,7 +48,9 @@ export function AdminUsersTable({ initialRows }: { initialRows: AdminUserRow[] }
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState<"USER" | "ADMIN">("USER");
+  const [newSubscriptionDays, setNewSubscriptionDays] = useState("30");
   const [creating, setCreating] = useState(false);
+  const [subDaysByUser, setSubDaysByUser] = useState<Record<string, string>>({});
 
   const sorted = useMemo(() => rows, [rows]);
 
@@ -60,10 +70,16 @@ export function AdminUsersTable({ initialRows }: { initialRows: AdminUserRow[] }
     setCreating(true);
     setError(null);
 
+    const subDays = Number(newSubscriptionDays.trim());
+    const payload: Record<string, unknown> = { name, email, password, role: newRole };
+    if (newRole === "USER") {
+      payload.subscriptionDays = Number.isFinite(subDays) ? subDays : 0;
+    }
+
     const response = await fetch("/api/admin/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, role: newRole }),
+      body: JSON.stringify(payload),
     });
 
     const data = (await response.json().catch(() => null)) as AdminUserRow | { error?: string } | null;
@@ -79,11 +95,19 @@ export function AdminUsersTable({ initialRows }: { initialRows: AdminUserRow[] }
       return;
     }
 
-    setRows((current) => [data as AdminUserRow, ...current]);
+    const row = data as AdminUserRow;
+    setRows((current) => [
+      {
+        ...row,
+        subscriptionUntil: row.subscriptionUntil ?? null,
+      },
+      ...current,
+    ]);
     setNewName("");
     setNewEmail("");
     setNewPassword("");
     setNewRole("USER");
+    setNewSubscriptionDays("30");
   };
 
   const applyRestriction = async (userId: string) => {
@@ -137,6 +161,77 @@ export function AdminUsersTable({ initialRows }: { initialRows: AdminUserRow[] }
     );
   };
 
+  const applySubscriptionDays = async (userId: string) => {
+    const daysRaw = (subDaysByUser[userId] ?? "").trim();
+    const days = Number(daysRaw);
+    if (!Number.isFinite(days) || days <= 0) {
+      setError("Для подписки укажите количество дней (> 0).");
+      return;
+    }
+
+    setBusyUserId(userId);
+    setError(null);
+
+    const response = await fetch(`/api/admin/users/${userId}/subscription`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ days }),
+    });
+
+    setBusyUserId(null);
+
+    if (!response.ok) {
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      setError(data?.error ?? "Не удалось обновить подписку.");
+      return;
+    }
+
+    const updated = (await response.json()) as {
+      id: string;
+      subscriptionUntil: string | Date | null;
+    };
+
+    setRows((current) =>
+      current.map((u) =>
+        u.id === updated.id
+          ? {
+              ...u,
+              subscriptionUntil:
+                typeof updated.subscriptionUntil === "string"
+                  ? updated.subscriptionUntil
+                  : updated.subscriptionUntil
+                    ? new Date(updated.subscriptionUntil).toISOString()
+                    : null,
+            }
+          : u,
+      ),
+    );
+  };
+
+  const clearSubscription = async (userId: string) => {
+    setBusyUserId(userId);
+    setError(null);
+
+    const response = await fetch(`/api/admin/users/${userId}/subscription`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clear: true }),
+    });
+
+    setBusyUserId(null);
+
+    if (!response.ok) {
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      setError(data?.error ?? "Не удалось сбросить подписку.");
+      return;
+    }
+
+    const updated = (await response.json()) as { id: string; subscriptionUntil: null };
+    setRows((current) =>
+      current.map((u) => (u.id === updated.id ? { ...u, subscriptionUntil: null } : u)),
+    );
+  };
+
   const clearRestriction = async (userId: string) => {
     setBusyUserId(userId);
     setError(null);
@@ -176,7 +271,7 @@ export function AdminUsersTable({ initialRows }: { initialRows: AdminUserRow[] }
         <p className="mt-1 text-xs text-zinc-500">
           Передайте человеку email и пароль для входа на странице «Вход».
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <label className="block space-y-1.5 sm:col-span-2">
             <span className="text-xs font-medium text-zinc-400">Имя</span>
             <input
@@ -217,6 +312,18 @@ export function AdminUsersTable({ initialRows }: { initialRows: AdminUserRow[] }
               <option value="ADMIN">Администратор</option>
             </select>
           </label>
+          <label className="block space-y-1.5">
+            <span className="text-xs font-medium text-zinc-400">Дней подписки (только USER)</span>
+            <input
+              value={newSubscriptionDays}
+              onChange={(e) => setNewSubscriptionDays(e.target.value)}
+              disabled={newRole === "ADMIN"}
+              inputMode="numeric"
+              placeholder="30"
+              className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-400/40 disabled:cursor-not-allowed disabled:opacity-50"
+              autoComplete="off"
+            />
+          </label>
         </div>
         <button
           type="button"
@@ -230,7 +337,7 @@ export function AdminUsersTable({ initialRows }: { initialRows: AdminUserRow[] }
       </div>
 
       <div className="overflow-x-auto rounded-3xl border border-white/10 bg-white/5">
-        <table className="w-full min-w-[980px] text-left text-sm">
+        <table className="w-full min-w-[1180px] text-left text-sm">
           <thead className="border-b border-white/10 text-zinc-500">
             <tr>
               <th className="px-4 py-3 font-medium">Имя</th>
@@ -238,6 +345,7 @@ export function AdminUsersTable({ initialRows }: { initialRows: AdminUserRow[] }
               <th className="px-4 py-3 font-medium">Роль</th>
               <th className="px-4 py-3 font-medium">Генерации</th>
               <th className="px-4 py-3 font-medium">Ключи</th>
+              <th className="px-4 py-3 font-medium">Подписка</th>
               <th className="px-4 py-3 font-medium">Ограничение</th>
               <th className="px-4 py-3 font-medium">Действия</th>
               <th className="px-4 py-3 font-medium">Создан</th>
@@ -246,9 +354,11 @@ export function AdminUsersTable({ initialRows }: { initialRows: AdminUserRow[] }
           <tbody>
             {sorted.map((u) => {
               const active = isActiveRestriction(u.restrictedUntil);
+              const subActive = isActiveSubscription(u.subscriptionUntil ?? null);
               const busy = busyUserId === u.id;
               const daysValue = daysByUser[u.id] ?? "";
               const reasonValue = reasonByUser[u.id] ?? (u.restrictedReason ?? "");
+              const subDaysValue = subDaysByUser[u.id] ?? "";
 
               return (
                 <tr key={u.id} className="border-b border-white/5 align-top last:border-0">
@@ -257,6 +367,53 @@ export function AdminUsersTable({ initialRows }: { initialRows: AdminUserRow[] }
                   <td className="px-4 py-3 text-zinc-400">{u.role}</td>
                   <td className="px-4 py-3 text-zinc-400">{u.generationsCount}</td>
                   <td className="px-4 py-3 text-zinc-400">{u.apiKeysCount}</td>
+                  <td className="px-4 py-3">
+                    {u.role === "ADMIN" ? (
+                      <span className="text-xs text-zinc-500">Не требуется</span>
+                    ) : (
+                      <div className="space-y-1">
+                        <span
+                          className={[
+                            "inline-flex rounded-full border px-3 py-1 text-xs font-semibold",
+                            subActive
+                              ? "border-emerald-400/25 bg-emerald-500/10 text-emerald-200"
+                              : "border-white/10 bg-black/20 text-zinc-400",
+                          ].join(" ")}
+                        >
+                          {subActive ? "Активна" : "Нет / истекла"}
+                        </span>
+                        <p className="text-xs text-zinc-500">до {formatDate(u.subscriptionUntil)}</p>
+                        <div className="flex flex-wrap gap-2">
+                          <input
+                            value={subDaysValue}
+                            onChange={(e) =>
+                              setSubDaysByUser((s) => ({ ...s, [u.id]: e.target.value }))
+                            }
+                            placeholder="Дней"
+                            inputMode="numeric"
+                            disabled={busy}
+                            className="w-[88px] rounded-2xl border border-white/10 bg-black/25 px-2 py-1.5 text-xs text-white outline-none focus:border-violet-400/40"
+                          />
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void applySubscriptionDays(u.id)}
+                            className="rounded-2xl border border-emerald-400/25 bg-emerald-500/10 px-2 py-1.5 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/15 disabled:opacity-60"
+                          >
+                            Продлить
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void clearSubscription(u.id)}
+                            className="rounded-2xl border border-white/10 bg-white/5 px-2 py-1.5 text-xs font-semibold text-zinc-300 transition hover:bg-white/10 disabled:opacity-60"
+                          >
+                            Сбросить
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="space-y-1">
                       <span

@@ -25,7 +25,7 @@ function nowIso() {
 
 function hydrateRecord(row: AnyRecord) {
   const out: AnyRecord = { ...row };
-  for (const key of ["createdAt", "updatedAt", "lastUsedAt", "restrictedUntil"]) {
+  for (const key of ["createdAt", "updatedAt", "lastUsedAt", "restrictedUntil", "subscriptionUntil"]) {
     if (typeof out[key] === "string") out[key] = new Date(out[key]);
   }
   return out;

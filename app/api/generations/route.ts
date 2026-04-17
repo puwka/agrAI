@@ -4,6 +4,7 @@ import { db } from "../../../lib/db";
 import { getApiSessionUser } from "../../../lib/auth/api-session";
 import { isValidUserReferenceImageUrl } from "../../../lib/generation-reference";
 import { getMaintenanceState } from "../../../lib/maintenance";
+import { hasActiveSubscription } from "../../../lib/subscription";
 import type { AspectRatio } from "../../../features/dashboard/types";
 
 function mergeVoicePrompt(prompt: string, voiceName?: string | null) {
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
 
     const restriction = await db.user.findUnique({
       where: { id: sessionUser.id },
-      select: { restrictedUntil: true, restrictedReason: true },
+      select: { restrictedUntil: true, restrictedReason: true, subscriptionUntil: true },
     });
 
     const now = new Date();
@@ -65,6 +66,17 @@ export async function POST(request: Request) {
         {
           error: restriction.restrictedReason?.trim() || "Злоупотребление генерациями.",
           restrictedUntil: restriction.restrictedUntil,
+        },
+        { status: 403 },
+      );
+    }
+
+    if (!hasActiveSubscription(sessionUser.role, restriction?.subscriptionUntil ?? null)) {
+      return NextResponse.json(
+        {
+          error: "Подписка закончилась. Обратитесь к администратору для продления.",
+          subscriptionExpired: true,
+          subscriptionUntil: restriction?.subscriptionUntil ?? null,
         },
         { status: 403 },
       );

@@ -50,7 +50,8 @@ export function DashboardHomePage({
   isAdmin?: boolean;
 }) {
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState("");
+  /** Промпт отдельно для каждой модели, чтобы при переключении фото/видео/голос не смешивался текст */
+  const [promptsByModel, setPromptsByModel] = useState<Record<string, string>>({});
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("16:9");
   const [isLoading, setIsLoading] = useState(false);
   const [resultUrl, setResultUrl] = useState("");
@@ -71,6 +72,16 @@ export function DashboardHomePage({
 
   const selectedModel = models.find((model) => model.id === selectedModelId) ?? null;
   const activeModelsCount = models.filter((m) => !m.disabled).length;
+
+  const prompt = selectedModelId ? promptsByModel[selectedModelId] ?? "" : "";
+
+  const setPromptForSelectedModel = useCallback(
+    (value: string) => {
+      if (!selectedModelId) return;
+      setPromptsByModel((prev) => ({ ...prev, [selectedModelId]: value }));
+    },
+    [selectedModelId],
+  );
 
   const hasActiveGenerationInQueue = useMemo(() => {
     if (isAdmin) return false;
@@ -373,7 +384,7 @@ export function DashboardHomePage({
           setReferenceImageUrl(null);
           setReferenceUploadError(null);
         }}
-        onPromptChange={setPrompt}
+        onPromptChange={setPromptForSelectedModel}
         onAspectRatioChange={setAspectRatio}
         onVoiceChange={(voice) => {
           setSelectedVoice(voice);

@@ -31,7 +31,7 @@ export function DashboardShell({
     <MaintenanceProvider isAdmin={isAdmin}>
       <div className="min-h-screen bg-[#0f0f0f] text-zinc-100">
         <MaintenanceModal />
-        <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col md:flex-row">
+        <div className="flex min-h-screen w-full flex-col md:flex-row">
           <Sidebar user={user} />
 
           <main className="flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">

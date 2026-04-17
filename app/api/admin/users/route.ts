@@ -4,6 +4,12 @@ import { NextResponse } from "next/server";
 import { db } from "../../../../lib/db";
 import { getApiSessionUser } from "../../../../lib/auth/api-session";
 
+function clampSubscriptionDays(raw: unknown) {
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(3650, Math.trunc(n)));
+}
+
 export async function GET() {
   const sessionUser = await getApiSessionUser();
 
@@ -20,6 +26,7 @@ export async function GET() {
       role: true,
       restrictedUntil: true,
       restrictedReason: true,
+      subscriptionUntil: true,
       createdAt: true,
       _count: {
         select: { generations: true, apiKeys: true },
@@ -37,7 +44,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: { name?: string; email?: string; password?: string; role?: string };
+  let body: { name?: string; email?: string; password?: string; role?: string; subscriptionDays?: number };
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -64,12 +71,17 @@ export async function POST(request: Request) {
 
   const passwordHash = await hash(password, 10);
 
+  const subDays = clampSubscriptionDays(body.subscriptionDays);
+  const subscriptionUntil =
+    role === "ADMIN" || subDays <= 0 ? null : new Date(Date.now() + subDays * 24 * 60 * 60 * 1000);
+
   const user = await db.user.create({
     data: {
       name,
       email,
       passwordHash,
       role,
+      subscriptionUntil,
     },
     select: {
       id: true,
@@ -78,6 +90,7 @@ export async function POST(request: Request) {
       role: true,
       restrictedUntil: true,
       restrictedReason: true,
+      subscriptionUntil: true,
       createdAt: true,
       _count: { select: { generations: true, apiKeys: true } },
     },
@@ -93,5 +106,6 @@ export async function POST(request: Request) {
     apiKeysCount: user._count.apiKeys,
     restrictedUntil: user.restrictedUntil ? user.restrictedUntil.toISOString() : null,
     restrictedReason: user.restrictedReason,
+    subscriptionUntil: user.subscriptionUntil ? user.subscriptionUntil.toISOString() : null,
   });
 }

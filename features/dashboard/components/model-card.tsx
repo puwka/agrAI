@@ -23,17 +23,17 @@ export function ModelCard({ model, isSelected, onSelect }: ModelCardProps) {
       whileTap={isDisabled ? undefined : { scale: 0.99 }}
       onClick={isDisabled ? undefined : onSelect}
       className={[
-        "group relative w-full flex-1 h-full min-h-[210px] overflow-hidden rounded-3xl border p-5 text-left transition-all duration-300",
-        "bg-gradient-to-br from-white/8 to-white/4 backdrop-blur-xl",
+        "group relative w-full flex-1 h-full min-h-[210px] overflow-hidden rounded-3xl border border-[#303030] p-5 text-left transition-all duration-300",
+        "bg-[#1a1a1a]/95 backdrop-blur-xl",
         isDisabled ? "cursor-not-allowed opacity-70" : "",
         isSelected
-          ? "border-white/25 bg-white/10 shadow-[0_0_0_1px_rgba(220,223,224,0.2),0_0_28px_rgba(220,223,224,0.12)]"
+          ? "border-white/20 bg-[#222]/90 shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.4)]"
           : isDisabled
-            ? "border-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.35)]"
-            : "border-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.35)] hover:border-white/25 hover:bg-white/10",
+            ? "shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+            : "shadow-[0_12px_40px_rgba(0,0,0,0.35)] hover:border-white/20 hover:bg-[#202020]",
       ].join(" ")}
     >
-      <div className={`absolute inset-0 bg-gradient-to-br ${model.accent} opacity-80`} />
+      <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${model.accent} opacity-70`} />
       {isDisabled ? <div className="absolute inset-0 bg-black/35" /> : null}
 
       <div className="relative flex h-full flex-col">

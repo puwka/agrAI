@@ -30,7 +30,7 @@ export function AdminShell({
 
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-zinc-100">
-      <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col md:flex-row">
+      <div className="flex min-h-screen w-full flex-col md:flex-row">
         <aside className="border-b border-[#303030] bg-[#1a1a1a]/95 backdrop-blur-xl md:sticky md:top-0 md:flex md:h-screen md:w-72 md:flex-col md:border-r md:border-b-0">
           <div className="px-4 py-6 md:px-6 md:py-8">
             <p className="text-sm font-medium uppercase tracking-[0.3em] text-zinc-500">

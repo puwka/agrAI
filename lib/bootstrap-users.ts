@@ -32,15 +32,30 @@ export async function ensureDefaultUsersForAuth() {
 
   try {
     for (const candidate of DEFAULT_USERS) {
-      const existing = await db.user.findUnique({ where: { email: candidate.email } });
+      const existing = await db.user.findUnique({
+        where: { email: candidate.email },
+        select: {
+          id: true,
+          subscriptionUntil: true,
+        },
+      });
+      const yearMs = 365 * 24 * 60 * 60 * 1000;
+
       if (existing) {
+        const data: Record<string, unknown> = {
+          name: candidate.name,
+          role: candidate.role,
+          passwordHash: candidate.passwordHash,
+        };
+        if (candidate.role === "USER") {
+          const sub = existing.subscriptionUntil as Date | null | undefined;
+          if (!sub || sub.getTime() <= Date.now()) {
+            data.subscriptionUntil = new Date(Date.now() + yearMs);
+          }
+        }
         await db.user.update({
           where: { id: existing.id },
-          data: {
-            name: candidate.name,
-            role: candidate.role,
-            passwordHash: candidate.passwordHash,
-          },
+          data,
         });
       } else {
         await db.user.create({
@@ -53,6 +68,8 @@ export async function ensureDefaultUsersForAuth() {
             notificationsEnabled: true,
             weeklyReportEnabled: false,
             defaultAspectRatio: "16:9",
+            subscriptionUntil:
+              candidate.role === "USER" ? new Date(Date.now() + yearMs) : null,
           },
         });
       }

@@ -5,6 +5,8 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 
 import { getApiSessionUser } from "../../../../lib/auth/api-session";
+import { db } from "../../../../lib/db";
+import { hasActiveSubscription } from "../../../../lib/subscription";
 import {
   supabaseStorageBucket,
   supabaseUploadsEnabled,
@@ -30,6 +32,23 @@ export async function POST(request: Request) {
 
   if (!sessionUser?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (sessionUser.role !== "ADMIN") {
+    const u = await db.user.findUnique({
+      where: { id: sessionUser.id },
+      select: { restrictedUntil: true, restrictedReason: true, subscriptionUntil: true },
+    });
+    const now = Date.now();
+    if (u?.restrictedUntil && u.restrictedUntil.getTime() > now) {
+      return NextResponse.json(
+        { error: u.restrictedReason?.trim() || "Доступ ограничен." },
+        { status: 403 },
+      );
+    }
+    if (!hasActiveSubscription(sessionUser.role, u?.subscriptionUntil ?? null)) {
+      return NextResponse.json({ error: "Подписка закончилась." }, { status: 403 });
+    }
   }
 
   let form: FormData;
