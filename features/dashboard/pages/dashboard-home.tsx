@@ -25,6 +25,23 @@ type GenerationRow = {
   createdAt: string;
 };
 
+function detectMediaKind(url: string): "image" | "video" {
+  const v = (url ?? "").trim().toLowerCase();
+  if (!v) return "image";
+  if (v.startsWith("data:video/")) return "video";
+  if (v.startsWith("data:image/")) return "image";
+  const clean = v.split("?")[0] ?? v;
+  if (
+    clean.endsWith(".mp4") ||
+    clean.endsWith(".webm") ||
+    clean.endsWith(".mov") ||
+    clean.endsWith(".m4v")
+  ) {
+    return "video";
+  }
+  return "image";
+}
+
 export function DashboardHomePage({
   userName,
   isAdmin = false,
@@ -384,11 +401,20 @@ export function DashboardHomePage({
               return (
                 <div key={item.id} className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
                   {ready && item.resultUrl ? (
-                    <img
-                      src={item.resultUrl}
-                      alt={item.modelName}
-                      className="aspect-video w-full object-cover"
-                    />
+                    detectMediaKind(item.resultUrl) === "video" ? (
+                      <video
+                        src={item.resultUrl}
+                        controls
+                        playsInline
+                        className="aspect-video w-full bg-black object-contain"
+                      />
+                    ) : (
+                      <img
+                        src={item.resultUrl}
+                        alt={item.modelName}
+                        className="aspect-video w-full object-cover"
+                      />
+                    )
                   ) : ready && item.resultMessage ? (
                     <div className="flex aspect-video w-full flex-col justify-center gap-2 bg-gradient-to-b from-violet-500/15 to-black/60 px-4 py-3">
                       <p className="text-xs font-medium uppercase tracking-wide text-violet-200/90">

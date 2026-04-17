@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { ImagePlus, LoaderCircle } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -30,6 +31,28 @@ export function ResultPreview({
   resultMessage,
   aspectRatio,
 }: ResultPreviewProps) {
+  const [mediaFailed, setMediaFailed] = useState(false);
+  const mediaKind = useMemo<"image" | "video">(() => {
+    const url = resultUrl.trim().toLowerCase();
+    if (!url) return "image";
+    if (url.startsWith("data:video/")) return "video";
+    if (url.startsWith("data:image/")) return "image";
+    const clean = url.split("?")[0] ?? url;
+    if (
+      clean.endsWith(".mp4") ||
+      clean.endsWith(".webm") ||
+      clean.endsWith(".mov") ||
+      clean.endsWith(".m4v")
+    ) {
+      return "video";
+    }
+    return "image";
+  }, [resultUrl]);
+
+  useEffect(() => {
+    setMediaFailed(false);
+  }, [resultUrl]);
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 16 }}
@@ -56,11 +79,26 @@ export function ResultPreview({
         >
           {resultUrl ? (
             <div className="flex h-full min-h-0 flex-col">
-              <img
-                src={resultUrl}
-                alt="Generated preview"
-                className="h-full w-full min-h-0 flex-1 object-cover"
-              />
+              {mediaFailed ? (
+                <div className="flex h-full w-full min-h-0 flex-1 items-center justify-center bg-black/40 px-6 text-center text-sm text-zinc-300">
+                  Файл результата недоступен для предпросмотра. Скачайте его из истории ниже.
+                </div>
+              ) : mediaKind === "video" ? (
+                <video
+                  src={resultUrl}
+                  controls
+                  playsInline
+                  className="h-full w-full min-h-0 flex-1 object-contain bg-black"
+                  onError={() => setMediaFailed(true)}
+                />
+              ) : (
+                <img
+                  src={resultUrl}
+                  alt="Generated preview"
+                  className="h-full w-full min-h-0 flex-1 object-cover"
+                  onError={() => setMediaFailed(true)}
+                />
+              )}
               {resultMessage ? (
                 <div className="shrink-0 border-t border-white/10 bg-black/50 px-4 py-3 text-left text-sm leading-relaxed text-zinc-200">
                   {resultMessage}
