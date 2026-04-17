@@ -5,6 +5,11 @@ import { NextResponse } from "next/server";
 
 import { db } from "../../../../../lib/db";
 import { getApiSessionUser } from "../../../../../lib/auth/api-session";
+import {
+  deleteStorageObjectByPublicUrl,
+  parseSupabasePublicObjectUrl,
+  supabaseStorageBucket,
+} from "../../../../../lib/supabase-storage";
 
 const UPLOADS_GENERATIONS = path.join(process.cwd(), "public", "uploads", "generations");
 
@@ -16,7 +21,19 @@ function isUploadedGenerationFile(absPath: string) {
 
 async function tryRemoveReferenceUpload(refUrl: string | null) {
   const raw = refUrl?.trim();
-  if (!raw?.startsWith("/uploads/generations/references/")) return;
+  if (!raw) return;
+
+  const parsed = parseSupabasePublicObjectUrl(raw);
+  if (
+    parsed &&
+    parsed.bucket === supabaseStorageBucket() &&
+    parsed.objectPath.startsWith("references/")
+  ) {
+    await deleteStorageObjectByPublicUrl(raw);
+    return;
+  }
+
+  if (!raw.startsWith("/uploads/generations/references/")) return;
 
   const pathname = (raw.split("?")[0] ?? "").trim();
   const segments = pathname.split("/").filter(Boolean);
@@ -35,7 +52,18 @@ async function tryRemoveReferenceUpload(refUrl: string | null) {
 
 async function tryRemoveUploadedResultFile(resultUrl: string | null, generationId: string) {
   const raw = resultUrl?.trim();
-  if (!raw || !raw.startsWith("/uploads/generations/")) return;
+  if (!raw) return;
+
+  const parsed = parseSupabasePublicObjectUrl(raw);
+  if (parsed && parsed.bucket === supabaseStorageBucket() && parsed.objectPath.startsWith("generations/")) {
+    const base = parsed.objectPath.split("/").pop() ?? "";
+    if (base.startsWith(generationId)) {
+      await deleteStorageObjectByPublicUrl(raw);
+    }
+    return;
+  }
+
+  if (!raw.startsWith("/uploads/generations/")) return;
 
   const pathname = (raw.split("?")[0] ?? "").trim();
   if (!pathname.startsWith("/uploads/generations/")) return;

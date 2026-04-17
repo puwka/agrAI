@@ -5,6 +5,11 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 
 import { getApiSessionUser } from "../../../../lib/auth/api-session";
+import {
+  supabaseStorageBucket,
+  supabaseUploadsEnabled,
+  uploadUserReferenceImage,
+} from "../../../../lib/supabase-storage";
 
 const MAX_BYTES = 20 * 1024 * 1024;
 
@@ -56,12 +61,33 @@ export async function POST(request: Request) {
     );
   }
 
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  if (supabaseUploadsEnabled()) {
+    try {
+      const publicUrl = await uploadUserReferenceImage({
+        userId: sessionUser.id,
+        buffer,
+        mime,
+        ext,
+      });
+      return NextResponse.json({ url: publicUrl });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return NextResponse.json(
+        {
+          error: `Не удалось загрузить файл в Supabase Storage (${msg}). Создайте публичный бакет «${supabaseStorageBucket()}» (Storage → New bucket) и задайте SUPABASE_STORAGE_BUCKET при другом имени.`,
+        },
+        { status: 503 },
+      );
+    }
+  }
+
   const safeBase = `${sessionUser.id}-${Date.now()}-${randomBytes(6).toString("hex")}${ext}`;
   const uploadDir = path.join(process.cwd(), "public", "uploads", "generations", "references");
   await mkdir(uploadDir, { recursive: true });
 
   const diskPath = path.join(uploadDir, safeBase);
-  const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(diskPath, buffer);
 
   const publicPath = `/uploads/generations/references/${safeBase}`;

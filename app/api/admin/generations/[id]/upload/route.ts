@@ -5,6 +5,11 @@ import { NextResponse } from "next/server";
 
 import { db } from "../../../../../../lib/db";
 import { getApiSessionUser } from "../../../../../../lib/auth/api-session";
+import {
+  supabaseStorageBucket,
+  supabaseUploadsEnabled,
+  uploadGenerationResultFile,
+} from "../../../../../../lib/supabase-storage";
 
 const MAX_BYTES = 80 * 1024 * 1024;
 
@@ -78,12 +83,42 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     ext = extFromName(file.name) || ".bin";
   }
 
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  if (supabaseUploadsEnabled()) {
+    try {
+      const publicUrl = await uploadGenerationResultFile({
+        generationId,
+        buffer,
+        mime,
+        ext,
+      });
+      const updated = await db.generation.update({
+        where: { id: generationId },
+        data: {
+          resultUrl: publicUrl,
+          resultMessage: null,
+          status: "SUCCESS",
+          errorMessage: null,
+        },
+      });
+      return NextResponse.json(updated);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return NextResponse.json(
+        {
+          error: `Не удалось загрузить в Supabase Storage (${msg}). Создайте бакет «${supabaseStorageBucket()}» и проверьте ключи.`,
+        },
+        { status: 503 },
+      );
+    }
+  }
+
   const safeName = `${generationId}${ext}`;
   const uploadDir = path.join(process.cwd(), "public", "uploads", "generations");
   await mkdir(uploadDir, { recursive: true });
 
   const diskPath = path.join(uploadDir, safeName);
-  const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(diskPath, buffer);
 
   const publicPath = `/uploads/generations/${safeName}`;

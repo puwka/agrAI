@@ -1,6 +1,8 @@
 import { access } from "node:fs/promises";
 import path from "node:path";
 
+import { isValidSupabaseReferencePublicUrl } from "./supabase-storage";
+
 const REFERENCES_DIR = path.join(process.cwd(), "public", "uploads", "generations", "references");
 
 export function referenceUrlBasename(url: string) {
@@ -11,7 +13,12 @@ export function referenceUrlBasename(url: string) {
 
 export async function isValidUserReferenceImageUrl(url: string | null | undefined, userId: string) {
   if (!url?.trim()) return false;
-  const pathname = (url.split("?")[0] ?? "").trim();
+  const trimmed = url.trim();
+  if (isValidSupabaseReferencePublicUrl(trimmed, userId)) {
+    return true;
+  }
+
+  const pathname = (trimmed.split("?")[0] ?? "").trim();
   if (!pathname.startsWith("/uploads/generations/references/")) return false;
 
   const base = referenceUrlBasename(pathname);
