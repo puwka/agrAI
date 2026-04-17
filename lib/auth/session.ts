@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
-import { getAuthSession } from "../../auth";
 import { isAdminRole } from "./roles";
+import { parseSessionToken, sessionCookieName } from "../simple-session";
 
 export async function getSessionUser() {
-  const session = await getAuthSession();
-  return session?.user ?? null;
+  const store = await cookies();
+  const token = store.get(sessionCookieName())?.value;
+  return parseSessionToken(token);
 }
 
 export async function requireUser() {

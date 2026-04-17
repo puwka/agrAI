@@ -4,13 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, PanelLeftClose, Shield } from "lucide-react";
 import { motion } from "framer-motion";
-import { signOut } from "next-auth/react";
 
 import { navItems } from "../config";
 import type { ShellUser } from "./dashboard-shell";
 
 export function Sidebar({ user }: { user: ShellUser }) {
   const pathname = usePathname();
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  };
 
   return (
     <aside className="border-b border-white/10 bg-black/40 backdrop-blur-xl md:sticky md:top-0 md:flex md:h-screen md:w-72 md:flex-col md:border-r md:border-b-0">
@@ -102,7 +105,7 @@ export function Sidebar({ user }: { user: ShellUser }) {
         </div>
         <button
           type="button"
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={handleLogout}
           className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-zinc-300 transition-all duration-300 hover:border-red-400/20 hover:bg-red-500/10 hover:text-red-200"
         >
           <LogOut className="h-4 w-4" />

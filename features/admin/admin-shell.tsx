@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Construction, LayoutDashboard, LogOut, Shield, Users } from "lucide-react";
 import { motion } from "framer-motion";
-import { signOut } from "next-auth/react";
 
 import type { ShellUser } from "../dashboard/components/dashboard-shell";
 
@@ -24,6 +23,10 @@ export function AdminShell({
   user: ShellUser;
 }) {
   const pathname = usePathname();
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-zinc-100">
@@ -80,7 +83,7 @@ export function AdminShell({
           <div className="px-4 pb-4 md:px-6 md:pb-6">
             <button
               type="button"
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={handleLogout}
               className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-zinc-300 transition hover:border-red-400/20 hover:bg-red-500/10 hover:text-red-200"
             >
               <LogOut className="h-4 w-4" />

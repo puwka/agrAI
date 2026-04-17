@@ -1,11 +1,9 @@
-import { getServerSession } from "next-auth";
+import { cookies } from "next/headers";
 
-import { authOptions } from "../../auth";
+import { parseSessionToken, sessionCookieName } from "../simple-session";
 
 export async function getApiSessionUser() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return null;
-  }
-  return session.user;
+  const store = await cookies();
+  const token = store.get(sessionCookieName())?.value;
+  return parseSessionToken(token);
 }
