@@ -7,6 +7,9 @@ import { ensureDefaultUsersForAuth } from "./lib/bootstrap-users";
 import { db } from "./lib/db";
 import type { AppRole } from "./lib/auth/roles";
 
+const FALLBACK_AUTH_SECRET = "agr-ai-emergency-auth-secret-change-me";
+const AUTH_SECRET = process.env.NEXTAUTH_SECRET?.trim() || FALLBACK_AUTH_SECRET;
+
 const EMERGENCY_USERS = [
   {
     id: "admin-seed",
@@ -40,7 +43,7 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: AUTH_SECRET,
   pages: {
     signIn: "/login",
   },
