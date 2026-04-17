@@ -16,10 +16,10 @@ export function Sidebar({ user }: { user: ShellUser }) {
   };
 
   return (
-    <aside className="border-b border-white/10 bg-black/40 backdrop-blur-xl md:sticky md:top-0 md:flex md:h-screen md:w-72 md:flex-col md:border-r md:border-b-0">
+    <aside className="border-b border-[#303030] bg-[#1a1a1a]/95 backdrop-blur-xl md:sticky md:top-0 md:flex md:h-screen md:w-72 md:flex-col md:border-r md:border-b-0">
       <div className="flex items-center justify-between gap-3 px-4 py-5 md:px-6 md:py-7">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-violet-400/30 bg-violet-500/10 text-violet-200 shadow-[0_0_30px_rgba(124,58,237,0.25)]">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white shadow-[0_0_24px_rgba(220,223,224,0.16)]">
             <PanelLeftClose className="h-5 w-5" />
           </div>
           <div className="min-w-0">
@@ -47,14 +47,14 @@ export function Sidebar({ user }: { user: ShellUser }) {
               className={[
                 "group relative flex min-w-fit items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all duration-300",
                 isActive
-                  ? "border-violet-400/40 text-white shadow-[0_0_30px_rgba(124,58,237,0.18)]"
-                  : "border-white/8 bg-white/5 text-zinc-400 hover:border-violet-400/20 hover:bg-white/8 hover:text-white",
+                  ? "border-white/25 text-white bg-white/10"
+                  : "border-white/8 bg-white/5 text-zinc-400 hover:border-white/25 hover:bg-white/10 hover:text-white",
               ].join(" ")}
             >
               {isActive && (
                 <motion.span
                   layoutId="sidebar-active-bg"
-                  className="absolute inset-0 bg-violet-500/15"
+                  className="absolute inset-0 bg-white/10"
                   transition={{ type: "spring", stiffness: 280, damping: 26 }}
                 />
               )}
@@ -62,7 +62,7 @@ export function Sidebar({ user }: { user: ShellUser }) {
                 className={[
                   "relative z-10 flex h-9 w-9 items-center justify-center rounded-xl border transition-all duration-300",
                   isActive
-                    ? "border-violet-400/30 bg-violet-500/15 text-violet-200"
+                    ? "border-white/20 bg-white/10 text-white"
                     : "border-white/10 bg-black/20 text-zinc-500 group-hover:text-white",
                 ].join(" ")}
               >
@@ -79,14 +79,14 @@ export function Sidebar({ user }: { user: ShellUser }) {
             className={[
               "group relative flex min-w-fit items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all duration-300",
               pathname.startsWith("/admin")
-                ? "border-violet-400/40 text-white shadow-[0_0_30px_rgba(124,58,237,0.18)]"
-                : "border-white/8 bg-white/5 text-zinc-400 hover:border-violet-400/20 hover:bg-white/8 hover:text-white",
+                ? "border-white/25 text-white bg-white/10"
+                : "border-white/8 bg-white/5 text-zinc-400 hover:border-white/25 hover:bg-white/10 hover:text-white",
             ].join(" ")}
           >
             {pathname.startsWith("/admin") && (
                 <motion.span
                   layoutId="sidebar-active-bg"
-                  className="absolute inset-0 bg-violet-500/15"
+                  className="absolute inset-0 bg-white/10"
                   transition={{ type: "spring", stiffness: 280, damping: 26 }}
                 />
               )}
@@ -115,3 +115,4 @@ export function Sidebar({ user }: { user: ShellUser }) {
     </aside>
   );
 }
+

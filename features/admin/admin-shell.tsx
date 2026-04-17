@@ -29,9 +29,9 @@ export function AdminShell({
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-zinc-100">
+    <div className="min-h-screen bg-[#0f0f0f] text-zinc-100">
       <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col md:flex-row">
-        <aside className="border-b border-white/10 bg-black/40 backdrop-blur-xl md:sticky md:top-0 md:flex md:h-screen md:w-72 md:flex-col md:border-r md:border-b-0">
+        <aside className="border-b border-[#303030] bg-[#1a1a1a]/95 backdrop-blur-xl md:sticky md:top-0 md:flex md:h-screen md:w-72 md:flex-col md:border-r md:border-b-0">
           <div className="px-4 py-6 md:px-6 md:py-8">
             <p className="text-sm font-medium uppercase tracking-[0.3em] text-zinc-500">
               agrAI
@@ -53,14 +53,14 @@ export function AdminShell({
                   className={[
                     "group relative flex min-w-fit items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all duration-300",
                     isActive
-                      ? "border-violet-400/40 text-white shadow-[0_0_30px_rgba(124,58,237,0.18)]"
-                      : "border-white/8 bg-white/5 text-zinc-400 hover:border-violet-400/20 hover:bg-white/8 hover:text-white",
+                      ? "border-white/25 text-white bg-white/10"
+                      : "border-white/8 bg-white/5 text-zinc-400 hover:border-white/25 hover:bg-white/10 hover:text-white",
                   ].join(" ")}
                 >
                   {isActive && (
                     <motion.span
                       layoutId="admin-sidebar-active"
-                      className="absolute inset-0 bg-violet-500/15"
+                      className="absolute inset-0 bg-white/10"
                       transition={{ type: "spring", stiffness: 280, damping: 26 }}
                     />
                   )}
@@ -74,7 +74,7 @@ export function AdminShell({
 
             <Link
               href="/dashboard"
-              className="flex min-w-fit items-center gap-3 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm font-medium text-zinc-400 transition hover:border-violet-400/20 hover:text-white"
+              className="flex min-w-fit items-center gap-3 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm font-medium text-zinc-400 transition hover:border-white/25 hover:text-white"
             >
               ← Личный кабинет
             </Link>
@@ -107,3 +107,4 @@ export function AdminShell({
     </div>
   );
 }
+

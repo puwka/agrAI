@@ -46,8 +46,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a] px-4 py-10 text-zinc-100">
-      <div className="w-full max-w-md rounded-[28px] border border-white/10 bg-white/5 p-8 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
+    <div className="flex min-h-screen items-center justify-center bg-[#0f0f0f] px-4 py-10 text-zinc-100">
+      <div className="w-full max-w-md rounded-[28px] border border-[#303030] bg-[#1a1a1a]/95 p-8 shadow-[0_20px_70px_rgba(0,0,0,0.4)] backdrop-blur-xl">
         <h1 className="text-2xl font-semibold text-white">Вход</h1>
         <p className="mt-2 text-sm text-zinc-400">
           Доступ выдаёт администратор. Самостоятельная регистрация отключена.
@@ -61,7 +61,7 @@ export default function LoginPage() {
               autoComplete="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-400/40"
+              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-white/35"
               required
             />
           </label>
@@ -72,7 +72,7 @@ export default function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-400/40"
+              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-white/35"
               required
             />
           </label>
@@ -82,7 +82,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={pending}
-            className="w-full rounded-2xl border border-violet-300/30 bg-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(124,58,237,0.28)] transition hover:bg-violet-500 disabled:opacity-60"
+            className="w-full rounded-2xl border border-white/25 bg-[#27272a] px-4 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(124,58,237,0.28)] transition hover:bg-[#303030] disabled:opacity-60"
           >
             {pending ? "Входим…" : "Войти"}
           </button>
@@ -92,3 +92,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

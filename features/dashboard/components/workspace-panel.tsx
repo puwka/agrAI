@@ -100,7 +100,7 @@ export function WorkspacePanel({
       transition={{ duration: 0.35, ease: "easeOut", delay: 0.1 }}
       className={[
         "rounded-[32px] border border-white/10 bg-white/5 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl transition-all duration-500 sm:p-6",
-        selectedModel ? "shadow-[0_24px_90px_rgba(124,58,237,0.08)]" : "",
+        selectedModel ? "shadow-[0_24px_90px_rgba(220,223,224,0.08)]" : "",
       ].join(" ")}
     >
       <AnimatePresence mode="wait">
@@ -111,9 +111,9 @@ export function WorkspacePanel({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
             transition={{ duration: 0.25 }}
-            className="flex min-h-[360px] flex-col items-center justify-center rounded-[28px] border border-dashed border-violet-400/20 bg-black/20 px-6 text-center"
+            className="flex min-h-[360px] flex-col items-center justify-center rounded-[28px] border border-dashed border-white/20 bg-black/20 px-6 text-center"
           >
-            <div className="mb-5 rounded-full border border-violet-400/25 bg-violet-500/10 p-5 text-violet-200 shadow-[0_0_40px_rgba(124,58,237,0.18)]">
+            <div className="mb-5 rounded-full border border-white/20 bg-white/10 p-5 text-zinc-100 shadow-[0_0_28px_rgba(220,223,224,0.14)]">
               <PanelsTopLeft className="h-7 w-7" />
             </div>
             <h3 className="text-2xl font-semibold text-white">Рабочая зона</h3>
@@ -190,7 +190,7 @@ export function WorkspacePanel({
                         className={[
                           "inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition",
                           mediaInputMode === "TEXT"
-                            ? "border-violet-400/45 bg-violet-500/20 text-white shadow-[0_0_20px_rgba(124,58,237,0.2)]"
+                            ? "border-white/20 bg-white/10 text-white shadow-[0_0_20px_rgba(220,223,224,0.12)]"
                             : "border-white/10 bg-black/25 text-zinc-400 hover:border-white/20 hover:text-zinc-200",
                         ].join(" ")}
                       >
@@ -272,14 +272,14 @@ export function WorkspacePanel({
                         ? "Например: сделать вечерний свет, добавить дождь, сменить стиль на аниме…"
                         : "Опишите желаемый результат: стиль, композицию, освещение, атмосферу..."
                     }
-                    className="min-h-[220px] w-full resize-none rounded-[24px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-white outline-none backdrop-blur-xl transition-all duration-300 placeholder:text-zinc-500 focus:border-violet-400/50 focus:bg-white/8 focus:shadow-[0_0_0_1px_rgba(124,58,237,0.3),0_0_24px_rgba(124,58,237,0.15)]"
+                    className="min-h-[220px] w-full resize-none rounded-[24px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-white outline-none backdrop-blur-xl transition-all duration-300 placeholder:text-zinc-500 focus:border-white/30 focus:bg-white/8 focus:shadow-[0_0_0_1px_rgba(220,223,224,0.2),0_0_24px_rgba(220,223,224,0.1)]"
                   />
                 </div>
 
                 {!isVoiceMode ? (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm font-medium text-zinc-300">
-                      <Wand2 className="h-4 w-4 text-violet-300" />
+                      <Wand2 className="h-4 w-4 text-zinc-300" />
                       Aspect Ratio
                     </div>
 
@@ -296,15 +296,15 @@ export function WorkspacePanel({
                               className={[
                                 "flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-all duration-300",
                                 checked
-                                  ? "border-violet-300/40 bg-violet-500/15 text-white shadow-[0_0_18px_rgba(124,58,237,0.25)]"
-                                  : "border-white/10 bg-white/5 text-zinc-300 hover:border-violet-400/20 hover:bg-white/8",
+                                  ? "border-white/20 bg-white/10 text-white shadow-[0_0_18px_rgba(220,223,224,0.12)]"
+                                  : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/25 hover:bg-white/10",
                               ].join(" ")}
                             >
                               <span
                                 className={[
                                   "h-4 w-6 rounded-[4px] border",
                                   option.aspectClass,
-                                  checked ? "border-violet-300/70 bg-violet-500/20" : "border-white/20 bg-black/20",
+                                  checked ? "border-white/35 bg-white/10" : "border-white/20 bg-black/20",
                                 ].join(" ")}
                               />
                               {option.label}
@@ -324,8 +324,8 @@ export function WorkspacePanel({
                               className={[
                                 "rounded-xl border px-3 py-2 text-xs font-semibold transition-all duration-300",
                                 checked
-                                  ? "border-violet-300/40 bg-violet-500/15 text-white shadow-[0_0_18px_rgba(124,58,237,0.25)]"
-                                  : "border-white/10 bg-white/5 text-zinc-300 hover:border-violet-400/20 hover:bg-white/8",
+                                  ? "border-white/20 bg-white/10 text-white shadow-[0_0_18px_rgba(220,223,224,0.12)]"
+                                  : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/25 hover:bg-white/10",
                               ].join(" ")}
                             >
                               {option.label}
@@ -361,7 +361,7 @@ export function WorkspacePanel({
                       mediaInputMode === "IMAGE_REF" &&
                       !referenceImageUrl)
                   }
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-violet-300/30 bg-violet-600 px-5 py-4 text-sm font-semibold text-white shadow-[0_0_30px_rgba(124,58,237,0.28)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-violet-500 hover:shadow-[0_0_40px_rgba(124,58,237,0.45)] focus:outline-none focus:ring-2 focus:ring-violet-300/40 disabled:pointer-events-none disabled:opacity-45"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/25 bg-[#27272a] px-5 py-4 text-sm font-semibold text-white shadow-[0_0_24px_rgba(220,223,224,0.16)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#303030] hover:shadow-[0_0_30px_rgba(220,223,224,0.18)] focus:outline-none focus:ring-2 focus:ring-white/30 disabled:pointer-events-none disabled:opacity-45"
                 >
                   <Sparkles className="h-4 w-4" />
                   Сгенерировать
@@ -391,3 +391,4 @@ export function WorkspacePanel({
     </motion.section>
   );
 }
+

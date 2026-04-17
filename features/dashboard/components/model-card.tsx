@@ -27,10 +27,10 @@ export function ModelCard({ model, isSelected, onSelect }: ModelCardProps) {
         "bg-gradient-to-br from-white/8 to-white/4 backdrop-blur-xl",
         isDisabled ? "cursor-not-allowed opacity-70" : "",
         isSelected
-          ? "border-violet-400/70 shadow-[0_0_0_1px_rgba(192,132,252,0.3),0_0_36px_rgba(124,58,237,0.28)]"
+          ? "border-white/25 bg-white/10 shadow-[0_0_0_1px_rgba(220,223,224,0.2),0_0_28px_rgba(220,223,224,0.12)]"
           : isDisabled
             ? "border-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.35)]"
-            : "border-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.35)] hover:border-violet-400/30 hover:shadow-[0_0_32px_rgba(124,58,237,0.18)]",
+            : "border-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.35)] hover:border-white/25 hover:bg-white/10",
       ].join(" ")}
     >
       <div className={`absolute inset-0 bg-gradient-to-br ${model.accent} opacity-80`} />
@@ -38,7 +38,7 @@ export function ModelCard({ model, isSelected, onSelect }: ModelCardProps) {
 
       <div className="relative flex h-full flex-col">
         <div className="mb-6 flex items-start justify-between gap-4">
-          <div className="rounded-2xl border border-white/10 bg-black/30 p-3 text-violet-200">
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-3 text-zinc-200">
             <Icon className="h-8 w-8" />
           </div>
           {isDisabled ? (
@@ -46,7 +46,7 @@ export function ModelCard({ model, isSelected, onSelect }: ModelCardProps) {
               {model.disabledLabel?.trim() || "В разработке"}
             </span>
           ) : isSelected ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-400/30 bg-violet-500/15 px-3 py-1 text-xs font-semibold text-violet-200">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-zinc-200">
               <CheckCircle2 className="h-3.5 w-3.5" />
               Выбрано
             </span>
@@ -55,7 +55,7 @@ export function ModelCard({ model, isSelected, onSelect }: ModelCardProps) {
 
         <div className="flex flex-1 flex-col gap-3">
           <div className="flex-1">
-            <p className="text-xs uppercase tracking-[0.24em] text-violet-200/80">
+            <p className="text-xs uppercase tracking-[0.24em] text-zinc-400">
               {model.category}
             </p>
             <h3 className="mt-2 text-lg font-semibold text-white">{model.name}</h3>
@@ -68,7 +68,7 @@ export function ModelCard({ model, isSelected, onSelect }: ModelCardProps) {
                 "inline-flex rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-300",
                 isDisabled
                   ? "border-white/10 bg-black/25 text-zinc-200"
-                  : "border-violet-400/20 bg-violet-500/10 text-violet-100 group-hover:border-violet-300/35 group-hover:bg-violet-500/20",
+                  : "border-white/15 bg-white/10 text-zinc-100 group-hover:border-white/25 group-hover:bg-white/15",
               ].join(" ")}
             >
               {isDisabled ? "Недоступно" : "Попробовать"}
@@ -79,3 +79,4 @@ export function ModelCard({ model, isSelected, onSelect }: ModelCardProps) {
     </motion.button>
   );
 }
+

@@ -29,7 +29,7 @@ export function DashboardShell({
 
   return (
     <MaintenanceProvider isAdmin={isAdmin}>
-      <div className="min-h-screen bg-[#0a0a0a] text-zinc-100">
+      <div className="min-h-screen bg-[#0f0f0f] text-zinc-100">
         <MaintenanceModal />
         <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col md:flex-row">
           <Sidebar user={user} />
@@ -42,7 +42,7 @@ export function DashboardShell({
               transition={{ duration: 0.3, ease: "easeOut" }}
               className="space-y-8"
             >
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 backdrop-blur-xl">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#303030] bg-[#1a1a1a]/85 px-4 py-3 backdrop-blur-xl">
                 <div>
                   <p className="text-xs uppercase tracking-[0.28em] text-zinc-500">
                     Current Section

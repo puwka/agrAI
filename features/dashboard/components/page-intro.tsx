@@ -28,11 +28,11 @@ export function PageIntro({
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl sm:p-8"
+      className="rounded-[28px] border border-[#303030] bg-[#1a1a1a]/90 p-6 shadow-[0_20px_64px_rgba(0,0,0,0.42)] backdrop-blur-xl sm:p-8"
     >
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-3">
-          <span className="inline-flex w-fit items-center gap-2 rounded-full border border-violet-400/25 bg-violet-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-violet-200">
+          <span className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-zinc-200">
             <Icon className="h-3.5 w-3.5" />
             {badge}
           </span>
@@ -62,3 +62,4 @@ export function PageIntro({
     </motion.section>
   );
 }
+
