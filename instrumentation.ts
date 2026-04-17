@@ -1,7 +1,4 @@
-/**
- * На Vercel: next-auth v4 (preview URL) + SQLite в `/tmp` (миграции и демо-учётки).
- * См. `lib/vercel-sqlite-bootstrap.ts` — та же логика вызывается из `authorize` на случай обхода instrumentation.
- */
+/** На Vercel для next-auth v4 выставляем корректный origin для preview/prod */
 export async function register() {
   if (process.env.NEXT_RUNTIME === "edge") return;
   if (process.env.VERCEL !== "1") return;
@@ -15,13 +12,4 @@ export async function register() {
     }
   }
 
-  try {
-    const { ensureVercelSqliteReady } = await import("./lib/vercel-sqlite-bootstrap");
-    const ok = await ensureVercelSqliteReady();
-    if (!ok) {
-      console.error("[instrumentation] ensureVercelSqliteReady: миграции или сид не прошли");
-    }
-  } catch (err) {
-    console.error("[instrumentation] ensureVercelSqliteReady:", err);
-  }
 }
