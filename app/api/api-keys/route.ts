@@ -34,7 +34,7 @@ export async function GET() {
   });
 
   return NextResponse.json(
-    keys.map((key) => ({
+    keys.map((key: any) => ({
       id: key.id,
       name: key.name,
       value: key.token,

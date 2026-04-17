@@ -53,7 +53,7 @@ export default async function AdminDashboardPage() {
         <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
           <h2 className="text-lg font-semibold text-white">Последние пользователи</h2>
           <ul className="mt-4 space-y-3 text-sm">
-            {recentUsers.map((u) => (
+            {recentUsers.map((u: any) => (
               <li key={u.id} className="flex justify-between gap-4 border-b border-white/5 pb-3 last:border-0">
                 <span className="text-zinc-300">{u.name}</span>
                 <span className="truncate text-zinc-500">{u.email}</span>
@@ -65,7 +65,7 @@ export default async function AdminDashboardPage() {
         <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
           <h2 className="text-lg font-semibold text-white">Последние генерации</h2>
           <ul className="mt-4 space-y-3 text-sm">
-            {recentGenerations.map((g) => (
+            {recentGenerations.map((g: any) => (
               <li key={g.id} className="border-b border-white/5 pb-3 last:border-0">
                 <p className="text-zinc-300">{g.user.name}</p>
                 <p className="mt-1 line-clamp-2 text-zinc-500">{g.prompt}</p>
