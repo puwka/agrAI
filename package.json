@@ -6,12 +6,12 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "next dev",
-    "build": "prisma generate && prisma db push && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma db push",
+    "db:generate": "echo \"Prisma removed from deploy pipeline\"",
+    "db:migrate": "echo \"Use Supabase SQL migrations\"",
     "db:seed": "tsx prisma/seed.ts"
   },
   "keywords": [],
