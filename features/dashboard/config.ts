@@ -22,7 +22,7 @@ export const navItems: NavItem[] = [
   {
     href: "/dashboard/profile",
     label: "Профиль",
-    description: "Личные данные, предпочтения и безопасность.",
+    description: "Личные данные и контакты.",
     icon: UserRound,
   },
   {

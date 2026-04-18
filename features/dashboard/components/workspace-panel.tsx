@@ -45,6 +45,8 @@ type WorkspacePanelProps = {
   onAspectRatioChange: (value: AspectRatio) => void;
   onVoiceChange: (voice: VoiceOption | null) => void;
   onGenerate: () => void;
+  /** Для кнопки «Скачать» в превью (после готовности текущей заявки) */
+  previewDownloadGenerationId: string | null;
 };
 
 const photoAspectOptions: Array<{ value: AspectRatio; label: string; aspectClass: string }> = [
@@ -55,9 +57,9 @@ const photoAspectOptions: Array<{ value: AspectRatio; label: string; aspectClass
   { value: "9:16", label: "9:16", aspectClass: "aspect-[9/16]" },
 ];
 
-const defaultAspectOptions: Array<{ value: AspectRatio; label: string }> = [
-  { value: "16:9", label: "16:9" },
-  { value: "9:16", label: "9:16" },
+const defaultAspectOptions: Array<{ value: AspectRatio; label: string; aspectClass: string }> = [
+  { value: "16:9", label: "16:9", aspectClass: "aspect-[16/9]" },
+  { value: "9:16", label: "9:16", aspectClass: "aspect-[9/16]" },
 ];
 
 export function WorkspacePanel({
@@ -84,6 +86,7 @@ export function WorkspacePanel({
   onAspectRatioChange,
   onVoiceChange,
   onGenerate,
+  previewDownloadGenerationId,
 }: WorkspacePanelProps) {
   const isPhotoMode = selectedModel?.id === "photo";
   const isVideoMode = selectedModel?.id === "video";
@@ -322,12 +325,19 @@ export function WorkspacePanel({
                               type="button"
                               onClick={() => onAspectRatioChange(option.value)}
                               className={[
-                                "rounded-xl border px-3 py-2 text-xs font-semibold transition-all duration-300",
+                                "flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-all duration-300",
                                 checked
                                   ? "border-white/20 bg-white/10 text-white shadow-[0_0_18px_rgba(220,223,224,0.12)]"
                                   : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/25 hover:bg-white/10",
                               ].join(" ")}
                             >
+                              <span
+                                className={[
+                                  "h-4 w-6 rounded-[4px] border",
+                                  option.aspectClass,
+                                  checked ? "border-white/35 bg-white/10" : "border-white/20 bg-black/20",
+                                ].join(" ")}
+                              />
                               {option.label}
                             </button>
                           );
@@ -375,6 +385,7 @@ export function WorkspacePanel({
               deliveryPending={deliveryPending}
               resultUrl={resultUrl}
               resultMessage={resultMessage}
+              downloadGenerationId={previewDownloadGenerationId}
             />
           </motion.div>
         )}

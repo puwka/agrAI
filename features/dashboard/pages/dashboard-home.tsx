@@ -117,15 +117,15 @@ export function DashboardHomePage({
 
   const loadGenerations = useCallback(async () => {
     setLoadError(null);
-    const response = await fetch("/api/generations");
+    const response = await fetch("/api/generations?limit=10&offset=0");
 
     if (!response.ok) {
       setLoadError("Не удалось загрузить историю генераций");
       return;
     }
 
-    const data = (await response.json()) as GenerationRow[];
-    setGenerations(data);
+    const data = (await response.json()) as { items?: GenerationRow[]; total?: number };
+    setGenerations(Array.isArray(data) ? (data as unknown as GenerationRow[]) : (data.items ?? []));
   }, []);
 
   useEffect(() => {
@@ -391,6 +391,11 @@ export function DashboardHomePage({
           setVoiceError(null);
         }}
         onGenerate={handleGenerate}
+        previewDownloadGenerationId={
+          lastSubmittedId && !deliveryPending && (resultUrl.trim() || resultMessage.trim())
+            ? lastSubmittedId
+            : null
+        }
       />
 
       <motion.section
@@ -400,6 +405,7 @@ export function DashboardHomePage({
       >
         <h3 className="text-lg font-semibold text-white">Мои генерации</h3>
         <p className="mt-1 text-sm text-zinc-400">
+          Показаны 10 последних заявок. Полная история, поиск и постраничный просмотр — в разделе «Логи».
           Готовые файлы появляются после отправки результата администратором (обычно 5–15 минут).
         </p>
         <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">

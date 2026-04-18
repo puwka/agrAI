@@ -85,6 +85,51 @@ export async function uploadUserReferenceImage(input: {
   return data.publicUrl;
 }
 
+export function mimeFromExtension(ext: string): string {
+  const e = ext.toLowerCase();
+  if (e === ".mp3") return "audio/mpeg";
+  if (e === ".wav") return "audio/wav";
+  if (e === ".ogg") return "audio/ogg";
+  if (e === ".m4a" || e === ".aac") return "audio/mp4";
+  if (e === ".flac") return "audio/flac";
+  if (e === ".webm") return "audio/webm";
+  if (e === ".mp4") return "video/mp4";
+  if (e === ".mov") return "video/quicktime";
+  if (e === ".png") return "image/png";
+  if (e === ".jpg" || e === ".jpeg") return "image/jpeg";
+  if (e === ".webp") return "image/webp";
+  if (e === ".gif") return "image/gif";
+  return "application/octet-stream";
+}
+
+export function sanitizeStorageVoiceId(id: string) {
+  return id.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 120) || "voice";
+}
+
+export async function uploadVoicePreviewFile(input: {
+  voiceId: string;
+  buffer: Buffer;
+  mime: string;
+  ext: string;
+}) {
+  const bucket = supabaseStorageBucket();
+  const safeId = sanitizeStorageVoiceId(input.voiceId);
+  const objectPath = `voice-previews/${safeId}${input.ext}`;
+  const supabase = getAdmin();
+  const rawMime = input.mime?.trim() || "";
+  const contentType =
+    rawMime && rawMime !== "application/octet-stream" ? rawMime : mimeFromExtension(input.ext);
+  const { error } = await supabase.storage.from(bucket).upload(objectPath, input.buffer, {
+    contentType,
+    upsert: true,
+  });
+  if (error) {
+    throw new Error(error.message);
+  }
+  const { data } = supabase.storage.from(bucket).getPublicUrl(objectPath);
+  return data.publicUrl;
+}
+
 export async function uploadGenerationResultFile(input: {
   generationId: string;
   buffer: Buffer;
@@ -94,8 +139,11 @@ export async function uploadGenerationResultFile(input: {
   const bucket = supabaseStorageBucket();
   const objectPath = `generations/${input.generationId}${input.ext}`;
   const supabase = getAdmin();
+  const rawMime = input.mime?.trim() || "";
+  const contentType =
+    rawMime && rawMime !== "application/octet-stream" ? rawMime : mimeFromExtension(input.ext);
   const { error } = await supabase.storage.from(bucket).upload(objectPath, input.buffer, {
-    contentType: input.mime,
+    contentType,
     upsert: true,
   });
   if (error) {

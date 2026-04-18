@@ -5,7 +5,7 @@ import { RestrictedAccessView } from "../../features/dashboard/components/restri
 import { SubscriptionExpiredView } from "../../features/dashboard/components/subscription-expired-view";
 import { db } from "../../lib/db";
 import { requireUser } from "../../lib/auth/session";
-import { hasActiveSubscription } from "../../lib/subscription";
+import { hasActiveSubscription, subscriptionSummaryForUser } from "../../lib/subscription";
 
 export default async function DashboardLayout({
   children,
@@ -27,6 +27,7 @@ export default async function DashboardLayout({
 
   const subscriptionOk = hasActiveSubscription(user.role, restriction?.subscriptionUntil ?? null);
   const subscriptionExpired = user.role !== "ADMIN" && !isRestricted && !subscriptionOk;
+  const subscriptionSummary = subscriptionSummaryForUser(user.role, restriction?.subscriptionUntil ?? null);
 
   return (
     <DashboardShell
@@ -34,6 +35,7 @@ export default async function DashboardLayout({
         name: user.name ?? "",
         email: user.email ?? "",
         role: user.role,
+        subscriptionSummary,
       }}
     >
       {isRestricted ? (

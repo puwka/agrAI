@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { db } from "../../../../lib/db";
 import premadeCatalog from "../../../../lib/elevenlabs-premade-voices.json";
 
 const VOICES_URL = "https://secretvoicer.com/api/public/showcase-voices-filtered/";
@@ -129,8 +130,15 @@ export async function GET() {
     return a.name.localeCompare(b.name, "ru");
   });
 
+  const previewOverrides = await db.voicePreviewOverride.listMap();
+  const voicesWithPreview = voices.map((v) => {
+    const custom = previewOverrides[v.id]?.trim();
+    if (!custom) return v;
+    return { ...v, preview_audio_url: custom };
+  });
+
   return NextResponse.json({
-    voices,
+    voices: voicesWithPreview,
     total_count: voices.length,
     secret_voicer_public_total_hint: secretVoicerHint,
     sources: [...SHOWCASE_FETCH_URLS, "elevenlabs-premade-voices.json"],

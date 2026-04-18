@@ -13,6 +13,8 @@ export type ShellUser = {
   name: string;
   email: string;
   role: "ADMIN" | "USER";
+  /** Краткий текст о подписке; для админа обычно не передаётся */
+  subscriptionSummary?: string | null;
 };
 
 export function DashboardShell({

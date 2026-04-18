@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ImagePlus, LoaderCircle } from "lucide-react";
+import { Download, ImagePlus, LoaderCircle } from "lucide-react";
 import { motion } from "framer-motion";
 
 import type { AspectRatio } from "../types";
@@ -14,6 +14,8 @@ type ResultPreviewProps = {
   /** Текст от администратора, если файла нет или как пояснение */
   resultMessage: string;
   aspectRatio: AspectRatio;
+  /** Если задан и есть результат — показываем ссылку на скачивание */
+  downloadGenerationId: string | null;
 };
 
 const previewAspectClass: Record<AspectRatio, string> = {
@@ -30,12 +32,14 @@ export function ResultPreview({
   resultUrl,
   resultMessage,
   aspectRatio,
+  downloadGenerationId,
 }: ResultPreviewProps) {
   const [mediaFailed, setMediaFailed] = useState(false);
-  const mediaKind = useMemo<"image" | "video">(() => {
+  const mediaKind = useMemo<"image" | "video" | "audio">(() => {
     const url = resultUrl.trim().toLowerCase();
     if (!url) return "image";
     if (url.startsWith("data:video/")) return "video";
+    if (url.startsWith("data:audio/")) return "audio";
     if (url.startsWith("data:image/")) return "image";
     const clean = url.split("?")[0] ?? url;
     if (
@@ -46,8 +50,24 @@ export function ResultPreview({
     ) {
       return "video";
     }
+    if (
+      clean.endsWith(".mp3") ||
+      clean.endsWith(".wav") ||
+      clean.endsWith(".ogg") ||
+      clean.endsWith(".m4a") ||
+      clean.endsWith(".aac") ||
+      clean.endsWith(".flac")
+    ) {
+      return "audio";
+    }
     return "image";
   }, [resultUrl]);
+
+  const showDownload =
+    Boolean(downloadGenerationId) &&
+    !isLoading &&
+    !deliveryPending &&
+    (Boolean(resultUrl.trim()) || Boolean(resultMessage.trim()));
 
   useEffect(() => {
     setMediaFailed(false);
@@ -60,13 +80,24 @@ export function ResultPreview({
       transition={{ duration: 0.35, ease: "easeOut" }}
       className="rounded-[28px] border border-white/10 bg-black/25 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]"
     >
-      <div className="mb-5 flex items-center justify-between gap-4">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm uppercase tracking-[0.24em] text-zinc-500">Preview</p>
           <h3 className="mt-2 text-xl font-semibold text-white">Результат генерации</h3>
         </div>
-        <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-400">
-          {aspectRatio}
+        <div className="flex flex-wrap items-center gap-2">
+          {showDownload && downloadGenerationId ? (
+            <a
+              href={`/api/generations/${downloadGenerationId}/download`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-violet-400/35 bg-violet-500/15 px-3 py-1.5 text-xs font-semibold text-violet-200 transition hover:border-violet-400/50 hover:bg-violet-500/25"
+            >
+              <Download className="h-3.5 w-3.5" />
+              {resultUrl.trim() ? "Скачать" : "Скачать .txt"}
+            </a>
+          ) : null}
+          <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-400">
+            {aspectRatio}
+          </div>
         </div>
       </div>
 
@@ -81,7 +112,7 @@ export function ResultPreview({
             <div className="flex h-full min-h-0 flex-col">
               {mediaFailed ? (
                 <div className="flex h-full w-full min-h-0 flex-1 items-center justify-center bg-black/40 px-6 text-center text-sm text-zinc-300">
-                  Файл результата недоступен для предпросмотра. Скачайте его из истории ниже.
+                  Файл результата недоступен для предпросмотра. Скачайте его кнопкой выше или из списка генераций.
                 </div>
               ) : mediaKind === "video" ? (
                 <video
@@ -91,6 +122,10 @@ export function ResultPreview({
                   className="h-full w-full min-h-0 flex-1 object-contain bg-black"
                   onError={() => setMediaFailed(true)}
                 />
+              ) : mediaKind === "audio" ? (
+                <div className="flex h-full w-full min-h-0 flex-1 flex-col items-center justify-center gap-4 bg-black/50 px-6 py-8">
+                  <audio src={resultUrl} controls className="w-full max-w-md" onError={() => setMediaFailed(true)} />
+                </div>
               ) : (
                 <img
                   src={resultUrl}

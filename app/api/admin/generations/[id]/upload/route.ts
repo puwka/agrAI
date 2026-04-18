@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 
 import { db } from "../../../../../../lib/db";
 import { getApiSessionUser } from "../../../../../../lib/auth/api-session";
+import { inferUploadExtAndMime } from "../../../../../../lib/upload-media-infer";
 import {
   supabaseStorageBucket,
   supabaseUploadsEnabled,
@@ -12,29 +13,6 @@ import {
 } from "../../../../../../lib/supabase-storage";
 
 const MAX_BYTES = 80 * 1024 * 1024;
-
-const MIME_TO_EXT: Record<string, string> = {
-  "image/png": ".png",
-  "image/jpeg": ".jpg",
-  "image/webp": ".webp",
-  "image/gif": ".gif",
-  "image/avif": ".avif",
-  "video/mp4": ".mp4",
-  "video/webm": ".webm",
-  "audio/mpeg": ".mp3",
-  "audio/wav": ".wav",
-};
-
-function extFromMime(mime: string) {
-  const base = mime.split(";")[0]?.trim().toLowerCase() ?? "";
-  return MIME_TO_EXT[base] ?? "";
-}
-
-function extFromName(name: string) {
-  const m = /\.([a-zA-Z0-9]{1,8})$/.exec(name);
-  if (!m) return "";
-  return `.${m[1].toLowerCase()}`;
-}
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const sessionUser = await getApiSessionUser();
@@ -77,11 +55,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "Файл слишком большой (макс. 80 МБ)" }, { status: 400 });
   }
 
-  const mime = file.type || "application/octet-stream";
-  let ext = extFromMime(mime);
-  if (!ext) {
-    ext = extFromName(file.name) || ".bin";
-  }
+  const { ext, mime } = inferUploadExtAndMime(file);
 
   const buffer = Buffer.from(await file.arrayBuffer());
 

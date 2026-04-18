@@ -29,7 +29,10 @@ export function AdminGenerationsClient() {
   const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({});
   const [messageDrafts, setMessageDrafts] = useState<Record<string, string>>({});
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
+      setLoading(true);
+    }
     setError(null);
     const response = await fetch("/api/admin/generations");
     if (!response.ok) {
@@ -44,6 +47,13 @@ export function AdminGenerationsClient() {
 
   useEffect(() => {
     void load();
+  }, [load]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      void load({ silent: true });
+    }, 8000);
+    return () => clearInterval(id);
   }, [load]);
 
   const setUrlDraft = (id: string, value: string) => {

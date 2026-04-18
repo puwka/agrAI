@@ -22,6 +22,7 @@ export async function GET() {
       notificationsEnabled: true,
       weeklyReportEnabled: true,
       defaultAspectRatio: true,
+      subscriptionUntil: true,
       createdAt: true,
     },
   });
@@ -89,6 +90,7 @@ export async function PATCH(request: Request) {
       notificationsEnabled: true,
       weeklyReportEnabled: true,
       defaultAspectRatio: true,
+      subscriptionUntil: true,
     },
   });
 

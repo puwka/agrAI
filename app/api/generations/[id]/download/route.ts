@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 
 import { db } from "../../../../../lib/db";
 import { getApiSessionUser } from "../../../../../lib/auth/api-session";
+import { mimeFromExtension } from "../../../../../lib/supabase-storage";
 
 const UPLOADS_ROOT = path.join(process.cwd(), "public", "uploads", "generations");
 
@@ -126,18 +127,8 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const stat = await fs.stat(abs);
     const nodeStream = createReadStream(abs);
     const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream;
-    const mime =
-      extFromPath(abs) === "png"
-        ? "image/png"
-        : extFromPath(abs) === "jpg" || extFromPath(abs) === "jpeg"
-          ? "image/jpeg"
-          : extFromPath(abs) === "webp"
-            ? "image/webp"
-            : extFromPath(abs) === "mp4"
-              ? "video/mp4"
-              : extFromPath(abs) === "webm"
-                ? "video/webm"
-                : "application/octet-stream";
+    const dotExt = `.${extFromPath(abs)}`;
+    const mime = mimeFromExtension(dotExt);
 
     return new NextResponse(webStream, {
       status: 200,

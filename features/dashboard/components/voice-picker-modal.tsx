@@ -47,10 +47,16 @@ function categoryLabel(v: VoiceOption) {
   if (t0 && known.has(t0)) {
     return tags[0].charAt(0).toUpperCase() + tags[0].slice(1).toLowerCase();
   }
-  const lc = v.locale.toLowerCase();
-  const lang = lc.startsWith("ru") ? "Русский" : lc.startsWith("en") ? "English" : "Мультиязычный";
-  const gen = v.gender.toUpperCase() === "MALE" ? "Муж." : v.gender.toUpperCase() === "FEMALE" ? "Жен." : "Голос";
-  return `${gen} • ${lang}`;
+  const gen =
+    v.gender.toUpperCase() === "MALE"
+      ? "Мужской"
+      : v.gender.toUpperCase() === "FEMALE"
+        ? "Женский"
+        : "Голос";
+  if (tags.length) {
+    return `${gen} • ${formatTagsLine(tags)}`;
+  }
+  return gen;
 }
 
 export function VoicePickerModal({

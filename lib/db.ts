@@ -62,6 +62,24 @@ function applyWhere(query: any, where?: AnyRecord) {
   return q;
 }
 
+/** Подстрока для or(prompt.ilike…,modelName.ilike…) — экранируем % _ \ и запятые в OR-строке PostgREST */
+function generationSearchOrPattern(search: string) {
+  const escaped = search
+    .trim()
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_")
+    .replace(/,/g, " ");
+  return `%${escaped}%`;
+}
+
+function applyGenerationSearchOr(query: any, search?: string) {
+  const s = search?.trim();
+  if (!s) return query;
+  const pat = generationSearchOrPattern(s);
+  return query.or(`prompt.ilike.${pat},modelName.ilike.${pat}`);
+}
+
 async function userCounts(ids: string[]) {
   const m = new Map<string, { generations: number; apiKeys: number }>();
   for (const id of ids) m.set(id, { generations: 0, apiKeys: 0 });
@@ -199,15 +217,36 @@ export const db: any = {
     },
   },
   generation: {
-    async findMany(args: { where?: AnyRecord; orderBy?: AnyRecord; take?: number; include?: AnyRecord } = {}) {
+    async findMany(
+      args: {
+        where?: AnyRecord;
+        orderBy?: AnyRecord;
+        take?: number;
+        skip?: number;
+        include?: AnyRecord;
+        search?: string;
+      } = {},
+    ) {
       const dir = String((args.orderBy?.createdAt as string) ?? "desc").toUpperCase() === "ASC" ? "ASC" : "DESC";
       const take = args.take ?? 1000;
+      const skip = Math.max(0, args.skip ?? 0);
       let q = getSupabaseAdmin().from("Generation").select("*");
       q = applyWhere(q, args.where);
-      const { data, error } = await q.order("createdAt", { ascending: dir === "ASC" }).limit(take);
+      q = applyGenerationSearchOr(q, args.search);
+      q = q.order("createdAt", { ascending: dir === "ASC" });
+      const end = skip + take - 1;
+      const { data, error } = await q.range(skip, end);
       if (error) throw error;
       const rows = hydrateRows((data ?? []) as AnyRecord[]);
       return withUserInclude(rows, args.include);
+    },
+    async countWhere(args: { where?: AnyRecord; search?: string } = {}) {
+      let q = getSupabaseAdmin().from("Generation").select("*", { count: "exact", head: true });
+      q = applyWhere(q, args.where);
+      q = applyGenerationSearchOr(q, args.search);
+      const { count, error } = await q;
+      if (error) throw error;
+      return count ?? 0;
     },
     async findFirst(args: { where?: AnyRecord; select?: AnyRecord }) {
       let q = getSupabaseAdmin().from("Generation").select("*");
@@ -316,4 +355,33 @@ export const db: any = {
       return { id: val };
     },
   },
-} as const;
+  voicePreviewOverride: {
+    async listMap(): Promise<Record<string, string>> {
+      try {
+        const { data, error } = await getSupabaseAdmin()
+          .from("VoicePreviewOverride")
+          .select("voiceId, previewUrl");
+        if (error) return {};
+        const map: Record<string, string> = {};
+        for (const row of (data ?? []) as Array<{ voiceId?: string; previewUrl?: string }>) {
+          const id = row.voiceId?.trim();
+          const url = row.previewUrl?.trim();
+          if (id && url) map[id] = url;
+        }
+        return map;
+      } catch {
+        return {};
+      }
+    },
+    async upsert(voiceId: string, previewUrl: string) {
+      const id = voiceId.trim();
+      const url = previewUrl.trim();
+      if (!id || !url) throw new Error("voiceId и previewUrl обязательны");
+      const { error } = await getSupabaseAdmin().from("VoicePreviewOverride").upsert(
+        { voiceId: id, previewUrl: url, updatedAt: nowIso() },
+        { onConflict: "voiceId" },
+      );
+      if (error) throw error;
+    },
+  },
+};

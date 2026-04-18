@@ -102,6 +102,11 @@ export function Sidebar({ user }: { user: ShellUser }) {
         <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-zinc-400">
           <p className="font-medium text-zinc-300">{user.name}</p>
           <p className="mt-1">Роль: {user.role === "ADMIN" ? "Администратор" : "Пользователь"}</p>
+          {user.role !== "ADMIN" && user.subscriptionSummary ? (
+            <p className="mt-2 border-t border-white/10 pt-2 leading-relaxed text-zinc-300">
+              {user.subscriptionSummary}
+            </p>
+          ) : null}
         </div>
         <button
           type="button"

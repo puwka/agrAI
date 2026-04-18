@@ -20,20 +20,63 @@ function mergeVoicePrompt(prompt: string, voiceName?: string | null) {
   return `${prefix}\n${base}`;
 }
 
-export async function GET() {
+function generationListWhere(
+  userId: string,
+  statusFilter: string,
+): { userId: string; status?: string | { in: string[] } } {
+  const base = { userId } as { userId: string; status?: string | { in: string[] } };
+  if (!statusFilter || statusFilter === "all") return base;
+  if (statusFilter === "success") {
+    base.status = "SUCCESS";
+    return base;
+  }
+  if (statusFilter === "error") {
+    base.status = "ERROR";
+    return base;
+  }
+  if (statusFilter === "queued") {
+    base.status = { in: ["PENDING", "QUEUED"] };
+    return base;
+  }
+  return base;
+}
+
+export async function GET(request: Request) {
   const sessionUser = await getApiSessionUser();
 
   if (!sessionUser?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const items = await db.generation.findMany({
-    where: { userId: sessionUser.id },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const { searchParams } = new URL(request.url);
+  const limitRaw = Number.parseInt(searchParams.get("limit") ?? "100", 10);
+  const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? limitRaw : 100, 1), 100);
+  const offsetRaw = Number.parseInt(searchParams.get("offset") ?? "0", 10);
+  const offset = Math.max(Number.isFinite(offsetRaw) ? offsetRaw : 0, 0);
+  const statusRaw = (searchParams.get("status") ?? "").trim().toLowerCase();
+  const statusFilter =
+    statusRaw === "success" || statusRaw === "error" || statusRaw === "queued" || statusRaw === "all"
+      ? statusRaw
+      : "all";
+  const q = (searchParams.get("q") ?? "").trim();
 
-  return NextResponse.json(items);
+  const where = generationListWhere(sessionUser.id, statusFilter);
+
+  const [items, total] = await Promise.all([
+    db.generation.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
+      search: q || undefined,
+    }),
+    db.generation.countWhere({
+      where,
+      search: q || undefined,
+    }),
+  ]);
+
+  return NextResponse.json({ items, total });
 }
 
 export async function POST(request: Request) {
