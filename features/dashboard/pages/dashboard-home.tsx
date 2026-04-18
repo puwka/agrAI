@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { LayoutDashboard } from "lucide-react";
 
 import { models } from "../config";
+import { detectResultMediaKind } from "../lib";
 import type { AspectRatio, MediaInputMode } from "../types";
 import { ModelCard } from "../components/model-card";
 import { PageIntro } from "../components/page-intro";
@@ -24,23 +25,6 @@ type GenerationRow = {
   referenceImageUrl?: string | null;
   createdAt: string;
 };
-
-function detectMediaKind(url: string): "image" | "video" {
-  const v = (url ?? "").trim().toLowerCase();
-  if (!v) return "image";
-  if (v.startsWith("data:video/")) return "video";
-  if (v.startsWith("data:image/")) return "image";
-  const clean = v.split("?")[0] ?? v;
-  if (
-    clean.endsWith(".mp4") ||
-    clean.endsWith(".webm") ||
-    clean.endsWith(".mov") ||
-    clean.endsWith(".m4v")
-  ) {
-    return "video";
-  }
-  return "image";
-}
 
 export function DashboardHomePage({
   userName,
@@ -415,16 +399,26 @@ export function DashboardHomePage({
             generations.map((item) => {
               const ready = item.status === "SUCCESS" && (item.resultUrl || item.resultMessage);
               const failed = item.status === "ERROR";
+              const mediaKind = item.resultUrl ? detectResultMediaKind(item.resultUrl) : "image";
               return (
                 <div key={item.id} className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
                   {ready && item.resultUrl ? (
-                    detectMediaKind(item.resultUrl) === "video" ? (
+                    mediaKind === "video" ? (
                       <video
                         src={item.resultUrl}
                         controls
                         playsInline
                         className="aspect-video w-full bg-black object-contain"
                       />
+                    ) : mediaKind === "audio" ? (
+                      <div className="flex aspect-video w-full items-center justify-center bg-black/50 px-4 py-6">
+                        <audio
+                          src={item.resultUrl}
+                          controls
+                          className="w-full max-w-md"
+                          preload="metadata"
+                        />
+                      </div>
                     ) : (
                       <img
                         src={item.resultUrl}

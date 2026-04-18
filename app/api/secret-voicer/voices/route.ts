@@ -125,7 +125,31 @@ export async function GET() {
     });
   }
 
+  const customRows = await db.customVoice.list();
+  const customVoiceIds = new Set(customRows.map((c: { voiceId: string }) => c.voiceId));
+  for (const c of customRows) {
+    let tags: string[] = [];
+    try {
+      const parsed = JSON.parse(c.tagsJson || "[]") as unknown;
+      tags = Array.isArray(parsed) ? parsed.map((t) => String(t)) : [];
+    } catch {
+      tags = [];
+    }
+    byId.set(c.voiceId, {
+      id: c.voiceId,
+      name: c.name.trim() || "—",
+      gender: c.gender,
+      locale: c.locale,
+      preview_audio_url: toAbsoluteMediaUrl(c.previewUrl),
+      voice_style_tags: tags,
+      usage_count: 1_000_000,
+    });
+  }
+
   const voices = [...byId.values()].sort((a, b) => {
+    const ac = customVoiceIds.has(a.id) ? 1 : 0;
+    const bc = customVoiceIds.has(b.id) ? 1 : 0;
+    if (ac !== bc) return bc - ac;
     if (b.usage_count !== a.usage_count) return b.usage_count - a.usage_count;
     return a.name.localeCompare(b.name, "ru");
   });
@@ -141,6 +165,6 @@ export async function GET() {
     voices: voicesWithPreview,
     total_count: voices.length,
     secret_voicer_public_total_hint: secretVoicerHint,
-    sources: [...SHOWCASE_FETCH_URLS, "elevenlabs-premade-voices.json"],
+    sources: [...SHOWCASE_FETCH_URLS, "elevenlabs-premade-voices.json", "CustomVoice (admin)"],
   });
 }

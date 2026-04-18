@@ -214,7 +214,7 @@ export async function POST(request: Request) {
 
   const storedPrompt =
     modelId === "voice"
-      ? mergeVoicePrompt(prompt, `${voiceName} (${voiceId})`)
+      ? mergeVoicePrompt(prompt, voiceName)
       : inputMode === "IMAGE_REF" && !prompt.trim()
         ? "—"
         : prompt;

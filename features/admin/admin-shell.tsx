@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Construction, LayoutDashboard, LogOut, Mic, Shield, Users } from "lucide-react";
+import { CirclePlus, Construction, LayoutDashboard, LogOut, Mic, Shield, Users } from "lucide-react";
 import { motion } from "framer-motion";
 
 import type { ShellUser } from "../dashboard/components/dashboard-shell";
@@ -13,6 +13,7 @@ const nav = [
   { href: "/admin/users", label: "Пользователи", icon: Users },
   { href: "/admin/generations", label: "Генерации", icon: Shield },
   { href: "/admin/voice-previews", label: "Превью голосов", icon: Mic },
+  { href: "/admin/custom-voices", label: "Свои голоса", icon: CirclePlus },
   { href: "/admin/maintenance", label: "Техработы", icon: Construction },
 ];
 

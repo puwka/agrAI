@@ -25,7 +25,13 @@ function nowIso() {
 
 function hydrateRecord(row: AnyRecord) {
   const out: AnyRecord = { ...row };
-  for (const key of ["createdAt", "updatedAt", "lastUsedAt", "restrictedUntil", "subscriptionUntil"]) {
+  for (const key of [
+    "createdAt",
+    "updatedAt",
+    "lastUsedAt",
+    "restrictedUntil",
+    "subscriptionUntil",
+  ]) {
     if (typeof out[key] === "string") out[key] = new Date(out[key]);
   }
   return out;
@@ -381,6 +387,78 @@ export const db: any = {
         { voiceId: id, previewUrl: url, updatedAt: nowIso() },
         { onConflict: "voiceId" },
       );
+      if (error) throw error;
+    },
+    async deleteByVoiceId(voiceId: string) {
+      const id = voiceId.trim();
+      if (!id) return;
+      try {
+        await getSupabaseAdmin().from("VoicePreviewOverride").delete().eq("voiceId", id);
+      } catch {
+        // ignore
+      }
+    },
+  },
+  customVoice: {
+    async list(): Promise<
+      Array<{
+        voiceId: string;
+        name: string;
+        gender: string;
+        locale: string;
+        previewUrl: string;
+        tagsJson: string;
+        createdAt?: string;
+      }>
+    > {
+      try {
+        const { data, error } = await getSupabaseAdmin()
+          .from("CustomVoice")
+          .select("*")
+          .order("createdAt", { ascending: false });
+        if (error) return [];
+        return (data ?? [])
+          .map((row: AnyRecord) => ({
+            voiceId: String(row.voiceId ?? "").trim(),
+            name: String(row.name ?? ""),
+            gender: String(row.gender ?? ""),
+            locale: String(row.locale ?? ""),
+            previewUrl: String(row.previewUrl ?? ""),
+            tagsJson: typeof row.tagsJson === "string" ? row.tagsJson : "[]",
+            createdAt: row.createdAt,
+          }))
+          .filter((v) => v.voiceId);
+      } catch {
+        return [];
+      }
+    },
+    async insert(input: {
+      voiceId: string;
+      name: string;
+      gender?: string;
+      locale?: string;
+      previewUrl?: string;
+      tagsJson?: string;
+    }) {
+      const row = {
+        voiceId: input.voiceId.trim(),
+        name: input.name.trim(),
+        gender: (input.gender ?? "").trim(),
+        locale: (input.locale ?? "").trim(),
+        previewUrl: (input.previewUrl ?? "").trim(),
+        tagsJson: (input.tagsJson ?? "[]").trim() || "[]",
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      };
+      const { data, error } = await getSupabaseAdmin().from("CustomVoice").insert(row).select("*").limit(1);
+      if (error) throw error;
+      if (!data?.[0]) throw new Error("CustomVoice insert failed");
+      return hydrateRecord(data[0] as AnyRecord);
+    },
+    async delete(voiceId: string) {
+      const id = voiceId.trim();
+      if (!id) throw new Error("voiceId обязателен");
+      const { error } = await getSupabaseAdmin().from("CustomVoice").delete().eq("voiceId", id);
       if (error) throw error;
     },
   },

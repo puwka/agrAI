@@ -3,6 +3,25 @@ import type { NavItem } from "./types";
 
 export { buildPreviewDataUrl } from "../../lib/generation-preview";
 
+/** По URL результата: карточки истории и превью (аудио нельзя отдавать в img). */
+export function detectResultMediaKind(url: string): "image" | "video" | "audio" {
+  const v = (url ?? "").trim().toLowerCase();
+  if (!v) return "image";
+  if (v.startsWith("data:video/")) return "video";
+  if (v.startsWith("data:audio/")) return "audio";
+  if (v.startsWith("data:image/")) return "image";
+  const clean = v.split("?")[0] ?? v;
+  if (/\.(mp4|webm|mov|m4v)$/i.test(clean)) return "video";
+  if (/\.(mp3|wav|ogg|m4a|aac|flac|opus|weba)$/i.test(clean)) return "audio";
+  return "image";
+}
+
+/** Убирает технический id из префикса `[Голос: Имя (voiceId)]` (старые записи в БД). */
+export function formatPromptForLogsDisplay(prompt: string): string {
+  if (!prompt || typeof prompt !== "string") return prompt;
+  return prompt.replace(/^\[Голос:\s*(.+?)\s*\([^)]+\)\s*\]/, "[Голос: $1]");
+}
+
 export function getActiveNavItem(pathname: string): NavItem {
   const activeItem = navItems.find((item) => {
     if (item.href === "/dashboard") {

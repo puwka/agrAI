@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Download, ImagePlus, LoaderCircle } from "lucide-react";
 import { motion } from "framer-motion";
 
+import { detectResultMediaKind } from "../lib";
 import type { AspectRatio } from "../types";
 
 type ResultPreviewProps = {
@@ -35,33 +36,7 @@ export function ResultPreview({
   downloadGenerationId,
 }: ResultPreviewProps) {
   const [mediaFailed, setMediaFailed] = useState(false);
-  const mediaKind = useMemo<"image" | "video" | "audio">(() => {
-    const url = resultUrl.trim().toLowerCase();
-    if (!url) return "image";
-    if (url.startsWith("data:video/")) return "video";
-    if (url.startsWith("data:audio/")) return "audio";
-    if (url.startsWith("data:image/")) return "image";
-    const clean = url.split("?")[0] ?? url;
-    if (
-      clean.endsWith(".mp4") ||
-      clean.endsWith(".webm") ||
-      clean.endsWith(".mov") ||
-      clean.endsWith(".m4v")
-    ) {
-      return "video";
-    }
-    if (
-      clean.endsWith(".mp3") ||
-      clean.endsWith(".wav") ||
-      clean.endsWith(".ogg") ||
-      clean.endsWith(".m4a") ||
-      clean.endsWith(".aac") ||
-      clean.endsWith(".flac")
-    ) {
-      return "audio";
-    }
-    return "image";
-  }, [resultUrl]);
+  const mediaKind = useMemo(() => detectResultMediaKind(resultUrl), [resultUrl]);
 
   const showDownload =
     Boolean(downloadGenerationId) &&

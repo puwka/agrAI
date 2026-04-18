@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import {
   formatGenerationDate,
   formatGenerationStatusLabel,
+  formatPromptForLogsDisplay,
   getStatusTone,
   mapGenerationStatusToLogStatus,
 } from "../lib";
@@ -238,9 +239,9 @@ export function LogsPage() {
                         </div>
 
                         <div className="flex max-w-xl flex-col gap-3">
-                          <div className="rounded-2xl border border-white/10 bg-zinc-950/70 px-4 py-3 text-sm leading-6 text-zinc-300">
-                            {log.prompt}
-                          </div>
+                      <div className="rounded-2xl border border-white/10 bg-zinc-950/70 px-4 py-3 text-sm leading-6 text-zinc-300">
+                        {formatPromptForLogsDisplay(log.prompt)}
+                      </div>
                           {canDownload ? (
                             <a
                               href={`/api/generations/${log.id}/download`}

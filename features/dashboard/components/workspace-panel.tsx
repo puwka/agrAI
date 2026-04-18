@@ -49,17 +49,17 @@ type WorkspacePanelProps = {
   previewDownloadGenerationId: string | null;
 };
 
-const photoAspectOptions: Array<{ value: AspectRatio; label: string; aspectClass: string }> = [
-  { value: "16:9", label: "16:9", aspectClass: "aspect-[16/9]" },
-  { value: "4:3", label: "4:3", aspectClass: "aspect-[4/3]" },
-  { value: "1:1", label: "1:1", aspectClass: "aspect-square" },
-  { value: "3:4", label: "3:4", aspectClass: "aspect-[3/4]" },
-  { value: "9:16", label: "9:16", aspectClass: "aspect-[9/16]" },
+const photoAspectOptions: Array<{ value: AspectRatio; label: string }> = [
+  { value: "16:9", label: "16:9" },
+  { value: "4:3", label: "4:3" },
+  { value: "1:1", label: "1:1" },
+  { value: "3:4", label: "3:4" },
+  { value: "9:16", label: "9:16" },
 ];
 
-const defaultAspectOptions: Array<{ value: AspectRatio; label: string; aspectClass: string }> = [
-  { value: "16:9", label: "16:9", aspectClass: "aspect-[16/9]" },
-  { value: "9:16", label: "9:16", aspectClass: "aspect-[9/16]" },
+const defaultAspectOptions: Array<{ value: AspectRatio; label: string }> = [
+  { value: "16:9", label: "16:9" },
+  { value: "9:16", label: "9:16" },
 ];
 
 export function WorkspacePanel({
@@ -297,19 +297,12 @@ export function WorkspacePanel({
                               type="button"
                               onClick={() => onAspectRatioChange(option.value)}
                               className={[
-                                "flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-all duration-300",
+                                "rounded-xl border px-3 py-2 text-xs font-semibold transition-all duration-300",
                                 checked
                                   ? "border-white/20 bg-white/10 text-white shadow-[0_0_18px_rgba(220,223,224,0.12)]"
                                   : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/25 hover:bg-white/10",
                               ].join(" ")}
                             >
-                              <span
-                                className={[
-                                  "h-4 w-6 rounded-[4px] border",
-                                  option.aspectClass,
-                                  checked ? "border-white/35 bg-white/10" : "border-white/20 bg-black/20",
-                                ].join(" ")}
-                              />
                               {option.label}
                             </button>
                           );
@@ -325,19 +318,12 @@ export function WorkspacePanel({
                               type="button"
                               onClick={() => onAspectRatioChange(option.value)}
                               className={[
-                                "flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-all duration-300",
+                                "rounded-xl border px-3 py-2 text-xs font-semibold transition-all duration-300",
                                 checked
                                   ? "border-white/20 bg-white/10 text-white shadow-[0_0_18px_rgba(220,223,224,0.12)]"
                                   : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/25 hover:bg-white/10",
                               ].join(" ")}
                             >
-                              <span
-                                className={[
-                                  "h-4 w-6 rounded-[4px] border",
-                                  option.aspectClass,
-                                  checked ? "border-white/35 bg-white/10" : "border-white/20 bg-black/20",
-                                ].join(" ")}
-                              />
                               {option.label}
                             </button>
                           );
