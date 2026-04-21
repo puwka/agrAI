@@ -243,8 +243,8 @@ export function AdminCustomVoicesClient() {
         ) : items.length === 0 ? (
           <p className="mt-4 text-sm text-zinc-500">Пока нет записей — добавьте голос формой выше.</p>
         ) : (
-          <div className="mt-4 overflow-hidden rounded-2xl border border-[#303030] bg-[#141414]">
-            <table className="w-full text-left text-sm">
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-[#303030] bg-[#141414]">
+            <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="border-b border-[#303030] bg-[#1a1a1a] text-xs uppercase tracking-wide text-zinc-500">
                 <tr>
                   <th className="px-4 py-3 font-medium">voiceId</th>

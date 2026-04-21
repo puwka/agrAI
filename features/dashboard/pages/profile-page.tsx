@@ -97,9 +97,9 @@ export function ProfilePage() {
   return (
     <>
       <PageIntro
-        badge="Profile"
+        badge="Пользователь"
         title="Профиль"
-        description="Личные данные и контакты. Срок подписки подтягивается из вашей учётной записи."
+        description="Здесь ваши личные данные и срок подписки."
         icon={UserRound}
         stats={highlights.map((item) => ({
           label: item.label,

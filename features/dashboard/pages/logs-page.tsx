@@ -104,9 +104,9 @@ export function LogsPage() {
   return (
     <>
       <PageIntro
-        badge="Execution History"
+        badge="История запросов"
         title="Логи генераций"
-        description="История ваших генераций из базы данных. Постраничный просмотр и поиск по промпту и модели."
+        description="История ваших генераций, просмотр всех запросов и поиск по промпту."
         icon={Activity}
         stats={[
           { label: "Всего записей", value: total.toString() },

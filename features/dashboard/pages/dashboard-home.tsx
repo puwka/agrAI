@@ -282,8 +282,8 @@ export function DashboardHomePage({
   return (
     <>
       <PageIntro
-        badge="Personal Workspace"
-        title={`Hello, ${userName}!`}
+        badge="Личный кабинет"
+        title={`Добро пожаловать, ${userName}!`}
         description="Управляйте нейросетями, тестируйте генерации и собирайте результат в едином современном кабинете."
         icon={LayoutDashboard}
         stats={[
@@ -390,7 +390,6 @@ export function DashboardHomePage({
         <h3 className="text-lg font-semibold text-white">Мои генерации</h3>
         <p className="mt-1 text-sm text-zinc-400">
           Показаны 10 последних заявок. Полная история, поиск и постраничный просмотр — в разделе «Логи».
-          Готовые файлы появляются после отправки результата администратором (обычно 5–15 минут).
         </p>
         <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {generations.length === 0 ? (

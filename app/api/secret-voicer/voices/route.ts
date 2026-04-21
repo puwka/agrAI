@@ -67,7 +67,12 @@ function mergeVoicePreferSv(existing: NormalizedVoice, incoming: NormalizedVoice
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const includeHidden = new URL(request.url).searchParams.get("includeHidden") === "1";
+  return getVoicesResponse(includeHidden);
+}
+
+async function getVoicesResponse(includeHidden: boolean) {
   const upstreamResults = await Promise.allSettled(
     SHOWCASE_FETCH_URLS.map((url) =>
       fetch(url, {
@@ -161,9 +166,16 @@ export async function GET() {
     return { ...v, preview_audio_url: custom };
   });
 
+  const hiddenSet = await db.voiceHidden.listSet();
+  const withHidden = voicesWithPreview.map((v) => ({
+    ...v,
+    hidden: hiddenSet.has(v.id),
+  }));
+  const visibleVoices = includeHidden ? withHidden : withHidden.filter((v) => !v.hidden);
+
   return NextResponse.json({
-    voices: voicesWithPreview,
-    total_count: voices.length,
+    voices: visibleVoices,
+    total_count: visibleVoices.length,
     secret_voicer_public_total_hint: secretVoicerHint,
     sources: [...SHOWCASE_FETCH_URLS, "elevenlabs-premade-voices.json", "CustomVoice (admin)"],
   });

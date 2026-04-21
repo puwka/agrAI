@@ -399,6 +399,36 @@ export const db: any = {
       }
     },
   },
+  voiceHidden: {
+    async listSet(): Promise<Set<string>> {
+      try {
+        const { data, error } = await getSupabaseAdmin().from("VoiceHidden").select("voiceId, hidden");
+        if (error) return new Set();
+        const out = new Set<string>();
+        for (const row of (data ?? []) as Array<{ voiceId?: string; hidden?: boolean }>) {
+          const id = row.voiceId?.trim();
+          if (id && row.hidden !== false) out.add(id);
+        }
+        return out;
+      } catch {
+        return new Set();
+      }
+    },
+    async setHidden(voiceId: string, hidden: boolean) {
+      const id = voiceId.trim();
+      if (!id) throw new Error("voiceId обязателен");
+      if (!hidden) {
+        const { error } = await getSupabaseAdmin().from("VoiceHidden").delete().eq("voiceId", id);
+        if (error) throw error;
+        return;
+      }
+      const { error } = await getSupabaseAdmin().from("VoiceHidden").upsert(
+        { voiceId: id, hidden: true, updatedAt: nowIso() },
+        { onConflict: "voiceId" },
+      );
+      if (error) throw error;
+    },
+  },
   customVoice: {
     async list(): Promise<
       Array<{

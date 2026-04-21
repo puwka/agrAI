@@ -123,15 +123,13 @@ export function ResultPreview({
               <p className="text-center text-sm leading-relaxed text-zinc-100">{resultMessage}</p>
             </div>
           ) : deliveryPending ? (
-            <div className="flex h-full flex-col items-center justify-center gap-5 rounded-[28px] border border-amber-400/15 bg-gradient-to-b from-amber-500/10 to-black/40 px-6">
-              <LoaderCircle className="h-14 w-14 animate-spin text-amber-300" />
-              <div className="max-w-md space-y-3 text-center">
-                <p className="text-base font-semibold text-white">Заявка принята</p>
-                <p className="text-sm leading-7 text-zinc-300">
+            <div className="flex h-full flex-col items-center justify-center gap-4 overflow-y-auto rounded-[28px] border border-amber-400/15 bg-gradient-to-b from-amber-500/10 to-black/40 px-4 py-6 sm:px-6">
+              <LoaderCircle className="h-10 w-10 animate-spin text-amber-300 sm:h-14 sm:w-14" />
+              <div className="max-w-md space-y-2 text-center">
+                <p className="text-base font-semibold text-white">Генерация запущена</p>
+                <p className="text-sm leading-6 text-zinc-300 sm:leading-7">
                   Результат обычно доступен в течение{" "}
-                  <span className="font-semibold text-amber-200">5–15 минут</span>. После проверки
-                  администратор прикрепит файл — здесь появится превью, в списке ниже можно будет
-                  скачать результат.
+                  <span className="font-semibold text-amber-200">5–15 минут</span>.
                 </p>
               </div>
             </div>

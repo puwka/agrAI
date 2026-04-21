@@ -46,9 +46,7 @@ export function DashboardShell({
             >
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#303030] bg-[#1a1a1a]/85 px-4 py-3 backdrop-blur-xl">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.28em] text-zinc-500">
-                    Current Section
-                  </p>
+                  <p className="text-xs uppercase tracking-[0.28em] text-zinc-500">Текущий раздел</p>
                   <p className="mt-1 text-sm font-medium text-white">{activeItem.label}</p>
                 </div>
                 <p className="max-w-xl text-sm text-zinc-400">{activeItem.description}</p>

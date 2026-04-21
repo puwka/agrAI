@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Upload } from "lucide-react";
+import { Eye, EyeOff, Loader2, Upload } from "lucide-react";
 
 type VoiceRow = {
   id: string;
   name: string;
   preview_audio_url: string;
+  hidden?: boolean;
 };
 
 export function AdminVoicePreviewsClient() {
@@ -14,12 +15,13 @@ export function AdminVoicePreviewsClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [visibilityId, setVisibilityId] = useState<string | null>(null);
 
   const loadVoices = useCallback(async () => {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/secret-voicer/voices");
+      const res = await fetch("/api/secret-voicer/voices?includeHidden=1");
       const data = (await res.json().catch(() => null)) as { voices?: VoiceRow[]; error?: string } | null;
       if (!res.ok) {
         setError(data?.error ?? "Не удалось загрузить голоса");
@@ -55,6 +57,26 @@ export function AdminVoicePreviewsClient() {
     }
   };
 
+  const toggleHidden = async (voiceId: string, hidden: boolean) => {
+    setError(null);
+    setVisibilityId(voiceId);
+    try {
+      const res = await fetch("/api/admin/voice-visibility", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ voiceId, hidden }),
+      });
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) {
+        setError(data?.error ?? "Не удалось обновить видимость");
+        return;
+      }
+      setVoices((prev) => prev.map((v) => (v.id === voiceId ? { ...v, hidden } : v)));
+    } finally {
+      setVisibilityId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -74,19 +96,20 @@ export function AdminVoicePreviewsClient() {
           <Loader2 className="h-4 w-4 animate-spin" /> Загрузка каталога…
         </p>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-[#303030] bg-[#141414]">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto rounded-2xl border border-[#303030] bg-[#141414]">
+          <table className="w-full min-w-[920px] text-left text-sm">
             <thead className="border-b border-[#303030] bg-[#1a1a1a] text-xs uppercase tracking-wide text-zinc-500">
               <tr>
                 <th className="px-4 py-3 font-medium">Голос</th>
                 <th className="px-4 py-3 font-medium">ID</th>
                 <th className="px-4 py-3 font-medium">Текущее превью</th>
                 <th className="px-4 py-3 font-medium">Файл</th>
+                <th className="px-4 py-3 font-medium">Видимость</th>
               </tr>
             </thead>
             <tbody>
               {voices.map((v) => (
-                <tr key={v.id} className="border-b border-[#303030] last:border-0">
+                <tr key={v.id} className={["border-b border-[#303030] last:border-0", v.hidden ? "opacity-75" : ""].join(" ")}>
                   <td className="px-4 py-3 font-medium text-white">{v.name}</td>
                   <td className="px-4 py-3 font-mono text-xs text-zinc-400">{v.id}</td>
                   <td className="px-4 py-3">
@@ -112,6 +135,28 @@ export function AdminVoicePreviewsClient() {
                         }}
                       />
                     </label>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      disabled={visibilityId !== null}
+                      onClick={() => void toggleHidden(v.id, !v.hidden)}
+                      className={[
+                        "inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition disabled:opacity-50",
+                        v.hidden
+                          ? "border-emerald-400/25 bg-emerald-500/10 text-emerald-200"
+                          : "border-amber-400/25 bg-amber-500/10 text-amber-200",
+                      ].join(" ")}
+                    >
+                      {visibilityId === v.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : v.hidden ? (
+                        <Eye className="h-3.5 w-3.5" />
+                      ) : (
+                        <EyeOff className="h-3.5 w-3.5" />
+                      )}
+                      {v.hidden ? "Показать" : "Скрыть"}
+                    </button>
                   </td>
                 </tr>
               ))}

@@ -38,7 +38,7 @@ export function PageIntro({
           </span>
 
           <div>
-            <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl lg:text-4xl">
               {title}
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-400 sm:text-base">
@@ -47,14 +47,14 @@ export function PageIntro({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 text-sm text-zinc-300 sm:min-w-[380px] sm:grid-cols-3">
+        <div className="grid w-full grid-cols-1 gap-3 text-sm text-zinc-300 sm:grid-cols-2 lg:w-auto lg:min-w-[380px] lg:grid-cols-3">
           {stats.map((stat) => (
             <div
               key={stat.label}
               className="rounded-2xl border border-white/10 bg-black/25 p-4"
             >
               <p className="text-zinc-500">{stat.label}</p>
-              <p className="mt-2 font-medium text-white">{stat.value}</p>
+              <p className="mt-2 break-words font-medium text-white">{stat.value}</p>
             </div>
           ))}
         </div>

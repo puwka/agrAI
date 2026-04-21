@@ -273,7 +273,7 @@ export function WorkspacePanel({
                     placeholder={
                       showMediaInputModes && mediaInputMode === "IMAGE_REF"
                         ? "Например: сделать вечерний свет, добавить дождь, сменить стиль на аниме…"
-                        : "Опишите желаемый результат: стиль, композицию, освещение, атмосферу..."
+                        : "Опишите желаемый результат"
                     }
                     className="min-h-[220px] w-full resize-none rounded-[24px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-white outline-none backdrop-blur-xl transition-all duration-300 placeholder:text-zinc-500 focus:border-white/30 focus:bg-white/8 focus:shadow-[0_0_0_1px_rgba(220,223,224,0.2),0_0_24px_rgba(220,223,224,0.1)]"
                   />
@@ -283,7 +283,7 @@ export function WorkspacePanel({
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm font-medium text-zinc-300">
                       <Wand2 className="h-4 w-4 text-zinc-300" />
-                      Aspect Ratio
+                      Соотношение сторон
                     </div>
 
                     {isPhotoMode || isVideoMode ? (
