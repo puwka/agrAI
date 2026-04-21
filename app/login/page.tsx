@@ -48,8 +48,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0f0f0f] px-4 py-10 text-zinc-100">
       <div className="w-full max-w-md rounded-[28px] border border-[#303030] bg-[#1a1a1a]/95 p-8 shadow-[0_20px_70px_rgba(0,0,0,0.4)] backdrop-blur-xl">
-        <h1 className="text-2xl font-semibold text-white">Вход</h1>
-        <p className="mt-2 text-sm text-zinc-400">GPTML AI</p>
+        <p className="text-center text-3xl font-semibold tracking-wide text-white sm:text-4xl">GPTML AI</p>
 
         <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
           <label className="block space-y-2">

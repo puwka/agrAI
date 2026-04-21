@@ -284,7 +284,20 @@ export function DashboardHomePage({
       <PageIntro
         badge="Личный кабинет"
         title={`Добро пожаловать, ${userName}!`}
-        description="Управляйте нейросетями, тестируйте генерации и собирайте результат в едином современном кабинете."
+        description={
+          <>
+            Безлимитные генерации в лучших моделях: фото, видео и озвучка. Сервис от{" "}
+            <a
+              href="https://gptml.ru"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-violet-300 transition hover:text-violet-200"
+            >
+              GPTML.RU
+            </a>
+            .
+          </>
+        }
         icon={LayoutDashboard}
         stats={[
           { label: "Активных моделей", value: String(activeModelsCount) },
@@ -428,7 +441,7 @@ export function DashboardHomePage({
                   ) : ready && item.resultMessage ? (
                     <div className="flex aspect-video w-full flex-col justify-center gap-2 bg-gradient-to-b from-violet-500/15 to-black/60 px-4 py-3">
                       <p className="text-xs font-medium uppercase tracking-wide text-violet-200/90">
-                        Ответ администратора
+                        Ответ системы
                       </p>
                       <p className="line-clamp-6 text-sm leading-relaxed text-zinc-100">
                         {item.resultMessage}

@@ -222,6 +222,34 @@ export const db: any = {
       return hydrateRecord(rows[0] as AnyRecord);
     },
   },
+  dashboardBanner: {
+    async getGlobal(): Promise<{ enabled: boolean; message: string } | null> {
+      try {
+        const { data, error } = await getSupabaseAdmin()
+          .from("DashboardBanner")
+          .select("enabled, message")
+          .eq("id", "global")
+          .limit(1);
+        if (error) return null;
+        const row = (data?.[0] ?? null) as { enabled?: boolean; message?: string } | null;
+        if (!row) return null;
+        return {
+          enabled: Boolean(row.enabled),
+          message: String(row.message ?? "").trim(),
+        };
+      } catch {
+        return null;
+      }
+    },
+    async upsertGlobal(input: { enabled: boolean; message: string }) {
+      const message = input.message.trim();
+      const { error } = await getSupabaseAdmin().from("DashboardBanner").upsert(
+        { id: "global", enabled: input.enabled, message, updatedAt: nowIso() },
+        { onConflict: "id" },
+      );
+      if (error) throw error;
+    },
+  },
   generation: {
     async findMany(
       args: {

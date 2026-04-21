@@ -8,25 +8,42 @@ type MaintenanceState = {
   message: string;
 };
 
+type DashboardBannerState = {
+  enabled: boolean;
+  message: string;
+};
+
 export function AdminMaintenanceClient() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(false);
   const [message, setMessage] = useState("");
+  const [bannerEnabled, setBannerEnabled] = useState(false);
+  const [bannerMessage, setBannerMessage] = useState("");
 
   const load = useCallback(async () => {
     setError(null);
     setLoading(true);
     try {
-      const response = await fetch("/api/admin/maintenance");
-      const data = (await response.json().catch(() => null)) as MaintenanceState & { error?: string };
-      if (!response.ok) {
-        setError(data?.error ?? "Не удалось загрузить настройки");
+      const [maintRes, bannerRes] = await Promise.all([
+        fetch("/api/admin/maintenance"),
+        fetch("/api/admin/dashboard-banner"),
+      ]);
+      const maintData = (await maintRes.json().catch(() => null)) as MaintenanceState & { error?: string };
+      const bannerData = (await bannerRes.json().catch(() => null)) as DashboardBannerState & { error?: string };
+      if (!maintRes.ok) {
+        setError(maintData?.error ?? "Не удалось загрузить настройки");
         return;
       }
-      setEnabled(Boolean(data.enabled));
-      setMessage(typeof data.message === "string" ? data.message : "");
+      if (!bannerRes.ok) {
+        setError(bannerData?.error ?? "Не удалось загрузить настройки плашки");
+        return;
+      }
+      setEnabled(Boolean(maintData.enabled));
+      setMessage(typeof maintData.message === "string" ? maintData.message : "");
+      setBannerEnabled(Boolean(bannerData.enabled));
+      setBannerMessage(typeof bannerData.message === "string" ? bannerData.message : "");
     } finally {
       setLoading(false);
     }
@@ -52,6 +69,27 @@ export function AdminMaintenanceClient() {
       }
       setEnabled(Boolean(data.enabled));
       setMessage(typeof data.message === "string" ? data.message : "");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveBanner = async () => {
+    setError(null);
+    setSaving(true);
+    try {
+      const response = await fetch("/api/admin/dashboard-banner", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: bannerEnabled, message: bannerMessage }),
+      });
+      const data = (await response.json().catch(() => null)) as DashboardBannerState & { error?: string };
+      if (!response.ok) {
+        setError(data?.error ?? "Не удалось сохранить плашку");
+        return;
+      }
+      setBannerEnabled(Boolean(data.enabled));
+      setBannerMessage(typeof data.message === "string" ? data.message : "");
     } finally {
       setSaving(false);
     }
@@ -124,6 +162,48 @@ export function AdminMaintenanceClient() {
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Сохранить
+        </button>
+      </div>
+
+      <div className="space-y-4 rounded-3xl border border-violet-400/20 bg-violet-500/5 p-6">
+        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 transition hover:border-violet-400/25">
+          <input
+            type="checkbox"
+            checked={bannerEnabled}
+            onChange={(e) => setBannerEnabled(e.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-white/20 bg-black/50 text-violet-500 focus:ring-violet-400/40"
+          />
+          <span>
+            <span className="font-medium text-white">Плашка в шапке кабинета</span>
+            <span className="mt-1 block text-sm text-zinc-500">
+              Отображается у пользователей в блоке «Текущий раздел».
+            </span>
+          </span>
+        </label>
+
+        <div className="space-y-2">
+          <label htmlFor="dashboard-banner-msg" className="text-sm font-medium text-zinc-300">
+            Текст плашки
+          </label>
+          <textarea
+            id="dashboard-banner-msg"
+            value={bannerMessage}
+            onChange={(e) => setBannerMessage(e.target.value)}
+            rows={4}
+            className="w-full resize-y rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm leading-relaxed text-white outline-none placeholder:text-zinc-600 focus:border-violet-400/35"
+            placeholder="Например: Важное объявление для пользователей."
+          />
+          <p className="text-xs text-zinc-600">До 4000 символов.</p>
+        </div>
+
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => void saveBanner()}
+          className="inline-flex items-center gap-2 rounded-2xl border border-violet-400/35 bg-violet-500/20 px-5 py-3 text-sm font-semibold text-violet-100 transition hover:bg-violet-500/30 disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          Сохранить плашку
         </button>
       </div>
     </div>

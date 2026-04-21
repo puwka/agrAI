@@ -20,9 +20,11 @@ export type ShellUser = {
 export function DashboardShell({
   children,
   user,
+  dashboardBanner,
 }: {
   children: ReactNode;
   user: ShellUser;
+  dashboardBanner?: { enabled: boolean; message: string };
 }) {
   const pathname = usePathname();
   const activeItem = getActiveNavItem(pathname);
@@ -51,6 +53,11 @@ export function DashboardShell({
                 </div>
                 <p className="max-w-xl text-sm text-zinc-400">{activeItem.description}</p>
               </div>
+              {dashboardBanner?.enabled && dashboardBanner.message ? (
+                <div className="rounded-2xl border border-violet-400/35 bg-violet-500/10 px-4 py-3 text-sm text-violet-100">
+                  {dashboardBanner.message}
+                </div>
+              ) : null}
 
               {children}
             </motion.div>

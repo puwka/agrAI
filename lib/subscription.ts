@@ -38,5 +38,5 @@ export function subscriptionSummaryForUser(
   } else {
     daysRu = `${daysLeft} дней`;
   }
-  return `Активна до ${dateStr} · ${daysRu}`;
+  return `Подписка до ${dateStr} · ${daysRu}`;
 }

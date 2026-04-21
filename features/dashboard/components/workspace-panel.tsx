@@ -264,7 +264,7 @@ export function WorkspacePanel({
                   <label className="text-sm font-medium text-zinc-300" htmlFor="prompt">
                     {showMediaInputModes && mediaInputMode === "IMAGE_REF"
                       ? "Пожелания к изменению (необязательно)"
-                      : "Prompt"}
+                      : "Ваш промпт:"}
                   </label>
                   <textarea
                     id="prompt"

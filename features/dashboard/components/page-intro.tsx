@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -11,7 +12,7 @@ type IntroStat = {
 type PageIntroProps = {
   badge: string;
   title: string;
-  description: string;
+  description: ReactNode;
   icon: LucideIcon;
   stats: IntroStat[];
 };

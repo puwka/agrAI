@@ -57,7 +57,7 @@ export function ResultPreview({
     >
       <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.24em] text-zinc-500">Preview</p>
+          <p className="text-sm uppercase tracking-[0.24em] text-zinc-500">Демонстрация</p>
           <h3 className="mt-2 text-xl font-semibold text-white">Результат генерации</h3>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -118,7 +118,7 @@ export function ResultPreview({
           ) : resultMessage ? (
             <div className="flex h-full flex-col justify-center gap-3 overflow-y-auto rounded-[28px] border border-violet-400/20 bg-gradient-to-b from-violet-500/10 to-black/50 px-6 py-8">
               <p className="text-center text-xs font-medium uppercase tracking-wide text-violet-200/90">
-                Ответ администратора
+                Ответ системы
               </p>
               <p className="text-center text-sm leading-relaxed text-zinc-100">{resultMessage}</p>
             </div>
