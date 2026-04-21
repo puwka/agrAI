@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Send, Trash2, Upload } from "lucide-react";
 
+import { detectResultMediaKind } from "../../../features/dashboard/lib";
+
 type AdminGeneration = {
   id: string;
   userId: string;
@@ -255,13 +257,28 @@ export function AdminGenerationsClient() {
                 {g.referenceImageUrl ? (
                   <div className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
                     <p className="border-b border-white/10 bg-black/50 px-3 py-2 text-xs font-medium text-fuchsia-200/90">
-                      Исходное фото пользователя
+                      {g.modelId === "transcription"
+                        ? "Исходник для транскрибации"
+                        : "Исходное фото пользователя"}
                     </p>
-                    <img
-                      src={g.referenceImageUrl}
-                      alt="Референс"
-                      className="max-h-48 w-full object-contain"
-                    />
+                    {detectResultMediaKind(g.referenceImageUrl) === "video" ? (
+                      <video
+                        src={g.referenceImageUrl}
+                        controls
+                        playsInline
+                        className="max-h-64 w-full bg-black object-contain"
+                      />
+                    ) : detectResultMediaKind(g.referenceImageUrl) === "audio" ? (
+                      <div className="flex max-h-64 items-center justify-center bg-black/50 px-4 py-6">
+                        <audio src={g.referenceImageUrl} controls className="w-full max-w-md" preload="metadata" />
+                      </div>
+                    ) : (
+                      <img
+                        src={g.referenceImageUrl}
+                        alt="Референс"
+                        className="max-h-48 w-full object-contain"
+                      />
+                    )}
                   </div>
                 ) : null}
                 <p className="text-xs text-zinc-500">

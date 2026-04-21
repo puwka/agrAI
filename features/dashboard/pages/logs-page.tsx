@@ -106,7 +106,7 @@ export function LogsPage() {
       <PageIntro
         badge="История запросов"
         title="Логи генераций"
-        description="История ваших генераций, просмотр всех запросов и поиск по промпту."
+        description="История ваших генераций, просмотр всех запросов и поиск по промпту. История хранится 14 дней."
         icon={Activity}
         stats={[
           { label: "Всего записей", value: total.toString() },

@@ -7,6 +7,17 @@ import { getMaintenanceState } from "../../../lib/maintenance";
 import { hasActiveSubscription } from "../../../lib/subscription";
 import type { AspectRatio } from "../../../features/dashboard/types";
 
+function isValidHttpUrlForTranscription(link: string): boolean {
+  const s = link.trim();
+  if (!s || s.length > 4000) return false;
+  try {
+    const u = new URL(s);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function mergeVoicePrompt(prompt: string, voiceName?: string | null) {
   const base = typeof prompt === "string" ? prompt : "";
   const name = voiceName?.trim();
@@ -166,7 +177,7 @@ export async function POST(request: Request) {
   const voiceId = typeof body.voiceId === "string" ? body.voiceId.trim() : "";
   const voiceName = typeof body.voiceName === "string" ? body.voiceName.trim() : "";
   const prompt = typeof body.prompt === "string" ? body.prompt : "";
-  const aspectRatio =
+  let aspectRatio: AspectRatio | null =
     body.aspectRatio === "16:9" ||
     body.aspectRatio === "4:3" ||
     body.aspectRatio === "1:1" ||
@@ -174,6 +185,10 @@ export async function POST(request: Request) {
     body.aspectRatio === "9:16"
       ? body.aspectRatio
       : null;
+
+  if (modelId === "transcription" && !aspectRatio) {
+    aspectRatio = "16:9";
+  }
 
   if (!modelId || !modelName || !aspectRatio) {
     return NextResponse.json({ error: "Укажите модель и формат" }, { status: 400 });
@@ -185,8 +200,28 @@ export async function POST(request: Request) {
 
   let inputMode: "TEXT" | "IMAGE_REF" = "TEXT";
   let referenceImageUrl: string | null = null;
+  let promptToStore = prompt;
 
-  if (modelId === "photo" || modelId === "video") {
+  if (modelId === "transcription") {
+    const refT = typeof body.referenceImageUrl === "string" ? body.referenceImageUrl.trim() : "";
+    const hasFile = await isValidUserReferenceImageUrl(refT, sessionUser.id);
+    const link = prompt.trim();
+    const hasLink = isValidHttpUrlForTranscription(link);
+    if (!hasFile && !hasLink) {
+      return NextResponse.json(
+        { error: "Укажите ссылку на видео/аудио или загрузите файл." },
+        { status: 400 },
+      );
+    }
+    referenceImageUrl = hasFile ? refT : null;
+    if (hasLink && hasFile) {
+      promptToStore = `Ссылка: ${link}\nДополнительно загружен файл (см. источник ниже).`;
+    } else if (hasLink) {
+      promptToStore = link;
+    } else {
+      promptToStore = "Файл для транскрибации (см. источник ниже).";
+    }
+  } else if (modelId === "photo" || modelId === "video") {
     const rawMode = body.inputMode?.trim().toUpperCase();
     if (rawMode === "IMAGE_REF" || rawMode === "IMAGE") {
       inputMode = "IMAGE_REF";
@@ -215,15 +250,17 @@ export async function POST(request: Request) {
   const storedPrompt =
     modelId === "voice"
       ? mergeVoicePrompt(prompt, voiceName)
-      : inputMode === "IMAGE_REF" && !prompt.trim()
-        ? "—"
-        : prompt;
+      : modelId === "photo" || modelId === "video"
+        ? inputMode === "IMAGE_REF" && !prompt.trim()
+          ? "—"
+          : prompt
+        : promptToStore;
 
   const generation = await db.generation.create({
     data: {
       modelId,
       modelName,
-      inputMode: modelId === "voice" ? "TEXT" : inputMode,
+      inputMode: modelId === "voice" || modelId === "transcription" ? "TEXT" : inputMode,
       referenceImageUrl: modelId === "voice" ? null : referenceImageUrl,
       prompt: storedPrompt,
       aspectRatio,

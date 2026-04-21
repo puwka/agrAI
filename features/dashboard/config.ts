@@ -1,12 +1,12 @@
 import {
   Activity,
+  Captions,
   Headset,
   Image,
   LayoutDashboard,
   Mic,
   Video,
   UserRound,
-  WandSparkles,
 } from "lucide-react";
 
 import type { Model, NavItem } from "./types";
@@ -66,13 +66,12 @@ export const models: Model[] = [
     category: "Голос",
   },
   {
-    id: "model-labs",
-    name: "Лаборатория",
-    description: "Экспериментальный режим. Сейчас недоступен для пользователей.",
-    accent: "from-zinc-600/10 to-zinc-950/60",
-    icon: WandSparkles,
-    category: "В разработке",
-    disabled: true,
-    disabledLabel: "В разработке",
+    id: "transcription",
+    name: "Транскрибация",
+    description:
+      "Видео или аудио в текст: загрузите файл или вставьте ссылку на материал. Текст расшифровки прикрепит администратор.",
+    accent: "from-zinc-500/12 via-zinc-600/8 to-zinc-950/55",
+    icon: Captions,
+    category: "Текст",
   },
 ];

@@ -51,6 +51,9 @@ export function DashboardHomePage({
   const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(null);
   const [referenceUploading, setReferenceUploading] = useState(false);
   const [referenceUploadError, setReferenceUploadError] = useState<string | null>(null);
+  const [transcriptionFileUrl, setTranscriptionFileUrl] = useState<string | null>(null);
+  const [transcriptionUploading, setTranscriptionUploading] = useState(false);
+  const [transcriptionUploadError, setTranscriptionUploadError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { enabled: maintenanceOn, refresh: refreshMaintenance } = useMaintenance();
 
@@ -96,6 +99,33 @@ export function DashboardHomePage({
       }
     } finally {
       setReferenceUploading(false);
+    }
+  }, []);
+
+  const uploadTranscriptionSource = useCallback(async (file: File) => {
+    setTranscriptionUploadError(null);
+    setTranscriptionUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const response = await fetch("/api/generations/transcription-source-upload", {
+        method: "POST",
+        body: fd,
+      });
+      const data = (await response.json().catch(() => null)) as { url?: string; error?: string } | null;
+      if (!response.ok) {
+        setTranscriptionUploadError(data?.error ?? "Не удалось загрузить файл");
+        setTranscriptionFileUrl(null);
+        return;
+      }
+      if (data?.url) {
+        setTranscriptionFileUrl(data.url);
+      } else {
+        setTranscriptionUploadError("Пустой ответ сервера");
+        setTranscriptionFileUrl(null);
+      }
+    } finally {
+      setTranscriptionUploading(false);
     }
   }, []);
 
@@ -175,6 +205,8 @@ export function DashboardHomePage({
     setMediaInputMode("TEXT");
     setReferenceImageUrl(null);
     setReferenceUploadError(null);
+    setTranscriptionFileUrl(null);
+    setTranscriptionUploadError(null);
     if (modelId !== "voice") {
       setSelectedVoice(null);
     }
@@ -203,6 +235,26 @@ export function DashboardHomePage({
           setGenerationSubmitError("Загрузите исходное фото для режима «из фото».");
           return;
         }
+      }
+    }
+
+    if (selectedModel.id === "transcription") {
+      if (transcriptionUploading) {
+        return;
+      }
+      const link = prompt.trim();
+      let linkOk = false;
+      if (link) {
+        try {
+          const u = new URL(link);
+          linkOk = u.protocol === "http:" || u.protocol === "https:";
+        } catch {
+          linkOk = false;
+        }
+      }
+      if (!transcriptionFileUrl?.trim() && !linkOk) {
+        setGenerationSubmitError("Укажите ссылку на видео/аудио или загрузите файл.");
+        return;
       }
     }
 
@@ -246,6 +298,9 @@ export function DashboardHomePage({
           inputMode: mediaInputMode,
           referenceImageUrl: mediaInputMode === "IMAGE_REF" ? referenceImageUrl : null,
         }),
+        ...(selectedModel.id === "transcription" && {
+          referenceImageUrl: transcriptionFileUrl || null,
+        }),
       }),
     });
 
@@ -275,6 +330,8 @@ export function DashboardHomePage({
     setMediaInputMode("TEXT");
     setReferenceImageUrl(null);
     setReferenceUploadError(null);
+    setTranscriptionFileUrl(null);
+    setTranscriptionUploadError(null);
     setIsLoading(false);
     void loadGenerations();
   };
@@ -286,7 +343,7 @@ export function DashboardHomePage({
         title={`Добро пожаловать, ${userName}!`}
         description={
           <>
-            Безлимитные генерации в лучших моделях: фото, видео и озвучка. Сервис от{" "}
+            Безлимитные генерации в лучших моделях: фото, видео, озвучка и транскрибация. Сервис от{" "}
             <a
               href="https://gptml.ru"
               target="_blank"
@@ -393,6 +450,16 @@ export function DashboardHomePage({
             ? lastSubmittedId
             : null
         }
+        transcriptionFileUrl={transcriptionFileUrl}
+        transcriptionUploading={transcriptionUploading}
+        transcriptionUploadError={transcriptionUploadError}
+        onTranscriptionFileSelected={(file) => {
+          void uploadTranscriptionSource(file);
+        }}
+        onClearTranscriptionFile={() => {
+          setTranscriptionFileUrl(null);
+          setTranscriptionUploadError(null);
+        }}
       />
 
       <motion.section

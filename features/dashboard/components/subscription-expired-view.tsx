@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export function SubscriptionExpiredView({ until }: { until: Date | null }) {
   const untilText = until
     ? new Intl.DateTimeFormat("ru-RU", { dateStyle: "long", timeStyle: "short" }).format(until)
@@ -27,12 +25,6 @@ export function SubscriptionExpiredView({ until }: { until: Date | null }) {
         >
           Продление (написать администратору)
         </a>
-        <Link
-          href="/login"
-          className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-        >
-          Войти в другой аккаунт
-        </Link>
       </div>
     </section>
   );

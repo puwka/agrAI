@@ -47,6 +47,12 @@ type WorkspacePanelProps = {
   onGenerate: () => void;
   /** Для кнопки «Скачать» в превью (после готовности текущей заявки) */
   previewDownloadGenerationId: string | null;
+  /** Транскрибация: загруженный источник (URL в storage / локально) */
+  transcriptionFileUrl: string | null;
+  transcriptionUploading: boolean;
+  transcriptionUploadError: string | null;
+  onTranscriptionFileSelected: (file: File) => void;
+  onClearTranscriptionFile: () => void;
 };
 
 const photoAspectOptions: Array<{ value: AspectRatio; label: string }> = [
@@ -87,10 +93,16 @@ export function WorkspacePanel({
   onVoiceChange,
   onGenerate,
   previewDownloadGenerationId,
+  transcriptionFileUrl,
+  transcriptionUploading,
+  transcriptionUploadError,
+  onTranscriptionFileSelected,
+  onClearTranscriptionFile,
 }: WorkspacePanelProps) {
   const isPhotoMode = selectedModel?.id === "photo";
   const isVideoMode = selectedModel?.id === "video";
   const isVoiceMode = selectedModel?.id === "voice";
+  const isTranscriptionMode = selectedModel?.id === "transcription";
   const textFromLabel = isPhotoMode ? "Из текста в фото" : "Из текста в видео";
   const imageFromLabel = isPhotoMode ? "Из фото в фото" : "Из фото в видео";
   const [voiceModalOpen, setVoiceModalOpen] = useState(false);
@@ -260,26 +272,83 @@ export function WorkspacePanel({
                   </div>
                 ) : null}
 
-                <div className="space-y-3">
-                  <label className="text-sm font-medium text-zinc-300" htmlFor="prompt">
-                    {showMediaInputModes && mediaInputMode === "IMAGE_REF"
-                      ? "Пожелания к изменению (необязательно)"
-                      : "Ваш промпт:"}
-                  </label>
-                  <textarea
-                    id="prompt"
-                    value={prompt}
-                    onChange={(event) => onPromptChange(event.target.value)}
-                    placeholder={
-                      showMediaInputModes && mediaInputMode === "IMAGE_REF"
-                        ? "Например: сделать вечерний свет, добавить дождь, сменить стиль на аниме…"
-                        : "Опишите желаемый результат"
-                    }
-                    className="min-h-[220px] w-full resize-none rounded-[24px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-white outline-none backdrop-blur-xl transition-all duration-300 placeholder:text-zinc-500 focus:border-white/30 focus:bg-white/8 focus:shadow-[0_0_0_1px_rgba(220,223,224,0.2),0_0_24px_rgba(220,223,224,0.1)]"
-                  />
-                </div>
+                {isTranscriptionMode ? (
+                  <div className="space-y-5">
+                    <div className="space-y-3 rounded-[24px] border border-white/10 bg-white/5 p-4">
+                      <p className="text-sm font-medium text-zinc-200">Файл видео или аудио</p>
+                      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-white/20 bg-black/30 px-4 py-8 transition hover:border-white/30 hover:bg-black/40">
+                        <Upload className="h-8 w-8 text-zinc-300" />
+                        <span className="text-center text-sm text-zinc-300">
+                          {transcriptionUploading ? "Загрузка…" : "Нажмите и выберите файл (до 150 МБ)"}
+                        </span>
+                        <input
+                          type="file"
+                          accept="video/*,audio/*,.mp4,.webm,.mov,.mp3,.wav,.ogg,.m4a,.aac,.flac,.mpeg,.mpg"
+                          className="sr-only"
+                          disabled={transcriptionUploading || queueBlocked}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = "";
+                            if (file) onTranscriptionFileSelected(file);
+                          }}
+                        />
+                      </label>
+                      {transcriptionUploadError ? (
+                        <p className="text-sm text-red-300">{transcriptionUploadError}</p>
+                      ) : null}
+                      {transcriptionFileUrl ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-zinc-300">
+                          <span className="truncate">Файл загружен</span>
+                          <button
+                            type="button"
+                            onClick={onClearTranscriptionFile}
+                            className="shrink-0 rounded-lg border border-white/15 px-2 py-1 text-zinc-200 transition hover:bg-white/10"
+                          >
+                            Убрать файл
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-zinc-300" htmlFor="transcription-link">
+                        Или ссылка на видео / аудио
+                      </label>
+                      <input
+                        id="transcription-link"
+                        type="url"
+                        inputMode="url"
+                        value={prompt}
+                        onChange={(e) => onPromptChange(e.target.value)}
+                        placeholder="https://…"
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-white/30"
+                      />
+                      <p className="text-xs text-zinc-500">
+                        Достаточно файла или ссылки. Текст расшифровки прикрепит администратор.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <label className="text-sm font-medium text-zinc-300" htmlFor="prompt">
+                      {showMediaInputModes && mediaInputMode === "IMAGE_REF"
+                        ? "Пожелания к изменению (необязательно)"
+                        : "Ваш промпт:"}
+                    </label>
+                    <textarea
+                      id="prompt"
+                      value={prompt}
+                      onChange={(event) => onPromptChange(event.target.value)}
+                      placeholder={
+                        showMediaInputModes && mediaInputMode === "IMAGE_REF"
+                          ? "Например: сделать вечерний свет, добавить дождь, сменить стиль на аниме…"
+                          : "Опишите желаемый результат"
+                      }
+                      className="min-h-[220px] w-full resize-none rounded-[24px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-white outline-none backdrop-blur-xl transition-all duration-300 placeholder:text-zinc-500 focus:border-white/30 focus:bg-white/8 focus:shadow-[0_0_0_1px_rgba(220,223,224,0.2),0_0_24px_rgba(220,223,224,0.1)]"
+                    />
+                  </div>
+                )}
 
-                {!isVoiceMode ? (
+                {!isVoiceMode && !isTranscriptionMode ? (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm font-medium text-zinc-300">
                       <Wand2 className="h-4 w-4 text-zinc-300" />
@@ -353,9 +422,13 @@ export function WorkspacePanel({
                     isLoading ||
                     queueBlocked ||
                     referenceUploading ||
+                    transcriptionUploading ||
                     (showMediaInputModes &&
                       mediaInputMode === "IMAGE_REF" &&
-                      !referenceImageUrl)
+                      !referenceImageUrl) ||
+                    (isTranscriptionMode &&
+                      !transcriptionFileUrl?.trim() &&
+                      !prompt.trim())
                   }
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/25 bg-[#27272a] px-5 py-4 text-sm font-semibold text-white shadow-[0_0_24px_rgba(220,223,224,0.16)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#303030] hover:shadow-[0_0_30px_rgba(220,223,224,0.18)] focus:outline-none focus:ring-2 focus:ring-white/30 disabled:pointer-events-none disabled:opacity-45"
                 >
