@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Loader2, UserPlus } from "lucide-react";
+import { Eye, EyeOff, Loader2, UserPlus } from "lucide-react";
 
 export type AdminUserRow = {
   id: string;
@@ -41,6 +41,8 @@ export function AdminUsersTable({ initialRows }: { initialRows: AdminUserRow[] }
   const [rows, setRows] = useState<AdminUserRow[]>(initialRows);
   const [daysByUser, setDaysByUser] = useState<Record<string, string>>({});
   const [reasonByUser, setReasonByUser] = useState<Record<string, string>>({});
+  const [passwordByUser, setPasswordByUser] = useState<Record<string, string>>({});
+  const [passwordVisibleByUser, setPasswordVisibleByUser] = useState<Record<string, boolean>>({});
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -258,6 +260,28 @@ export function AdminUsersTable({ initialRows }: { initialRows: AdminUserRow[] }
     );
   };
 
+  const changePassword = async (userId: string) => {
+    const password = (passwordByUser[userId] ?? "").trim();
+    if (password.length < 8) {
+      setError("Новый пароль должен быть не короче 8 символов.");
+      return;
+    }
+    setBusyUserId(userId);
+    setError(null);
+    const response = await fetch(`/api/admin/users/${userId}/password`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    setBusyUserId(null);
+    if (!response.ok) {
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      setError(data?.error ?? "Не удалось сменить пароль.");
+      return;
+    }
+    setPasswordByUser((prev) => ({ ...prev, [userId]: "" }));
+  };
+
   return (
     <div className="space-y-3">
       {error ? (
@@ -469,6 +493,41 @@ export function AdminUsersTable({ initialRows }: { initialRows: AdminUserRow[] }
                           className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:bg-white/10 disabled:opacity-60"
                         >
                           Снять
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-[1fr_auto] gap-2">
+                        <div className="relative">
+                          <input
+                            type={passwordVisibleByUser[u.id] ? "text" : "password"}
+                            value={passwordByUser[u.id] ?? ""}
+                            onChange={(e) =>
+                              setPasswordByUser((s) => ({ ...s, [u.id]: e.target.value }))
+                            }
+                            placeholder="Новый пароль (мин. 8)"
+                            className="w-full rounded-2xl border border-white/10 bg-black/25 px-3 py-2 pr-10 text-xs text-white outline-none focus:border-violet-400/40"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPasswordVisibleByUser((s) => ({ ...s, [u.id]: !s[u.id] }))
+                            }
+                            className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-zinc-400 transition hover:text-zinc-200"
+                            aria-label={passwordVisibleByUser[u.id] ? "Скрыть пароль" : "Показать пароль"}
+                          >
+                            {passwordVisibleByUser[u.id] ? (
+                              <EyeOff className="h-3.5 w-3.5" />
+                            ) : (
+                              <Eye className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void changePassword(u.id)}
+                          className="rounded-2xl border border-violet-400/25 bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-200 transition hover:bg-violet-500/20 disabled:opacity-60"
+                        >
+                          Сменить пароль
                         </button>
                       </div>
                     </div>

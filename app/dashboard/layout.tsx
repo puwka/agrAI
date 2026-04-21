@@ -15,6 +15,11 @@ export default async function DashboardLayout({
   const user = await requireUser();
   const userId = user.id;
 
+  const freshUser = await db.user.findUnique({
+    where: { id: userId },
+    select: { name: true, email: true, role: true },
+  });
+
   const restriction = await db.user.findUnique({
     where: { id: userId },
     select: { restrictedUntil: true, restrictedReason: true, subscriptionUntil: true },
@@ -32,9 +37,9 @@ export default async function DashboardLayout({
   return (
     <DashboardShell
       user={{
-        name: user.name ?? "",
-        email: user.email ?? "",
-        role: user.role,
+        name: freshUser?.name?.trim() || user.name || user.email.split("@")[0] || "Пользователь",
+        email: freshUser?.email?.trim() || user.email || "",
+        role: (freshUser?.role as "ADMIN" | "USER" | undefined) ?? user.role,
         subscriptionSummary,
       }}
     >

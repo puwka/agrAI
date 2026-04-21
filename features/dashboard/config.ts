@@ -52,7 +52,7 @@ export const models: Model[] = [
     id: "video",
     name: "Генерация видео",
     description:
-      "Два режима: из текста в видео или из вашего фото в видео (модель - veo 3.1 Relax).",
+      "Два режима: из текста в видео или из вашего фото в видео (модель - Veo 3.1 Relax).",
     accent: "from-white/6 via-zinc-600/8 to-zinc-950/50",
     icon: Video,
     category: "Видео",

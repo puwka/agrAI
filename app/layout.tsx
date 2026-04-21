@@ -5,7 +5,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "agrAI",
+  title: "GPTML AI",
   description: "Агрегатор нейросетей",
 };
 
