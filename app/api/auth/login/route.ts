@@ -29,6 +29,7 @@ function emergencyAuthorize(email: string, password: string): SessionUser | null
 }
 
 export async function POST(request: Request) {
+  const isHttps = (request.headers.get("x-forwarded-proto") ?? "http").toLowerCase() === "https";
   let body: { email?: string; password?: string };
   try {
     body = (await request.json()) as { email?: string; password?: string };
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
     name: sessionCookieName(),
     value: token,
     httpOnly: true,
-    secure: true,
+    secure: isHttps,
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 7,
