@@ -1,6 +1,10 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { createReadStream, createWriteStream } from "node:fs";
+import { mkdir, unlink } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
+import { tmpdir } from "node:os";
 import path from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 
 import { NextResponse } from "next/server";
 
@@ -8,13 +12,12 @@ import { getApiSessionUser } from "../../../../lib/auth/api-session";
 import { db } from "../../../../lib/db";
 import { hasActiveSubscription } from "../../../../lib/subscription";
 import { inferUploadExtAndMime } from "../../../../lib/upload-media-infer";
+import { MAX_TRANSCRIPTION_UPLOAD_BYTES } from "../../../../lib/transcription-limits";
 import {
   supabaseStorageBucket,
   supabaseUploadsEnabled,
-  uploadUserReferenceImage,
+  uploadUserReferenceImageStream,
 } from "../../../../lib/supabase-storage";
-
-const MAX_BYTES = 150 * 1024 * 1024;
 
 const ALLOWED_EXT = new Set([
   ".mp4",
@@ -67,12 +70,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Добавьте файл в поле file" }, { status: 400 });
   }
 
-  if (file.size <= 0) {
+  const size = typeof file.size === "number" && Number.isFinite(file.size) ? file.size : 0;
+  if (size <= 0) {
     return NextResponse.json({ error: "Пустой файл" }, { status: 400 });
   }
 
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "Файл слишком большой (макс. 150 МБ)" }, { status: 400 });
+  if (size > MAX_TRANSCRIPTION_UPLOAD_BYTES) {
+    return NextResponse.json({ error: "Файл слишком большой (макс. 3 ГБ)" }, { status: 400 });
   }
 
   const { ext, mime } = inferUploadExtAndMime(file);
@@ -84,13 +88,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const webStream = file.stream();
+  const nodeIn = Readable.fromWeb(webStream as import("stream/web").ReadableStream<Uint8Array>);
 
   if (supabaseUploadsEnabled()) {
+    const tmpName = `tr-${sessionUser.id}-${Date.now()}-${randomBytes(6).toString("hex")}${extLower}`;
+    const tmpPath = path.join(tmpdir(), tmpName);
     try {
-      const publicUrl = await uploadUserReferenceImage({
+      await pipeline(nodeIn, createWriteStream(tmpPath));
+      const publicUrl = await uploadUserReferenceImageStream({
         userId: sessionUser.id,
-        buffer,
+        stream: createReadStream(tmpPath),
         mime,
         ext: extLower,
       });
@@ -99,10 +107,12 @@ export async function POST(request: Request) {
       const msg = e instanceof Error ? e.message : String(e);
       return NextResponse.json(
         {
-          error: `Не удалось загрузить файл в Supabase Storage (${msg}). Проверьте бакет «${supabaseStorageBucket()}».`,
+          error: `Не удалось загрузить файл в Supabase Storage (${msg}). Проверьте бакет «${supabaseStorageBucket()}» и лимиты размера объекта в проекте.`,
         },
         { status: 503 },
       );
+    } finally {
+      await unlink(tmpPath).catch(() => {});
     }
   }
 
@@ -111,7 +121,13 @@ export async function POST(request: Request) {
   await mkdir(uploadDir, { recursive: true });
 
   const diskPath = path.join(uploadDir, safeBase);
-  await writeFile(diskPath, buffer);
+  try {
+    await pipeline(nodeIn, createWriteStream(diskPath));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    await unlink(diskPath).catch(() => {});
+    return NextResponse.json({ error: `Не удалось сохранить файл (${msg})` }, { status: 500 });
+  }
 
   const publicPath = `/uploads/generations/references/${safeBase}`;
   return NextResponse.json({ url: publicPath });

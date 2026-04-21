@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import type { Readable } from "node:stream";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
@@ -75,6 +76,28 @@ export async function uploadUserReferenceImage(input: {
   const objectPath = `references/${safeBase}`;
   const supabase = getAdmin();
   const { error } = await supabase.storage.from(bucket).upload(objectPath, input.buffer, {
+    contentType: input.mime,
+    upsert: false,
+  });
+  if (error) {
+    throw new Error(error.message);
+  }
+  const { data } = supabase.storage.from(bucket).getPublicUrl(objectPath);
+  return data.publicUrl;
+}
+
+/** Загрузка больших файлов без буфера целиком в RAM (Node Readable). */
+export async function uploadUserReferenceImageStream(input: {
+  userId: string;
+  stream: Readable;
+  mime: string;
+  ext: string;
+}) {
+  const bucket = supabaseStorageBucket();
+  const safeBase = `${input.userId}-${Date.now()}-${randomBytes(6).toString("hex")}${input.ext}`;
+  const objectPath = `references/${safeBase}`;
+  const supabase = getAdmin();
+  const { error } = await supabase.storage.from(bucket).upload(objectPath, input.stream, {
     contentType: input.mime,
     upsert: false,
   });

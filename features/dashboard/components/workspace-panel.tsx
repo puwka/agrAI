@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 
+import { MAX_TRANSCRIPTION_UPLOAD_LABEL } from "../../../lib/transcription-limits";
 import type { AspectRatio, MediaInputMode, Model } from "../types";
 import { useMaintenance } from "../maintenance-context";
 import { ResultPreview } from "./result-preview";
@@ -279,7 +280,9 @@ export function WorkspacePanel({
                       <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-white/20 bg-black/30 px-4 py-8 transition hover:border-white/30 hover:bg-black/40">
                         <Upload className="h-8 w-8 text-zinc-300" />
                         <span className="text-center text-sm text-zinc-300">
-                          {transcriptionUploading ? "Загрузка…" : "Нажмите и выберите файл (до 150 МБ)"}
+                          {transcriptionUploading
+                            ? "Загрузка…"
+                            : `Нажмите и выберите файл (до ${MAX_TRANSCRIPTION_UPLOAD_LABEL})`}
                         </span>
                         <input
                           type="file"

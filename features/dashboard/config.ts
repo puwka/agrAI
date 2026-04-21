@@ -60,7 +60,7 @@ export const models: Model[] = [
   {
     id: "voice",
     name: "Генерация голоса",
-    description: "Озвучка PREMIUM голосами",
+    description: "AI озвучка PREMIUM голосами.",
     accent: "from-zinc-500/12 via-zinc-600/8 to-zinc-950/55",
     icon: Mic,
     category: "Голос",
@@ -69,7 +69,7 @@ export const models: Model[] = [
     id: "transcription",
     name: "Транскрибация",
     description:
-      "Видео или аудио в текст: загрузите файл или вставьте ссылку на материал. Текст расшифровки прикрепит администратор.",
+      "Видео или аудио в текст: загрузите файл или вставьте ссылку на материал (модель - Whisper).",
     accent: "from-zinc-500/12 via-zinc-600/8 to-zinc-950/55",
     icon: Captions,
     category: "Текст",
