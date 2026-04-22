@@ -54,6 +54,7 @@ export function DashboardHomePage({
   const [transcriptionFileUrl, setTranscriptionFileUrl] = useState<string | null>(null);
   const [transcriptionUploading, setTranscriptionUploading] = useState(false);
   const [transcriptionUploadError, setTranscriptionUploadError] = useState<string | null>(null);
+  const [transcriptionUploadProgress, setTranscriptionUploadProgress] = useState<number | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { enabled: maintenanceOn, refresh: refreshMaintenance } = useMaintenance();
 
@@ -104,26 +105,47 @@ export function DashboardHomePage({
 
   const uploadTranscriptionSource = useCallback(async (file: File) => {
     setTranscriptionUploadError(null);
+    setTranscriptionUploadProgress(0);
     setTranscriptionUploading(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const response = await fetch("/api/generations/transcription-source-upload", {
-        method: "POST",
-        body: fd,
+      const data = await new Promise<{ url?: string; error?: string; status: number }>((resolve, reject) => {
+        const fd = new FormData();
+        fd.append("file", file);
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/generations/transcription-source-upload");
+        xhr.responseType = "json";
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && event.total > 0) {
+            const p = Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)));
+            setTranscriptionUploadProgress(p);
+          } else {
+            setTranscriptionUploadProgress(null);
+          }
+        };
+        xhr.onload = () => {
+          const body = (xhr.response as { url?: string; error?: string } | null) ?? {};
+          resolve({ ...body, status: xhr.status });
+        };
+        xhr.onerror = () => reject(new Error("NETWORK_ERROR"));
+        xhr.onabort = () => reject(new Error("ABORTED"));
+        xhr.send(fd);
       });
-      const data = (await response.json().catch(() => null)) as { url?: string; error?: string } | null;
-      if (!response.ok) {
-        setTranscriptionUploadError(data?.error ?? "Не удалось загрузить файл");
+
+      if (data.status < 200 || data.status >= 300) {
+        setTranscriptionUploadError(data.error ?? "Не удалось загрузить файл");
         setTranscriptionFileUrl(null);
         return;
       }
-      if (data?.url) {
+      if (data.url) {
+        setTranscriptionUploadProgress(100);
         setTranscriptionFileUrl(data.url);
       } else {
         setTranscriptionUploadError("Пустой ответ сервера");
         setTranscriptionFileUrl(null);
       }
+    } catch {
+      setTranscriptionUploadError("Ошибка сети при загрузке");
+      setTranscriptionFileUrl(null);
     } finally {
       setTranscriptionUploading(false);
     }
@@ -207,6 +229,7 @@ export function DashboardHomePage({
     setReferenceUploadError(null);
     setTranscriptionFileUrl(null);
     setTranscriptionUploadError(null);
+    setTranscriptionUploadProgress(null);
     if (modelId !== "voice") {
       setSelectedVoice(null);
     }
@@ -332,6 +355,7 @@ export function DashboardHomePage({
     setReferenceUploadError(null);
     setTranscriptionFileUrl(null);
     setTranscriptionUploadError(null);
+    setTranscriptionUploadProgress(null);
     setIsLoading(false);
     void loadGenerations();
   };
@@ -453,12 +477,14 @@ export function DashboardHomePage({
         transcriptionFileUrl={transcriptionFileUrl}
         transcriptionUploading={transcriptionUploading}
         transcriptionUploadError={transcriptionUploadError}
+        transcriptionUploadProgress={transcriptionUploadProgress}
         onTranscriptionFileSelected={(file) => {
           void uploadTranscriptionSource(file);
         }}
         onClearTranscriptionFile={() => {
           setTranscriptionFileUrl(null);
           setTranscriptionUploadError(null);
+          setTranscriptionUploadProgress(null);
         }}
       />
 

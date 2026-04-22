@@ -52,6 +52,7 @@ type WorkspacePanelProps = {
   transcriptionFileUrl: string | null;
   transcriptionUploading: boolean;
   transcriptionUploadError: string | null;
+  transcriptionUploadProgress: number | null;
   onTranscriptionFileSelected: (file: File) => void;
   onClearTranscriptionFile: () => void;
 };
@@ -97,6 +98,7 @@ export function WorkspacePanel({
   transcriptionFileUrl,
   transcriptionUploading,
   transcriptionUploadError,
+  transcriptionUploadProgress,
   onTranscriptionFileSelected,
   onClearTranscriptionFile,
 }: WorkspacePanelProps) {
@@ -280,7 +282,9 @@ export function WorkspacePanel({
                       <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-white/20 bg-black/30 px-4 py-8 transition hover:border-white/30 hover:bg-black/40">
                         <Upload className="h-8 w-8 text-zinc-300" />
                         <span className="text-center text-sm text-zinc-300">
-                          {transcriptionUploading
+                          {transcriptionFileUrl
+                            ? "Файл уже загружен. Чтобы выбрать другой, сначала удалите текущий."
+                            : transcriptionUploading
                             ? "Загрузка…"
                             : `Нажмите и выберите файл (до ${MAX_TRANSCRIPTION_UPLOAD_LABEL})`}
                         </span>
@@ -288,7 +292,7 @@ export function WorkspacePanel({
                           type="file"
                           accept="video/*,audio/*,.mp4,.webm,.mov,.mp3,.wav,.ogg,.m4a,.aac,.flac,.mpeg,.mpg"
                           className="sr-only"
-                          disabled={transcriptionUploading || queueBlocked}
+                          disabled={transcriptionUploading || queueBlocked || Boolean(transcriptionFileUrl)}
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             e.target.value = "";
@@ -296,6 +300,31 @@ export function WorkspacePanel({
                           }}
                         />
                       </label>
+                      {transcriptionUploading ? (
+                        <div className="space-y-2 rounded-xl border border-white/10 bg-black/30 px-3 py-3">
+                          <div className="flex items-center justify-between text-xs text-zinc-300">
+                            <span>Прогресс загрузки</span>
+                            <span>
+                              {typeof transcriptionUploadProgress === "number"
+                                ? `${transcriptionUploadProgress}%`
+                                : "…"}
+                            </span>
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                            <div
+                              className={[
+                                "h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-all duration-300",
+                                typeof transcriptionUploadProgress === "number" ? "" : "animate-pulse w-1/3",
+                              ].join(" ")}
+                              style={
+                                typeof transcriptionUploadProgress === "number"
+                                  ? { width: `${Math.max(2, transcriptionUploadProgress)}%` }
+                                  : undefined
+                              }
+                            />
+                          </div>
+                        </div>
+                      ) : null}
                       {transcriptionUploadError ? (
                         <p className="text-sm text-red-300">{transcriptionUploadError}</p>
                       ) : null}
@@ -325,9 +354,7 @@ export function WorkspacePanel({
                         placeholder="https://…"
                         className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-white/30"
                       />
-                      <p className="text-xs text-zinc-500">
-                        Достаточно файла или ссылки. Текст расшифровки прикрепит администратор.
-                      </p>
+                      <p className="text-xs text-zinc-500">Достаточно файла или ссылки.</p>
                     </div>
                   </div>
                 ) : (
