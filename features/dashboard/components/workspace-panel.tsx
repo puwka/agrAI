@@ -55,6 +55,34 @@ type WorkspacePanelProps = {
   transcriptionUploadProgress: number | null;
   onTranscriptionFileSelected: (file: File) => void;
   onClearTranscriptionFile: () => void;
+  enhanceFileUrl: string | null;
+  enhanceUploading: boolean;
+  enhanceUploadError: string | null;
+  enhanceUploadProgress: number | null;
+  enhanceMaxLabel: string;
+  enhanceQuality: "original" | "2x" | "4x";
+  enhanceFps: "24" | "25" | "30" | "45" | "50" | "60";
+  onEnhanceFileSelected: (file: File) => void;
+  onEnhanceFileClear: () => void;
+  onEnhanceQualityChange: (v: "original" | "2x" | "4x") => void;
+  onEnhanceFpsChange: (v: "24" | "25" | "30" | "45" | "50" | "60") => void;
+  photoModelVariant: "nana2" | "nana-pro" | "sora-image";
+  onPhotoModelVariantChange: (v: "nana2" | "nana-pro" | "sora-image") => void;
+  videoModelVariant: "veo-3.1-relax" | "runway-gen-4";
+  onVideoModelVariantChange: (v: "veo-3.1-relax" | "runway-gen-4") => void;
+  motionCharacterUrl: string | null;
+  motionCharacterUploading: boolean;
+  motionCharacterUploadError: string | null;
+  motionVideoUrl: string | null;
+  motionVideoDurationSec: number | null;
+  motionVideoUploading: boolean;
+  motionVideoUploadError: string | null;
+  motionVideoUploadProgress: number | null;
+  motionVideoMaxLabel: string;
+  onMotionCharacterSelected: (file: File) => void;
+  onMotionCharacterClear: () => void;
+  onMotionVideoSelected: (file: File) => void;
+  onMotionVideoClear: () => void;
 };
 
 const photoAspectOptions: Array<{ value: AspectRatio; label: string }> = [
@@ -65,9 +93,33 @@ const photoAspectOptions: Array<{ value: AspectRatio; label: string }> = [
   { value: "9:16", label: "9:16" },
 ];
 
+const soraPhotoAspectOptions: Array<{ value: AspectRatio; label: string; hint: string }> = [
+  { value: "3:2", label: "3:2", hint: "Photo (Standard)" },
+  { value: "1:1", label: "1:1", hint: "Square" },
+  { value: "2:3", label: "2:3", hint: "Portrait" },
+];
+
 const defaultAspectOptions: Array<{ value: AspectRatio; label: string }> = [
   { value: "16:9", label: "16:9" },
   { value: "9:16", label: "9:16" },
+];
+
+const motionAspectOptions: Array<{ value: AspectRatio; title: string; hint: string }> = [
+  { value: "21:9", title: "21:9", hint: "Exclusive" },
+  { value: "16:9", title: "16:9", hint: "Widescreen" },
+  { value: "4:3", title: "4:3", hint: "Classic" },
+  { value: "1:1", title: "1:1", hint: "Square" },
+  { value: "3:4", title: "3:4", hint: "Vertical classic" },
+  { value: "9:16", title: "9:16", hint: "Story (vertical)" },
+];
+
+const runwayVideoAspectOptions: Array<{ value: AspectRatio; title: string; hint: string }> = [
+  { value: "21:9", title: "21:9", hint: "Exclusive" },
+  { value: "16:9", title: "16:9", hint: "Widescreen" },
+  { value: "4:3", title: "4:3", hint: "Classic" },
+  { value: "1:1", title: "1:1", hint: "Square" },
+  { value: "3:4", title: "3:4", hint: "Vertical classic" },
+  { value: "9:16", title: "9:16", hint: "Story (vertical)" },
 ];
 
 export function WorkspacePanel({
@@ -101,11 +153,41 @@ export function WorkspacePanel({
   transcriptionUploadProgress,
   onTranscriptionFileSelected,
   onClearTranscriptionFile,
+  enhanceFileUrl,
+  enhanceUploading,
+  enhanceUploadError,
+  enhanceUploadProgress,
+  enhanceMaxLabel,
+  enhanceQuality,
+  enhanceFps,
+  onEnhanceFileSelected,
+  onEnhanceFileClear,
+  onEnhanceQualityChange,
+  onEnhanceFpsChange,
+  photoModelVariant,
+  onPhotoModelVariantChange,
+  videoModelVariant,
+  onVideoModelVariantChange,
+  motionCharacterUrl,
+  motionCharacterUploading,
+  motionCharacterUploadError,
+  motionVideoUrl,
+  motionVideoDurationSec,
+  motionVideoUploading,
+  motionVideoUploadError,
+  motionVideoUploadProgress,
+  motionVideoMaxLabel,
+  onMotionCharacterSelected,
+  onMotionCharacterClear,
+  onMotionVideoSelected,
+  onMotionVideoClear,
 }: WorkspacePanelProps) {
   const isPhotoMode = selectedModel?.id === "photo";
   const isVideoMode = selectedModel?.id === "video";
   const isVoiceMode = selectedModel?.id === "voice";
   const isTranscriptionMode = selectedModel?.id === "transcription";
+  const isVideoEnhanceMode = selectedModel?.id === "video-enhance";
+  const isMotionTransferMode = selectedModel?.id === "motion-transfer";
   const textFromLabel = isPhotoMode ? "Из текста в фото" : "Из текста в видео";
   const imageFromLabel = isPhotoMode ? "Из фото в фото" : "Из фото в видео";
   const [voiceModalOpen, setVoiceModalOpen] = useState(false);
@@ -229,6 +311,44 @@ export function WorkspacePanel({
                         {imageFromLabel}
                       </button>
                     </div>
+                  </div>
+                ) : null}
+
+                {isPhotoMode ? (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-zinc-300" htmlFor="photo-model-variant">
+                      Модель фото
+                    </label>
+                    <select
+                      id="photo-model-variant"
+                      value={photoModelVariant}
+                      onChange={(e) =>
+                        onPhotoModelVariantChange(e.target.value as "nana2" | "nana-pro" | "sora-image")
+                      }
+                      className="w-full rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
+                    >
+                      <option value="nana2">Nana Banana 2</option>
+                      <option value="nana-pro">Nana Banana Pro</option>
+                      <option value="sora-image">Sora image</option>
+                    </select>
+                  </div>
+                ) : null}
+                {isVideoMode ? (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-zinc-300" htmlFor="video-model-variant">
+                      Модель видео
+                    </label>
+                    <select
+                      id="video-model-variant"
+                      value={videoModelVariant}
+                      onChange={(e) =>
+                        onVideoModelVariantChange(e.target.value as "veo-3.1-relax" | "runway-gen-4")
+                      }
+                      className="w-full rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
+                    >
+                      <option value="veo-3.1-relax">Veo 3.1 Relax</option>
+                      <option value="runway-gen-4">Runway Gen-4</option>
+                    </select>
                   </div>
                 ) : null}
 
@@ -357,6 +477,230 @@ export function WorkspacePanel({
                       <p className="text-xs text-zinc-500">Достаточно файла или ссылки.</p>
                     </div>
                   </div>
+                ) : isVideoEnhanceMode ? (
+                  <div className="space-y-5">
+                    <div className="space-y-3 rounded-[24px] border border-white/10 bg-white/5 p-4">
+                      <p className="text-sm font-medium text-zinc-200">Файл видео</p>
+                      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-white/20 bg-black/30 px-4 py-8 transition hover:border-white/30 hover:bg-black/40">
+                        <Upload className="h-8 w-8 text-zinc-300" />
+                        <span className="text-center text-sm text-zinc-300">
+                          {enhanceFileUrl
+                            ? "Файл уже загружен. Чтобы выбрать другой, сначала удалите текущий."
+                            : enhanceUploading
+                              ? "Загрузка…"
+                              : `Перетащите файл сюда или нажмите, чтобы загрузить`}
+                        </span>
+                        <span className="text-center text-xs text-zinc-500">
+                          {`MP4, WEBM, MOV (max. ${enhanceMaxLabel}) (до 25 секунд) · 1 файл`}
+                        </span>
+                        <input
+                          type="file"
+                          accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+                          className="sr-only"
+                          disabled={enhanceUploading || queueBlocked || Boolean(enhanceFileUrl)}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = "";
+                            if (file) onEnhanceFileSelected(file);
+                          }}
+                        />
+                      </label>
+                      {enhanceUploading ? (
+                        <div className="space-y-2 rounded-xl border border-white/10 bg-black/30 px-3 py-3">
+                          <div className="flex items-center justify-between text-xs text-zinc-300">
+                            <span>Прогресс загрузки</span>
+                            <span>{typeof enhanceUploadProgress === "number" ? `${enhanceUploadProgress}%` : "…"}</span>
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                            <div
+                              className={[
+                                "h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-all duration-300",
+                                typeof enhanceUploadProgress === "number" ? "" : "animate-pulse w-1/3",
+                              ].join(" ")}
+                              style={
+                                typeof enhanceUploadProgress === "number"
+                                  ? { width: `${Math.max(2, enhanceUploadProgress)}%` }
+                                  : undefined
+                              }
+                            />
+                          </div>
+                        </div>
+                      ) : null}
+                      {enhanceUploadError ? <p className="text-sm text-red-300">{enhanceUploadError}</p> : null}
+                      {enhanceFileUrl ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-zinc-300">
+                          <span className="truncate">Видео загружено</span>
+                          <button
+                            type="button"
+                            onClick={onEnhanceFileClear}
+                            className="shrink-0 rounded-lg border border-white/15 px-2 py-1 text-zinc-200 transition hover:bg-white/10"
+                          >
+                            Убрать файл
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="space-y-2">
+                        <span className="block text-sm font-medium text-zinc-300">Качество</span>
+                        <select
+                          value={enhanceQuality}
+                          onChange={(e) => onEnhanceQualityChange(e.target.value as "original" | "2x" | "4x")}
+                          className="w-full rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
+                        >
+                          <option value="original">Оригинальное</option>
+                          <option value="2x">2x</option>
+                          <option value="4x">4x</option>
+                        </select>
+                      </label>
+                      <label className="space-y-2">
+                        <span className="block text-sm font-medium text-zinc-300">Частота кадров (FPS)</span>
+                        <select
+                          value={enhanceFps}
+                          onChange={(e) =>
+                            onEnhanceFpsChange(e.target.value as "24" | "25" | "30" | "45" | "50" | "60")
+                          }
+                          className="w-full rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
+                        >
+                          <option value="24">24</option>
+                          <option value="25">25</option>
+                          <option value="30">30</option>
+                          <option value="45">45</option>
+                          <option value="50">50</option>
+                          <option value="60">60</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                ) : isMotionTransferMode ? (
+                  <div className="space-y-5">
+                    <div className="space-y-3 rounded-[24px] border border-white/10 bg-white/5 p-4">
+                      <p className="text-sm font-medium text-zinc-200">Загрузить персонажа</p>
+                      <p className="text-xs leading-5 text-zinc-400">
+                        Генерация анимирует окружение и переносит движения и жесты с видео на персонажа.
+                        Для лучшего качества используйте одного человека в кадре и снимайте его по пояс.
+                      </p>
+                      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-white/20 bg-black/30 px-4 py-8 transition hover:border-white/30 hover:bg-black/40">
+                        <Upload className="h-8 w-8 text-zinc-300" />
+                        <span className="text-center text-sm text-zinc-300">
+                          {motionCharacterUrl
+                            ? "Персонаж загружен. Чтобы выбрать другой, сначала удалите текущий."
+                            : motionCharacterUploading
+                              ? "Загрузка…"
+                              : "Загрузить персонажа"}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif"
+                          className="sr-only"
+                          disabled={motionCharacterUploading || queueBlocked || Boolean(motionCharacterUrl)}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = "";
+                            if (file) onMotionCharacterSelected(file);
+                          }}
+                        />
+                      </label>
+                      {motionCharacterUploadError ? (
+                        <p className="text-sm text-red-300">{motionCharacterUploadError}</p>
+                      ) : null}
+                      {motionCharacterUrl ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-zinc-300">
+                          <span className="truncate">Персонаж загружен</span>
+                          <button
+                            type="button"
+                            onClick={onMotionCharacterClear}
+                            className="shrink-0 rounded-lg border border-white/15 px-2 py-1 text-zinc-200 transition hover:bg-white/10"
+                          >
+                            Убрать файл
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-3 rounded-[24px] border border-white/10 bg-white/5 p-4">
+                      <p className="text-sm font-medium text-zinc-200">Загрузить видео</p>
+                      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-white/20 bg-black/30 px-4 py-8 transition hover:border-white/30 hover:bg-black/40">
+                        <Upload className="h-8 w-8 text-zinc-300" />
+                        <span className="text-center text-sm text-zinc-300">
+                          {motionVideoUrl
+                            ? "Видео загружено. Чтобы выбрать другое, сначала удалите текущее."
+                            : motionVideoUploading
+                              ? "Загрузка…"
+                              : "Перетащите файл сюда или нажмите, чтобы загрузить"}
+                        </span>
+                        <span className="text-center text-xs text-zinc-500">
+                          {`MP4, WEBM, MOV (max. ${motionVideoMaxLabel}) (3-30 секунд) · 1 файл`}
+                        </span>
+                        <input
+                          type="file"
+                          accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+                          className="sr-only"
+                          disabled={motionVideoUploading || queueBlocked || Boolean(motionVideoUrl)}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = "";
+                            if (file) onMotionVideoSelected(file);
+                          }}
+                        />
+                      </label>
+                      {motionVideoUploading ? (
+                        <div className="space-y-2 rounded-xl border border-white/10 bg-black/30 px-3 py-3">
+                          <div className="flex items-center justify-between text-xs text-zinc-300">
+                            <span>Прогресс загрузки</span>
+                            <span>{typeof motionVideoUploadProgress === "number" ? `${motionVideoUploadProgress}%` : "…"}</span>
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                            <div
+                              className={[
+                                "h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-all duration-300",
+                                typeof motionVideoUploadProgress === "number" ? "" : "animate-pulse w-1/3",
+                              ].join(" ")}
+                              style={
+                                typeof motionVideoUploadProgress === "number"
+                                  ? { width: `${Math.max(2, motionVideoUploadProgress)}%` }
+                                  : undefined
+                              }
+                            />
+                          </div>
+                        </div>
+                      ) : null}
+                      {motionVideoUploadError ? <p className="text-sm text-red-300">{motionVideoUploadError}</p> : null}
+                      {motionVideoUrl ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-zinc-300">
+                          <span className="truncate">
+                            Видео загружено{typeof motionVideoDurationSec === "number" ? ` · ${motionVideoDurationSec} сек` : ""}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={onMotionVideoClear}
+                            className="shrink-0 rounded-lg border border-white/15 px-2 py-1 text-zinc-200 transition hover:bg-white/10"
+                          >
+                            Убрать файл
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-zinc-300" htmlFor="motion-aspect">
+                        Соотношение сторон
+                      </label>
+                      <select
+                        id="motion-aspect"
+                        value={aspectRatio}
+                        onChange={(e) => onAspectRatioChange(e.target.value as AspectRatio)}
+                        className="w-full rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
+                      >
+                        {motionAspectOptions.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {`${o.title} — ${o.hint}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     <label className="text-sm font-medium text-zinc-300" htmlFor="prompt">
@@ -378,7 +722,7 @@ export function WorkspacePanel({
                   </div>
                 )}
 
-                {!isVoiceMode && !isTranscriptionMode ? (
+                {!isVoiceMode && !isTranscriptionMode && !isVideoEnhanceMode && !isMotionTransferMode ? (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm font-medium text-zinc-300">
                       <Wand2 className="h-4 w-4 text-zinc-300" />
@@ -388,7 +732,10 @@ export function WorkspacePanel({
                     {isPhotoMode || isVideoMode ? (
                       isPhotoMode ? (
                       <div className="inline-flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">
-                        {photoAspectOptions.map((option) => {
+                        {(photoModelVariant === "sora-image"
+                          ? soraPhotoAspectOptions.map((o) => ({ value: o.value, label: `${o.label}` }))
+                          : photoAspectOptions
+                        ).map((option) => {
                           const checked = aspectRatio === option.value;
                           return (
                             <button
@@ -409,7 +756,10 @@ export function WorkspacePanel({
                       </div>
                       ) : (
                       <div className="inline-flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">
-                        {defaultAspectOptions.map((option) => {
+                        {(videoModelVariant === "runway-gen-4"
+                          ? runwayVideoAspectOptions.map((o) => ({ value: o.value, label: o.title }))
+                          : defaultAspectOptions
+                        ).map((option) => {
                           const checked = aspectRatio === option.value;
                           return (
                             <button
@@ -453,12 +803,15 @@ export function WorkspacePanel({
                     queueBlocked ||
                     referenceUploading ||
                     transcriptionUploading ||
+                    enhanceUploading ||
                     (showMediaInputModes &&
                       mediaInputMode === "IMAGE_REF" &&
                       !referenceImageUrl) ||
                     (isTranscriptionMode &&
                       !transcriptionFileUrl?.trim() &&
-                      !prompt.trim())
+                      !prompt.trim()) ||
+                    (isVideoEnhanceMode && !enhanceFileUrl?.trim()) ||
+                    (isMotionTransferMode && (!motionCharacterUrl?.trim() || !motionVideoUrl?.trim()))
                   }
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/25 bg-[#27272a] px-5 py-4 text-sm font-semibold text-white shadow-[0_0_24px_rgba(220,223,224,0.16)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#303030] hover:shadow-[0_0_30px_rgba(220,223,224,0.18)] focus:outline-none focus:ring-2 focus:ring-white/30 disabled:pointer-events-none disabled:opacity-45"
                 >

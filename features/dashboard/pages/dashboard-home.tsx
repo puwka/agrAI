@@ -12,6 +12,7 @@ import { PageIntro } from "../components/page-intro";
 import { WorkspacePanel } from "../components/workspace-panel";
 import type { VoiceOption } from "../components/voice-picker-modal";
 import { useMaintenance } from "../maintenance-context";
+import { MAX_ACT_TWO_VIDEO_UPLOAD_LABEL, MAX_TOPAZ_UPLOAD_LABEL } from "../../../lib/transcription-limits";
 
 type GenerationRow = {
   id: string;
@@ -55,6 +56,23 @@ export function DashboardHomePage({
   const [transcriptionUploading, setTranscriptionUploading] = useState(false);
   const [transcriptionUploadError, setTranscriptionUploadError] = useState<string | null>(null);
   const [transcriptionUploadProgress, setTranscriptionUploadProgress] = useState<number | null>(null);
+  const [enhanceFileUrl, setEnhanceFileUrl] = useState<string | null>(null);
+  const [enhanceUploading, setEnhanceUploading] = useState(false);
+  const [enhanceUploadError, setEnhanceUploadError] = useState<string | null>(null);
+  const [enhanceUploadProgress, setEnhanceUploadProgress] = useState<number | null>(null);
+  const [enhanceQuality, setEnhanceQuality] = useState<"original" | "2x" | "4x">("original");
+  const [enhanceFps, setEnhanceFps] = useState<"24" | "25" | "30" | "45" | "50" | "60">("60");
+  const [photoModelVariant, setPhotoModelVariant] = useState<"nana2" | "nana-pro" | "sora-image">("nana2");
+  const [videoModelVariant, setVideoModelVariant] = useState<"veo-3.1-relax" | "runway-gen-4">("veo-3.1-relax");
+  const [motionCharacterUrl, setMotionCharacterUrl] = useState<string | null>(null);
+  const [motionCharacterUploading, setMotionCharacterUploading] = useState(false);
+  const [motionCharacterUploadError, setMotionCharacterUploadError] = useState<string | null>(null);
+  const [motionVideoUrl, setMotionVideoUrl] = useState<string | null>(null);
+  const [motionVideoDurationSec, setMotionVideoDurationSec] = useState<number | null>(null);
+  const [motionVideoUploading, setMotionVideoUploading] = useState(false);
+  const [motionVideoUploadError, setMotionVideoUploadError] = useState<string | null>(null);
+  const [motionVideoUploadProgress, setMotionVideoUploadProgress] = useState<number | null>(null);
+  const [modelLocks, setModelLocks] = useState<Record<string, { enabled: boolean; message: string }>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { enabled: maintenanceOn, refresh: refreshMaintenance } = useMaintenance();
 
@@ -151,6 +169,154 @@ export function DashboardHomePage({
     }
   }, []);
 
+  const uploadEnhanceSource = useCallback(async (file: File) => {
+    setEnhanceUploadError(null);
+    setEnhanceUploadProgress(0);
+    setEnhanceUploading(true);
+    try {
+      const data = await new Promise<{ url?: string; error?: string; status: number }>((resolve, reject) => {
+        const fd = new FormData();
+        fd.append("file", file);
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/generations/video-enhance-source-upload");
+        xhr.responseType = "json";
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && event.total > 0) {
+            const p = Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)));
+            setEnhanceUploadProgress(p);
+          } else {
+            setEnhanceUploadProgress(null);
+          }
+        };
+        xhr.onload = () => {
+          const body = (xhr.response as { url?: string; error?: string } | null) ?? {};
+          resolve({ ...body, status: xhr.status });
+        };
+        xhr.onerror = () => reject(new Error("NETWORK_ERROR"));
+        xhr.onabort = () => reject(new Error("ABORTED"));
+        xhr.send(fd);
+      });
+      if (data.status < 200 || data.status >= 300) {
+        setEnhanceUploadError(data.error ?? "Не удалось загрузить видео");
+        setEnhanceFileUrl(null);
+        return;
+      }
+      if (data.url) {
+        setEnhanceUploadProgress(100);
+        setEnhanceFileUrl(data.url);
+      } else {
+        setEnhanceUploadError("Пустой ответ сервера");
+        setEnhanceFileUrl(null);
+      }
+    } catch {
+      setEnhanceUploadError("Ошибка сети при загрузке");
+      setEnhanceFileUrl(null);
+    } finally {
+      setEnhanceUploading(false);
+    }
+  }, []);
+
+  const readVideoDurationSec = useCallback(async (file: File) => {
+    const objectUrl = URL.createObjectURL(file);
+    try {
+      const sec = await new Promise<number>((resolve, reject) => {
+        const v = document.createElement("video");
+        v.preload = "metadata";
+        v.onloadedmetadata = () => resolve(v.duration);
+        v.onerror = () => reject(new Error("DURATION_READ_FAILED"));
+        v.src = objectUrl;
+      });
+      return sec;
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }, []);
+
+  const uploadMotionVideo = useCallback(async (file: File) => {
+    setMotionVideoUploadError(null);
+    setMotionVideoUploadProgress(0);
+    setMotionVideoUploading(true);
+    try {
+      const durationSec = await readVideoDurationSec(file);
+      if (!Number.isFinite(durationSec) || durationSec < 3 || durationSec > 30) {
+        setMotionVideoUploadError("Видео должно быть от 3 до 30 секунд.");
+        setMotionVideoUrl(null);
+        setMotionVideoDurationSec(null);
+        return;
+      }
+      const data = await new Promise<{ url?: string; error?: string; status: number }>((resolve, reject) => {
+        const fd = new FormData();
+        fd.append("file", file);
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/generations/motion-video-upload");
+        xhr.responseType = "json";
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && event.total > 0) {
+            const p = Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)));
+            setMotionVideoUploadProgress(p);
+          } else {
+            setMotionVideoUploadProgress(null);
+          }
+        };
+        xhr.onload = () => {
+          const body = (xhr.response as { url?: string; error?: string } | null) ?? {};
+          resolve({ ...body, status: xhr.status });
+        };
+        xhr.onerror = () => reject(new Error("NETWORK_ERROR"));
+        xhr.onabort = () => reject(new Error("ABORTED"));
+        xhr.send(fd);
+      });
+      if (data.status < 200 || data.status >= 300) {
+        setMotionVideoUploadError(data.error ?? "Не удалось загрузить видео");
+        setMotionVideoUrl(null);
+        setMotionVideoDurationSec(null);
+        return;
+      }
+      if (data.url) {
+        setMotionVideoUploadProgress(100);
+        setMotionVideoUrl(data.url);
+        setMotionVideoDurationSec(Math.round(durationSec));
+      } else {
+        setMotionVideoUploadError("Пустой ответ сервера");
+        setMotionVideoUrl(null);
+        setMotionVideoDurationSec(null);
+      }
+    } catch {
+      setMotionVideoUploadError("Ошибка сети при загрузке видео");
+      setMotionVideoUrl(null);
+      setMotionVideoDurationSec(null);
+    } finally {
+      setMotionVideoUploading(false);
+    }
+  }, [readVideoDurationSec]);
+
+  const uploadMotionCharacter = useCallback(async (file: File) => {
+    setMotionCharacterUploadError(null);
+    setMotionCharacterUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const response = await fetch("/api/generations/reference-upload", {
+        method: "POST",
+        body: fd,
+      });
+      const data = (await response.json().catch(() => null)) as { url?: string; error?: string } | null;
+      if (!response.ok) {
+        setMotionCharacterUploadError(data?.error ?? "Не удалось загрузить персонажа");
+        setMotionCharacterUrl(null);
+        return;
+      }
+      if (data?.url) {
+        setMotionCharacterUrl(data.url);
+      } else {
+        setMotionCharacterUploadError("Пустой ответ сервера");
+        setMotionCharacterUrl(null);
+      }
+    } finally {
+      setMotionCharacterUploading(false);
+    }
+  }, []);
+
   const loadGenerations = useCallback(async () => {
     setLoadError(null);
     const response = await fetch("/api/generations?limit=10&offset=0");
@@ -164,9 +330,30 @@ export function DashboardHomePage({
     setGenerations(Array.isArray(data) ? (data as unknown as GenerationRow[]) : (data.items ?? []));
   }, []);
 
+  const loadModelLocks = useCallback(async () => {
+    const response = await fetch("/api/model-locks");
+    if (!response.ok) return;
+    const data = (await response.json().catch(() => null)) as
+      | { locks?: Record<string, { enabled?: boolean; message?: string }> }
+      | null;
+    const raw = data?.locks ?? {};
+    const next: Record<string, { enabled: boolean; message: string }> = {};
+    for (const [k, v] of Object.entries(raw)) {
+      next[k] = {
+        enabled: Boolean(v?.enabled),
+        message: String(v?.message ?? "").trim(),
+      };
+    }
+    setModelLocks(next);
+  }, []);
+
   useEffect(() => {
     void loadGenerations();
   }, [loadGenerations]);
+
+  useEffect(() => {
+    void loadModelLocks();
+  }, [loadModelLocks]);
 
   useEffect(() => {
     if (!maintenanceOn) {
@@ -230,6 +417,22 @@ export function DashboardHomePage({
     setTranscriptionFileUrl(null);
     setTranscriptionUploadError(null);
     setTranscriptionUploadProgress(null);
+    setEnhanceFileUrl(null);
+    setEnhanceUploadError(null);
+    setEnhanceUploadProgress(null);
+    setEnhanceQuality("original");
+    setEnhanceFps("60");
+    setVideoModelVariant("veo-3.1-relax");
+    setMotionCharacterUrl(null);
+    setMotionCharacterUploading(false);
+    setMotionCharacterUploadError(null);
+    setMotionVideoUrl(null);
+    setMotionVideoDurationSec(null);
+    setMotionVideoUploadError(null);
+    setMotionVideoUploadProgress(null);
+    if (modelId !== "photo") {
+      setPhotoModelVariant("nana2");
+    }
     if (modelId !== "voice") {
       setSelectedVoice(null);
     }
@@ -281,6 +484,30 @@ export function DashboardHomePage({
       }
     }
 
+    if (selectedModel.id === "video-enhance") {
+      if (enhanceUploading) return;
+      if (!enhanceFileUrl?.trim()) {
+        setGenerationSubmitError("Загрузите видео для улучшения.");
+        return;
+      }
+    }
+
+    if (selectedModel.id === "motion-transfer") {
+      if (motionCharacterUploading || motionVideoUploading) return;
+      if (!motionCharacterUrl?.trim()) {
+        setGenerationSubmitError("Загрузите персонажа.");
+        return;
+      }
+      if (!motionVideoUrl?.trim()) {
+        setGenerationSubmitError("Загрузите видео для переноса движений.");
+        return;
+      }
+      if (!motionVideoDurationSec || motionVideoDurationSec < 3 || motionVideoDurationSec > 30) {
+        setGenerationSubmitError("Видео должно быть от 3 до 30 секунд.");
+        return;
+      }
+    }
+
     setIsLoading(true);
     setResultUrl("");
     setResultMessage("");
@@ -302,6 +529,16 @@ export function DashboardHomePage({
     const displayModelName =
       selectedModel.id === "voice" && selectedVoice
         ? `${selectedModel.name} • ${selectedVoice.name}`
+        : selectedModel.id === "photo"
+          ? `${selectedModel.name} • ${
+              photoModelVariant === "nana-pro"
+                ? "Nana Banana Pro"
+                : photoModelVariant === "sora-image"
+                  ? "Sora image"
+                  : "Nana Banana 2"
+            }`
+          : selectedModel.id === "video"
+            ? `${selectedModel.name} • ${videoModelVariant === "runway-gen-4" ? "Runway Gen-4" : "Veo 3.1 Relax"}`
         : mediaModeSuffix
           ? `${selectedModel.name} • ${mediaModeSuffix}`
           : selectedModel.name;
@@ -323,6 +560,16 @@ export function DashboardHomePage({
         }),
         ...(selectedModel.id === "transcription" && {
           referenceImageUrl: transcriptionFileUrl || null,
+        }),
+        ...(selectedModel.id === "video-enhance" && {
+          referenceImageUrl: enhanceFileUrl || null,
+          enhanceQuality,
+          enhanceFps,
+        }),
+        ...(selectedModel.id === "motion-transfer" && {
+          referenceImageUrl: motionCharacterUrl || null,
+          motionVideoUrl: motionVideoUrl || null,
+          motionVideoDurationSec: motionVideoDurationSec ?? null,
         }),
       }),
     });
@@ -356,6 +603,16 @@ export function DashboardHomePage({
     setTranscriptionFileUrl(null);
     setTranscriptionUploadError(null);
     setTranscriptionUploadProgress(null);
+    setEnhanceFileUrl(null);
+    setEnhanceUploadError(null);
+    setEnhanceUploadProgress(null);
+    setMotionCharacterUrl(null);
+    setMotionCharacterUploading(false);
+    setMotionCharacterUploadError(null);
+    setMotionVideoUrl(null);
+    setMotionVideoDurationSec(null);
+    setMotionVideoUploadError(null);
+    setMotionVideoUploadProgress(null);
     setIsLoading(false);
     void loadGenerations();
   };
@@ -424,6 +681,7 @@ export function DashboardHomePage({
                 model={model}
                 isSelected={selectedModelId === model.id}
                 onSelect={() => handleSelectModel(model.id)}
+                lockedMessage={modelLocks[model.id]?.enabled ? modelLocks[model.id]?.message : null}
               />
             </motion.div>
           ))}
@@ -485,6 +743,77 @@ export function DashboardHomePage({
           setTranscriptionFileUrl(null);
           setTranscriptionUploadError(null);
           setTranscriptionUploadProgress(null);
+        }}
+        enhanceFileUrl={enhanceFileUrl}
+        enhanceUploading={enhanceUploading}
+        enhanceUploadError={enhanceUploadError}
+        enhanceUploadProgress={enhanceUploadProgress}
+        enhanceMaxLabel={MAX_TOPAZ_UPLOAD_LABEL}
+        enhanceQuality={enhanceQuality}
+        enhanceFps={enhanceFps}
+        onEnhanceFileSelected={(file) => {
+          void uploadEnhanceSource(file);
+        }}
+        onEnhanceFileClear={() => {
+          setEnhanceFileUrl(null);
+          setEnhanceUploadError(null);
+          setEnhanceUploadProgress(null);
+        }}
+        onEnhanceQualityChange={setEnhanceQuality}
+        onEnhanceFpsChange={setEnhanceFps}
+        photoModelVariant={photoModelVariant}
+        onPhotoModelVariantChange={(v) => {
+          setPhotoModelVariant(v);
+          if (v === "sora-image") {
+            if (aspectRatio !== "3:2" && aspectRatio !== "1:1" && aspectRatio !== "2:3") {
+              setAspectRatio("1:1");
+            }
+          } else if (aspectRatio === "3:2" || aspectRatio === "2:3") {
+            setAspectRatio("16:9");
+          }
+        }}
+        videoModelVariant={videoModelVariant}
+        onVideoModelVariantChange={(v) => {
+          setVideoModelVariant(v);
+          if (v === "runway-gen-4") {
+            if (
+              aspectRatio !== "21:9" &&
+              aspectRatio !== "16:9" &&
+              aspectRatio !== "4:3" &&
+              aspectRatio !== "1:1" &&
+              aspectRatio !== "3:4" &&
+              aspectRatio !== "9:16"
+            ) {
+              setAspectRatio("1:1");
+            }
+          } else if (aspectRatio === "21:9") {
+            setAspectRatio("16:9");
+          }
+        }}
+        motionCharacterUrl={motionCharacterUrl}
+        motionCharacterUploading={motionCharacterUploading}
+        motionCharacterUploadError={motionCharacterUploadError}
+        motionVideoUrl={motionVideoUrl}
+        motionVideoDurationSec={motionVideoDurationSec}
+        motionVideoUploading={motionVideoUploading}
+        motionVideoUploadError={motionVideoUploadError}
+        motionVideoUploadProgress={motionVideoUploadProgress}
+        motionVideoMaxLabel={MAX_ACT_TWO_VIDEO_UPLOAD_LABEL}
+        onMotionCharacterSelected={(file) => {
+          void uploadMotionCharacter(file);
+        }}
+        onMotionCharacterClear={() => {
+          setMotionCharacterUrl(null);
+          setMotionCharacterUploadError(null);
+        }}
+        onMotionVideoSelected={(file) => {
+          void uploadMotionVideo(file);
+        }}
+        onMotionVideoClear={() => {
+          setMotionVideoUrl(null);
+          setMotionVideoDurationSec(null);
+          setMotionVideoUploadError(null);
+          setMotionVideoUploadProgress(null);
         }}
       />
 

@@ -9,11 +9,14 @@ type ModelCardProps = {
   model: Model;
   isSelected: boolean;
   onSelect: () => void;
+  lockedMessage?: string | null;
 };
 
-export function ModelCard({ model, isSelected, onSelect }: ModelCardProps) {
+export function ModelCard({ model, isSelected, onSelect, lockedMessage }: ModelCardProps) {
   const Icon = model.icon;
-  const isDisabled = Boolean(model.disabled);
+  const lockText = lockedMessage?.trim() ?? "";
+  const isLockedByAdmin = Boolean(lockText);
+  const isDisabled = Boolean(model.disabled || isLockedByAdmin);
 
   return (
     <motion.button
@@ -35,6 +38,13 @@ export function ModelCard({ model, isSelected, onSelect }: ModelCardProps) {
     >
       <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${model.accent} opacity-70`} />
       {isDisabled ? <div className="absolute inset-0 bg-black/35" /> : null}
+      {isLockedByAdmin ? (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/45 px-4 text-center">
+          <p className="rounded-2xl border border-white/20 bg-black/50 px-4 py-3 text-sm font-semibold text-zinc-100">
+            {lockText}
+          </p>
+        </div>
+      ) : null}
 
       <div className="relative flex h-full flex-col">
         <div className="mb-6 flex items-start justify-between gap-4">

@@ -5,6 +5,12 @@ import { Loader2, Send, Trash2, Upload } from "lucide-react";
 
 import { detectResultMediaKind } from "../../../features/dashboard/lib";
 
+function motionVideoUrlFromPrompt(prompt: string): string | null {
+  const m = /\[MotionVideo:(.+?)\]/.exec(prompt ?? "");
+  const raw = m?.[1]?.trim() ?? "";
+  return raw || null;
+}
+
 type AdminGeneration = {
   id: string;
   userId: string;
@@ -212,6 +218,7 @@ export function AdminGenerationsClient() {
           const hasResult = Boolean(
             g.status === "SUCCESS" && (g.resultUrl || g.resultMessage),
           );
+          const motionVideoUrl = g.modelId === "motion-transfer" ? motionVideoUrlFromPrompt(g.prompt) : null;
 
           return (
             <article
@@ -259,7 +266,9 @@ export function AdminGenerationsClient() {
                     <p className="border-b border-white/10 bg-black/50 px-3 py-2 text-xs font-medium text-fuchsia-200/90">
                       {g.modelId === "transcription"
                         ? "Исходник для транскрибации"
-                        : "Исходное фото пользователя"}
+                        : g.modelId === "video-enhance"
+                          ? "Исходник для улучшения видео"
+                          : "Исходное фото пользователя"}
                     </p>
                     {detectResultMediaKind(g.referenceImageUrl) === "video" ? (
                       <video
@@ -279,6 +288,19 @@ export function AdminGenerationsClient() {
                         className="max-h-48 w-full object-contain"
                       />
                     )}
+                  </div>
+                ) : null}
+                {motionVideoUrl ? (
+                  <div className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+                    <p className="border-b border-white/10 bg-black/50 px-3 py-2 text-xs font-medium text-fuchsia-200/90">
+                      Видео движения
+                    </p>
+                    <video
+                      src={motionVideoUrl}
+                      controls
+                      playsInline
+                      className="max-h-64 w-full bg-black object-contain"
+                    />
                   </div>
                 ) : null}
                 <p className="text-xs text-zinc-500">

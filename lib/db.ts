@@ -250,6 +250,40 @@ export const db: any = {
       if (error) throw error;
     },
   },
+  modelLock: {
+    async listMap(): Promise<Record<string, { enabled: boolean; message: string }>> {
+      try {
+        const { data, error } = await getSupabaseAdmin().from("ModelLock").select("modelId, enabled, message");
+        if (error) return {};
+        const map: Record<string, { enabled: boolean; message: string }> = {};
+        for (const row of (data ?? []) as Array<{ modelId?: string; enabled?: boolean; message?: string }>) {
+          const modelId = String(row.modelId ?? "").trim();
+          if (!modelId) continue;
+          map[modelId] = {
+            enabled: Boolean(row.enabled),
+            message: String(row.message ?? "").trim(),
+          };
+        }
+        return map;
+      } catch {
+        return {};
+      }
+    },
+    async setLocked(modelId: string, enabled: boolean, message: string) {
+      const id = modelId.trim();
+      if (!id) throw new Error("modelId обязателен");
+      if (!enabled) {
+        const { error } = await getSupabaseAdmin().from("ModelLock").delete().eq("modelId", id);
+        if (error) throw error;
+        return;
+      }
+      const { error } = await getSupabaseAdmin().from("ModelLock").upsert(
+        { modelId: id, enabled: true, message: message.trim(), updatedAt: nowIso() },
+        { onConflict: "modelId" },
+      );
+      if (error) throw error;
+    },
+  },
   generation: {
     async findMany(
       args: {

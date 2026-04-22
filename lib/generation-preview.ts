@@ -6,9 +6,12 @@ export function buildPreviewDataUrl(
   aspectRatio: AspectRatio,
 ) {
   const sizeByAspect: Record<AspectRatio, { width: number; height: number }> = {
+    "21:9": { width: 1680, height: 720 },
     "16:9": { width: 1280, height: 720 },
     "4:3": { width: 1024, height: 768 },
+    "3:2": { width: 1200, height: 800 },
     "1:1": { width: 1024, height: 1024 },
+    "2:3": { width: 800, height: 1200 },
     "3:4": { width: 768, height: 1024 },
     "9:16": { width: 720, height: 1280 },
   };

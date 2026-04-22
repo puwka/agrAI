@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 
-export type AspectRatio = "16:9" | "4:3" | "1:1" | "3:4" | "9:16";
+export type AspectRatio = "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "3:2" | "2:3";
 
 /** Режим входа для фото/видео: только текст или референс-изображение */
 export type MediaInputMode = "TEXT" | "IMAGE_REF";

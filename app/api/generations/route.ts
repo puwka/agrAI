@@ -164,6 +164,10 @@ export async function POST(request: Request) {
     voiceName?: string;
     inputMode?: string;
     referenceImageUrl?: string | null;
+    enhanceQuality?: string;
+    enhanceFps?: string;
+    motionVideoUrl?: string | null;
+    motionVideoDurationSec?: number;
   };
 
   try {
@@ -178,20 +182,34 @@ export async function POST(request: Request) {
   const voiceName = typeof body.voiceName === "string" ? body.voiceName.trim() : "";
   const prompt = typeof body.prompt === "string" ? body.prompt : "";
   let aspectRatio: AspectRatio | null =
+    body.aspectRatio === "21:9" ||
     body.aspectRatio === "16:9" ||
     body.aspectRatio === "4:3" ||
+    body.aspectRatio === "3:2" ||
     body.aspectRatio === "1:1" ||
+    body.aspectRatio === "2:3" ||
     body.aspectRatio === "3:4" ||
     body.aspectRatio === "9:16"
       ? body.aspectRatio
       : null;
 
-  if (modelId === "transcription" && !aspectRatio) {
+  if ((modelId === "transcription" || modelId === "video-enhance" || modelId === "motion-transfer") && !aspectRatio) {
     aspectRatio = "16:9";
   }
 
   if (!modelId || !modelName || !aspectRatio) {
     return NextResponse.json({ error: "Укажите модель и формат" }, { status: 400 });
+  }
+
+  if (sessionUser.role !== "ADMIN") {
+    const lockMap = await db.modelLock.listMap();
+    const lock = lockMap[modelId];
+    if (lock?.enabled) {
+      return NextResponse.json(
+        { error: lock.message || "Модель временно недоступна. Попробуйте позже." },
+        { status: 403 },
+      );
+    }
   }
 
   if (modelId === "voice" && (!voiceId || !voiceName)) {
@@ -201,6 +219,8 @@ export async function POST(request: Request) {
   let inputMode: "TEXT" | "IMAGE_REF" = "TEXT";
   let referenceImageUrl: string | null = null;
   let promptToStore = prompt;
+  const enhanceQualityRaw = typeof body.enhanceQuality === "string" ? body.enhanceQuality.trim().toLowerCase() : "";
+  const enhanceFpsRaw = typeof body.enhanceFps === "string" ? body.enhanceFps.trim() : "";
 
   if (modelId === "transcription") {
     const refT = typeof body.referenceImageUrl === "string" ? body.referenceImageUrl.trim() : "";
@@ -221,6 +241,39 @@ export async function POST(request: Request) {
     } else {
       promptToStore = "Файл для транскрибации (см. источник ниже).";
     }
+  } else if (modelId === "video-enhance") {
+    const refV = typeof body.referenceImageUrl === "string" ? body.referenceImageUrl.trim() : "";
+    const hasVideo = await isValidUserReferenceImageUrl(refV, sessionUser.id);
+    if (!hasVideo) {
+      return NextResponse.json({ error: "Загрузите видео для улучшения." }, { status: 400 });
+    }
+    const quality = enhanceQualityRaw === "2x" || enhanceQualityRaw === "4x" ? enhanceQualityRaw : "original";
+    const fps = ["24", "25", "30", "45", "50", "60"].includes(enhanceFpsRaw) ? enhanceFpsRaw : "60";
+    referenceImageUrl = refV;
+    promptToStore = `[Topaz]\nКачество: ${quality}\nFPS: ${fps}`;
+  } else if (modelId === "motion-transfer") {
+    const characterUrl = typeof body.referenceImageUrl === "string" ? body.referenceImageUrl.trim() : "";
+    const motionVideoUrl = typeof body.motionVideoUrl === "string" ? body.motionVideoUrl.trim() : "";
+    const hasCharacter = await isValidUserReferenceImageUrl(characterUrl, sessionUser.id);
+    const hasVideo = await isValidUserReferenceImageUrl(motionVideoUrl, sessionUser.id);
+    const durationSec =
+      typeof body.motionVideoDurationSec === "number" && Number.isFinite(body.motionVideoDurationSec)
+        ? body.motionVideoDurationSec
+        : 0;
+    if (!hasCharacter) {
+      return NextResponse.json({ error: "Загрузите персонажа." }, { status: 400 });
+    }
+    if (!hasVideo) {
+      return NextResponse.json({ error: "Загрузите видео для переноса движений." }, { status: 400 });
+    }
+    if (durationSec < 3 || durationSec > 30) {
+      return NextResponse.json({ error: "Видео должно быть от 3 до 30 секунд." }, { status: 400 });
+    }
+    referenceImageUrl = characterUrl;
+    promptToStore = `[Runway Act-Two]
+[MotionVideo:${motionVideoUrl}]
+[DurationSec:${Math.round(durationSec)}]
+[AspectRatio:${aspectRatio}]`;
   } else if (modelId === "photo" || modelId === "video") {
     const rawMode = body.inputMode?.trim().toUpperCase();
     if (rawMode === "IMAGE_REF" || rawMode === "IMAGE") {
@@ -260,7 +313,7 @@ export async function POST(request: Request) {
     data: {
       modelId,
       modelName,
-      inputMode: modelId === "voice" || modelId === "transcription" ? "TEXT" : inputMode,
+      inputMode: modelId === "voice" || modelId === "transcription" || modelId === "video-enhance" || modelId === "motion-transfer" ? "TEXT" : inputMode,
       referenceImageUrl: modelId === "voice" ? null : referenceImageUrl,
       prompt: storedPrompt,
       aspectRatio,
