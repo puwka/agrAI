@@ -142,7 +142,13 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   }
 
   try {
-    const upstream = await fetch(resultUrl, { redirect: "follow" });
+    const upstream = await fetch(resultUrl, {
+      redirect: "follow",
+      headers: {
+        Accept: "*/*",
+        "User-Agent": "agrAI-download-proxy/1.0",
+      },
+    });
     if (!upstream.ok) {
       return NextResponse.json({ error: "Не удалось получить файл" }, { status: 502 });
     }

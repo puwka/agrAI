@@ -11,8 +11,14 @@ export function detectResultMediaKind(url: string): "image" | "video" | "audio" 
   if (v.startsWith("data:audio/")) return "audio";
   if (v.startsWith("data:image/")) return "image";
   const clean = v.split("?")[0] ?? v;
+  const query = v.includes("?") ? v.slice(v.indexOf("?") + 1) : "";
   if (/\.(mp4|webm|mov|m4v)$/i.test(clean)) return "video";
   if (/\.(mp3|wav|ogg|m4a|aac|flac|opus|weba)$/i.test(clean)) return "audio";
+  if (/(^|[?&])(format|ext|type|mime)=([^&]*)(mp3|wav|ogg|m4a|aac|flac|opus|audio)/i.test(v)) return "audio";
+  if (/(^|[?&])(format|ext|type|mime)=([^&]*)(mp4|webm|mov|video)/i.test(v)) return "video";
+  if (/audio|\.mp3|\.wav|\.ogg|\.m4a|\.aac|\.flac|\.opus/.test(clean) || /audio|mp3|wav|ogg|m4a|aac|flac|opus/.test(query)) {
+    return "audio";
+  }
   return "image";
 }
 
