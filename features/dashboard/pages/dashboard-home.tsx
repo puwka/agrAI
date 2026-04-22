@@ -847,7 +847,7 @@ export function DashboardHomePage({
                     ) : mediaKind === "audio" ? (
                       <div className="flex aspect-video w-full items-center justify-center bg-black/50 px-4 py-6">
                         <audio
-                          src={item.resultUrl}
+                          src={`/api/generations/${item.id}/download?inline=1`}
                           controls
                           className="w-full max-w-md"
                           preload="metadata"

@@ -399,11 +399,29 @@ export function AdminGenerationsClient() {
 
               <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/80">
                 {hasResult && g.resultUrl ? (
-                  <img
-                    src={g.resultUrl}
-                    alt={`Результат ${g.id}`}
-                    className="h-full w-full max-h-72 object-contain"
-                  />
+                  detectResultMediaKind(g.resultUrl) === "video" ? (
+                    <video
+                      src={g.resultUrl}
+                      controls
+                      playsInline
+                      className="h-full w-full max-h-72 bg-black object-contain"
+                    />
+                  ) : detectResultMediaKind(g.resultUrl) === "audio" ? (
+                    <div className="flex min-h-[200px] items-center justify-center bg-black/50 px-4 py-6">
+                      <audio
+                        src={`/api/generations/${g.id}/download?inline=1`}
+                        controls
+                        className="w-full max-w-md"
+                        preload="metadata"
+                      />
+                    </div>
+                  ) : (
+                    <img
+                      src={g.resultUrl}
+                      alt={`Результат ${g.id}`}
+                      className="h-full w-full max-h-72 object-contain"
+                    />
+                  )
                 ) : hasResult && g.resultMessage ? (
                   <div className="max-h-72 overflow-y-auto p-4 text-left text-sm leading-relaxed text-zinc-200">
                     {g.resultMessage}
