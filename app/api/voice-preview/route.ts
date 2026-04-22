@@ -7,8 +7,10 @@ const FETCH_TIMEOUT_MS = 12_000;
 function isAllowedPreviewHost(hostname: string) {
   const host = hostname.toLowerCase();
   return (
-    host === "secretvoicer.com" ||
-    host.endsWith(".secretvoicer.com") ||
+    host === "storage.googleapis.com" ||
+    host.endsWith(".googleapis.com") ||
+    host === "cdn.elevenlabs.io" ||
+    host.endsWith(".elevenlabs.io") ||
     host === "supabase.co" ||
     host.endsWith(".supabase.co")
   );
