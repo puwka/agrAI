@@ -8,6 +8,13 @@ import { requireUser } from "../../lib/auth/session";
 import { getDashboardBannerState } from "../../lib/dashboard-banner";
 import { hasActiveSubscription, subscriptionSummaryForUser } from "../../lib/subscription";
 
+type FreshUser = { name?: string | null; email?: string | null; role?: string | null } | null;
+type RestrictionInfo = {
+  restrictedUntil?: Date | null;
+  restrictedReason?: string | null;
+  subscriptionUntil?: Date | null;
+} | null;
+
 function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T, label: string): Promise<T> {
   return new Promise<T>((resolve) => {
     let finished = false;
@@ -43,7 +50,7 @@ export default async function DashboardLayout({
   const userId = user.id;
 
   const [freshUser, restriction, dashboardBanner] = await Promise.all([
-    withTimeout(
+    withTimeout<FreshUser>(
       db.user.findUnique({
         where: { id: userId },
         select: { name: true, email: true, role: true },
@@ -52,7 +59,7 @@ export default async function DashboardLayout({
       null,
       "db.user.findUnique(freshUser)",
     ),
-    withTimeout(
+    withTimeout<RestrictionInfo>(
       db.user.findUnique({
         where: { id: userId },
         select: { restrictedUntil: true, restrictedReason: true, subscriptionUntil: true },
