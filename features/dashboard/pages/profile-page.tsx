@@ -2,7 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-import { CalendarDays, UserRound } from "lucide-react";
+import { CalendarDays, Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { subscriptionSummaryForUser } from "../../../lib/subscription";
@@ -20,8 +20,15 @@ type ProfileDto = {
 export function ProfilePage() {
   const [profile, setProfile] = useState<ProfileDto | null>(null);
   const [generationsCount, setGenerationsCount] = useState<number>(0);
-  const [error, setError] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -31,7 +38,7 @@ export function ProfilePage() {
       ]);
 
       if (!profileRes.ok) {
-        setError("Не удалось загрузить профиль");
+        setProfileError("Не удалось загрузить профиль");
         return;
       }
 
@@ -54,7 +61,7 @@ export function ProfilePage() {
     }
 
     setSaving(true);
-    setError(null);
+    setProfileError(null);
 
     const response = await fetch("/api/profile", {
       method: "PATCH",
@@ -69,14 +76,54 @@ export function ProfilePage() {
     setSaving(false);
 
     if (!response.ok) {
-      setError("Не удалось сохранить изменения");
+      setProfileError("Не удалось сохранить изменения");
     }
+  };
+
+  const handlePasswordSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(null);
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError("Заполните все поля пароля");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordError("Новый пароль должен быть не короче 8 символов");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Подтверждение пароля не совпадает");
+      return;
+    }
+
+    setPasswordSaving(true);
+    const response = await fetch("/api/profile/password", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        currentPassword,
+        newPassword,
+      }),
+    });
+    const data = (await response.json().catch(() => null)) as { error?: string } | null;
+    setPasswordSaving(false);
+
+    if (!response.ok) {
+      setPasswordError(data?.error ?? "Не удалось сменить пароль");
+      return;
+    }
+
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordSuccess("Пароль успешно изменён");
   };
 
   if (!profile) {
     return (
       <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center text-zinc-400">
-        {error ?? "Загрузка профиля…"}
+        {profileError ?? "Загрузка профиля…"}
       </div>
     );
   }
@@ -163,7 +210,7 @@ export function ProfilePage() {
             </div>
           ) : null}
 
-          {error && <p className="mt-4 text-sm text-red-300">{error}</p>}
+          {profileError && <p className="mt-4 text-sm text-red-300">{profileError}</p>}
 
           <button
             type="submit"
@@ -172,6 +219,83 @@ export function ProfilePage() {
           >
             {saving ? "Сохранение…" : "Сохранить"}
           </button>
+        </motion.section>
+      </form>
+
+      <form onSubmit={handlePasswordSubmit}>
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.08 }}
+          className="mt-5 rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur-2xl"
+        >
+          <div className="mb-6 flex items-center gap-3">
+            <div className="rounded-2xl border border-violet-400/20 bg-violet-500/10 p-3 text-violet-200">
+              <LockKeyhole className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-white">Смена пароля</h3>
+              <p className="text-sm text-zinc-400">Введите текущий пароль и задайте новый.</p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-zinc-300">Текущий пароль</span>
+              <input
+                type={passwordVisible ? "text" : "password"}
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-400/40"
+                autoComplete="current-password"
+                required
+              />
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-zinc-300">Новый пароль</span>
+              <input
+                type={passwordVisible ? "text" : "password"}
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-400/40"
+                autoComplete="new-password"
+                required
+              />
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-zinc-300">Подтверждение</span>
+              <input
+                type={passwordVisible ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-400/40"
+                autoComplete="new-password"
+                required
+              />
+            </label>
+          </div>
+
+          {passwordError ? <p className="mt-4 text-sm text-red-300">{passwordError}</p> : null}
+          {passwordSuccess ? <p className="mt-4 text-sm text-emerald-300">{passwordSuccess}</p> : null}
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={() => setPasswordVisible((v) => !v)}
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-black/25 px-4 text-sm font-semibold text-zinc-200 transition hover:bg-black/35 sm:min-w-[180px]"
+            >
+              {passwordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {passwordVisible ? "Скрыть пароль" : "Показать пароль"}
+            </button>
+
+            <button
+              type="submit"
+              disabled={passwordSaving}
+              className="inline-flex h-12 items-center justify-center rounded-2xl border border-violet-300/30 bg-violet-600 px-6 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-60 sm:min-w-[190px]"
+            >
+              {passwordSaving ? "Сохранение…" : "Изменить пароль"}
+            </button>
+          </div>
         </motion.section>
       </form>
     </>

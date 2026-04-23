@@ -59,6 +59,20 @@ function categoryLabel(v: VoiceOption) {
   return gen;
 }
 
+function extractDirectPreviewUrl(url: string): string | null {
+  const raw = (url ?? "").trim();
+  if (!raw.startsWith("/api/voice-preview?")) return null;
+  try {
+    const probe = new URL(raw, "http://localhost");
+    const u = (probe.searchParams.get("u") ?? "").trim();
+    if (!u) return null;
+    if (!/^https?:\/\//i.test(u)) return null;
+    return u;
+  } catch {
+    return null;
+  }
+}
+
 export function VoicePickerModal({
   open,
   value,
@@ -164,12 +178,33 @@ export function VoicePickerModal({
     }
     const a = audioRef.current;
     a.onended = () => setPlayingId(null);
-    a.onerror = () => setPlayingId(null);
+    a.onerror = () => {
+      const direct = extractDirectPreviewUrl(voice.preview_audio_url);
+      if (direct && a.src !== direct) {
+        // Фолбэк: часть preview из proxy может не стартовать, пробуем прямой URL.
+        a.src = direct;
+        void a.play().catch(() => {
+          setPlayingId(null);
+        });
+        return;
+      }
+      setPlayingId(null);
+    };
 
     stopPreview();
     setPlayingId(voice.id);
     a.src = voice.preview_audio_url;
+    a.load();
     void a.play().catch(() => {
+      const direct = extractDirectPreviewUrl(voice.preview_audio_url);
+      if (direct && a.src !== direct) {
+        a.src = direct;
+        a.load();
+        void a.play().catch(() => {
+          setPlayingId(null);
+        });
+        return;
+      }
       setPlayingId(null);
     });
   };

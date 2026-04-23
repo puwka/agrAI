@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 
+import { db } from "../../../../lib/db";
 import premadeCatalog from "../../../../lib/elevenlabs-premade-voices.json";
 
-const TOP_VOICES_LIMIT = 100;
+const VOICES_URL = "https://secretvoicer.com/api/public/showcase-voices-filtered/";
+const SHOWCASE_FETCH_URLS = [
+  VOICES_URL,
+  `${VOICES_URL}?gender=MALE`,
+  `${VOICES_URL}?gender=FEMALE`,
+] as const;
+const FETCH_TIMEOUT_MS = 4500;
 
 let voicesCache:
   | {
@@ -10,10 +17,22 @@ let voicesCache:
       payload: {
         voices: Array<NormalizedVoice & { hidden: boolean }>;
         total_count: number;
+        secret_voicer_public_total_hint?: number;
         sources: string[];
       };
     }
   | null = null;
+
+type UpstreamVoice = {
+  id?: string;
+  voice_id?: string;
+  name?: string;
+  gender?: string;
+  locale?: string;
+  preview_audio_url?: string;
+  voice_style_tags?: string[];
+  usage_count?: number;
+};
 
 type NormalizedVoice = {
   id: string;
@@ -42,21 +61,58 @@ function toPreviewClientUrl(url: string) {
 function toAbsoluteMediaUrl(url: string) {
   const trimmed = url.trim();
   if (!trimmed) return "";
-  const absolute = trimmed.startsWith("http://") || trimmed.startsWith("https://") ? trimmed : url;
+  const absolute = trimmed.startsWith("http://") || trimmed.startsWith("https://")
+    ? trimmed
+    : new URL(trimmed, "https://secretvoicer.com").toString();
   // На HTTPS-сайте http-аудио может блокироваться как mixed content.
   return absolute.replace(/^http:\/\//i, "https://");
 }
-function normalizePremadeVoice(v: Partial<NormalizedVoice>): NormalizedVoice | null {
-  const id = String(v.id ?? "").trim();
+
+async function fetchShowcase(url: string) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const r = await fetch(url, {
+      headers: { Accept: "application/json" },
+      next: { revalidate: 300 },
+      signal: ctrl.signal,
+    });
+    if (!r.ok) throw new Error(`${url} → ${r.status}`);
+    return (await r.json()) as {
+      voices?: UpstreamVoice[];
+      total_count?: number;
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function normalizeUpstreamVoice(v: UpstreamVoice): NormalizedVoice | null {
+  const id = String(v.voice_id ?? v.id ?? "").trim();
   if (!id) return null;
   return {
     id,
-    name: String(v.name ?? "—"),
-    gender: String(v.gender ?? ""),
-    locale: String(v.locale ?? ""),
+    name: v.name ?? "—",
+    gender: v.gender ?? "",
+    locale: v.locale ?? "",
     preview_audio_url: toPreviewClientUrl(v.preview_audio_url ?? ""),
-    voice_style_tags: Array.isArray(v.voice_style_tags) ? v.voice_style_tags.map((t) => String(t)) : [],
+    voice_style_tags: v.voice_style_tags ?? [],
     usage_count: typeof v.usage_count === "number" ? v.usage_count : 0,
+  };
+}
+
+function mergeVoicePreferSv(existing: NormalizedVoice, incoming: NormalizedVoice): NormalizedVoice {
+  const usage = Math.max(existing.usage_count, incoming.usage_count);
+  const pick =
+    incoming.usage_count > existing.usage_count ||
+    (incoming.usage_count === existing.usage_count && incoming.name.length > existing.name.length)
+      ? incoming
+      : existing;
+  const tagSet = new Set<string>([...existing.voice_style_tags, ...incoming.voice_style_tags]);
+  return {
+    ...pick,
+    usage_count: usage,
+    voice_style_tags: [...tagSet],
   };
 }
 
@@ -70,29 +126,89 @@ async function getVoicesResponse(includeHidden: boolean) {
     return NextResponse.json(voicesCache.payload);
   }
 
-  const premade = premadeCatalog as { voices?: Array<Partial<NormalizedVoice>> };
-  const normalized = (premade.voices ?? [])
-    .map((v) => normalizePremadeVoice(v))
-    .filter((v): v is NormalizedVoice => Boolean(v));
+  const upstreamResults = await Promise.allSettled(SHOWCASE_FETCH_URLS.map((url) => fetchShowcase(url)));
+
+  const firstOk = upstreamResults.find((r) => r.status === "fulfilled") as
+    | PromiseFulfilledResult<{ voices?: UpstreamVoice[]; total_count?: number }>
+    | undefined;
+  const secretVoicerHint = firstOk?.value?.total_count;
 
   const byId = new Map<string, NormalizedVoice>();
-  for (const v of normalized) {
-    if (!byId.has(v.id)) byId.set(v.id, v);
+
+  for (const result of upstreamResults) {
+    if (result.status !== "fulfilled") continue;
+    const list = result.value.voices ?? [];
+    for (const raw of list) {
+      const v = normalizeUpstreamVoice(raw);
+      if (!v) continue;
+      const prev = byId.get(v.id);
+      byId.set(v.id, prev ? mergeVoicePreferSv(prev, v) : v);
+    }
   }
 
-  const voices = [...byId.values()]
-    .sort((a, b) => {
-      if (b.usage_count !== a.usage_count) return b.usage_count - a.usage_count;
-      return a.name.localeCompare(b.name, "ru");
-    })
-    .slice(0, TOP_VOICES_LIMIT)
-    .map((v) => ({ ...v, hidden: false }));
+  const premade = premadeCatalog as { voices: NormalizedVoice[] };
+  for (const p of premade.voices) {
+    if (!p.id || byId.has(p.id)) continue;
+    byId.set(p.id, {
+      id: p.id,
+      name: p.name,
+      gender: p.gender,
+      locale: p.locale,
+      preview_audio_url: toPreviewClientUrl(p.preview_audio_url),
+      voice_style_tags: p.voice_style_tags ?? [],
+      usage_count: typeof p.usage_count === "number" ? p.usage_count : 0,
+    });
+  }
 
-  const visibleVoices = includeHidden ? voices : voices;
+  const customRows = await db.customVoice.list();
+  const customVoiceIds = new Set(customRows.map((c: { voiceId: string }) => c.voiceId));
+  for (const c of customRows) {
+    let tags: string[] = [];
+    try {
+      const parsed = JSON.parse(c.tagsJson || "[]") as unknown;
+      tags = Array.isArray(parsed) ? parsed.map((t) => String(t)) : [];
+    } catch {
+      tags = [];
+    }
+    byId.set(c.voiceId, {
+      id: c.voiceId,
+      name: c.name.trim() || "—",
+      gender: c.gender,
+      locale: c.locale,
+      preview_audio_url: toPreviewClientUrl(c.previewUrl),
+      voice_style_tags: tags,
+      usage_count: 1_000_000,
+    });
+  }
+
+  const voices = [...byId.values()].sort((a, b) => {
+    const ac = customVoiceIds.has(a.id) ? 1 : 0;
+    const bc = customVoiceIds.has(b.id) ? 1 : 0;
+    if (ac !== bc) return bc - ac;
+    if (b.usage_count !== a.usage_count) return b.usage_count - a.usage_count;
+    return a.name.localeCompare(b.name, "ru");
+  });
+
+  const previewOverrides = await db.voicePreviewOverride.listMap();
+  const voicesWithPreview = voices.map((v) => {
+    const custom = previewOverrides[v.id]?.trim();
+    if (!custom) return v;
+    return { ...v, preview_audio_url: toPreviewClientUrl(custom) };
+  });
+
+  const hiddenSet = await db.voiceHidden.listSet();
+  const withHidden = voicesWithPreview.map((v) => ({
+    ...v,
+    hidden: hiddenSet.has(v.id),
+  }));
+  const visibleVoices = includeHidden ? withHidden : withHidden.filter((v) => !v.hidden);
   const payload = {
     voices: visibleVoices,
     total_count: visibleVoices.length,
-    sources: ["elevenlabs-premade-voices.json"],
+    secret_voicer_public_total_hint:
+      typeof secretVoicerHint === "number" ? secretVoicerHint : undefined,
+    secret_voicer_unavailable: !firstOk,
+    sources: [...SHOWCASE_FETCH_URLS, "elevenlabs-premade-voices.json", "CustomVoice (admin)"],
   };
   if (!includeHidden) {
     voicesCache = { expiresAt: Date.now() + 60_000, payload };
