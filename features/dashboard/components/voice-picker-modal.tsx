@@ -85,6 +85,8 @@ export function VoicePickerModal({
   onConfirm: (voice: VoiceOption) => void;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isOpenRef = useRef(false);
+  const playbackTokenRef = useRef(0);
   const [voices, setVoices] = useState<VoiceOption[]>([]);
   const [totalCatalogCount, setTotalCatalogCount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
@@ -137,16 +139,28 @@ export function VoicePickerModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  useEffect(() => {
-    if (!open) {
-      const a = audioRef.current;
-      if (a) {
-        a.pause();
-        a.currentTime = 0;
+  const stopPreview = useCallback((clearSource = false) => {
+    playbackTokenRef.current += 1;
+    const a = audioRef.current;
+    if (a) {
+      a.onended = null;
+      a.onerror = null;
+      a.pause();
+      a.currentTime = 0;
+      if (clearSource) {
+        a.removeAttribute("src");
+        a.load();
       }
-      setPlayingId(null);
     }
-  }, [open]);
+    setPlayingId(null);
+  }, []);
+
+  useEffect(() => {
+    isOpenRef.current = open;
+    if (!open) {
+      stopPreview(true);
+    }
+  }, [open, stopPreview]);
 
   const sortedVoices = useMemo(() => {
     return [...voices].sort((a, b) => {
@@ -154,15 +168,6 @@ export function VoicePickerModal({
       return a.name.localeCompare(b.name, "ru");
     });
   }, [voices]);
-
-  const stopPreview = () => {
-    const a = audioRef.current;
-    if (a) {
-      a.pause();
-      a.currentTime = 0;
-    }
-    setPlayingId(null);
-  };
 
   const playPreview = (voice: VoiceOption, e?: MouseEvent) => {
     e?.stopPropagation();
@@ -177,34 +182,38 @@ export function VoicePickerModal({
       audioRef.current = new Audio();
     }
     const a = audioRef.current;
-    a.onended = () => setPlayingId(null);
-    a.onerror = () => {
+    stopPreview(false);
+    const token = ++playbackTokenRef.current;
+    let fallbackTried = false;
+    const tryFallback = () => {
+      if (fallbackTried || !isOpenRef.current || playbackTokenRef.current !== token) return false;
       const direct = extractDirectPreviewUrl(voice.preview_audio_url);
-      if (direct && a.src !== direct) {
-        // Фолбэк: часть preview из proxy может не стартовать, пробуем прямой URL.
-        a.src = direct;
-        void a.play().catch(() => {
-          setPlayingId(null);
-        });
-        return;
-      }
+      if (!direct || a.src === direct) return false;
+      fallbackTried = true;
+      a.src = direct;
+      a.load();
+      void a.play().catch(() => {
+        if (!isOpenRef.current || playbackTokenRef.current !== token) return;
+        setPlayingId(null);
+      });
+      return true;
+    };
+    a.onended = () => {
+      if (!isOpenRef.current || playbackTokenRef.current !== token) return;
+      setPlayingId(null);
+    };
+    a.onerror = () => {
+      if (!isOpenRef.current || playbackTokenRef.current !== token) return;
+      if (tryFallback()) return;
       setPlayingId(null);
     };
 
-    stopPreview();
     setPlayingId(voice.id);
     a.src = voice.preview_audio_url;
     a.load();
     void a.play().catch(() => {
-      const direct = extractDirectPreviewUrl(voice.preview_audio_url);
-      if (direct && a.src !== direct) {
-        a.src = direct;
-        a.load();
-        void a.play().catch(() => {
-          setPlayingId(null);
-        });
-        return;
-      }
+      if (!isOpenRef.current || playbackTokenRef.current !== token) return;
+      if (tryFallback()) return;
       setPlayingId(null);
     });
   };

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  ChevronDown,
   ChevronRight,
   FileImage,
   Mic,
@@ -324,18 +325,21 @@ export function WorkspacePanel({
                     <label className="text-sm font-medium text-zinc-300" htmlFor="photo-model-variant">
                       Модель фото
                     </label>
-                    <select
-                      id="photo-model-variant"
-                      value={photoModelVariant}
-                      onChange={(e) =>
-                        onPhotoModelVariantChange(e.target.value as "nana2" | "nana-pro" | "sora-image")
-                      }
-                      className="w-full rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
-                    >
-                      <option value="nana2">Nana Banana 2</option>
-                      <option value="nana-pro">Nana Banana Pro</option>
-                      <option value="sora-image">Sora image</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        id="photo-model-variant"
+                        value={photoModelVariant}
+                        onChange={(e) =>
+                          onPhotoModelVariantChange(e.target.value as "nana2" | "nana-pro" | "sora-image")
+                        }
+                        className="w-full appearance-none rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 pr-11 text-sm text-white outline-none transition focus:border-white/30"
+                      >
+                        <option value="nana2">Nana Banana 2</option>
+                        <option value="nana-pro">Nana Banana Pro</option>
+                        <option value="sora-image">Sora image</option>
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                    </div>
                   </div>
                 ) : null}
                 {isVideoMode ? (
@@ -343,17 +347,20 @@ export function WorkspacePanel({
                     <label className="text-sm font-medium text-zinc-300" htmlFor="video-model-variant">
                       Модель видео
                     </label>
-                    <select
-                      id="video-model-variant"
-                      value={videoModelVariant}
-                      onChange={(e) =>
-                        onVideoModelVariantChange(e.target.value as "veo-3.1-relax" | "runway-gen-4")
-                      }
-                      className="w-full rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
-                    >
-                      <option value="veo-3.1-relax">Veo 3.1 Relax</option>
-                      <option value="runway-gen-4">Runway Gen-4</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        id="video-model-variant"
+                        value={videoModelVariant}
+                        onChange={(e) =>
+                          onVideoModelVariantChange(e.target.value as "veo-3.1-relax" | "runway-gen-4")
+                        }
+                        className="w-full appearance-none rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 pr-11 text-sm text-white outline-none transition focus:border-white/30"
+                      >
+                        <option value="veo-3.1-relax">Veo 3.1 Relax</option>
+                        <option value="runway-gen-4">Runway Gen-4</option>
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                    </div>
                   </div>
                 ) : null}
 
