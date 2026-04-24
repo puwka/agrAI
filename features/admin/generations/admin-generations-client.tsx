@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ClipboardEvent } from "react";
 import { Loader2, Send, Trash2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -71,7 +72,8 @@ export function AdminGenerationsClient({
         );
         return;
       }
-      setItems(Array.isArray(data?.items) ? data.items : []);
+      const nextItems = Array.isArray(data?.items) ? data.items : [];
+      setItems(nextItems);
       setTotal(typeof data?.total === "number" ? data.total : 0);
     } catch {
       setError("Проблема сети при загрузке генераций. Повторите через пару секунд.");
@@ -102,6 +104,11 @@ export function AdminGenerationsClient({
     setMessageDrafts((d) => ({ ...d, [id]: value }));
   };
 
+  const isResultUrlLike = (value: string) => {
+    const v = value.trim();
+    return v.startsWith("http://") || v.startsWith("https://") || v.startsWith("data:");
+  };
+
   const uploadFile = async (id: string, file: File) => {
     setError(null);
     setNotice(null);
@@ -129,8 +136,8 @@ export function AdminGenerationsClient({
     }
   };
 
-  const submitUrlResult = async (id: string) => {
-    const resultUrl = (urlDrafts[id] ?? "").trim();
+  const submitUrlResult = async (id: string, directUrl?: string) => {
+    const resultUrl = (directUrl ?? urlDrafts[id] ?? "").trim();
     if (!resultUrl) {
       setError("Вставьте URL или data:… результата");
       return;
@@ -163,6 +170,24 @@ export function AdminGenerationsClient({
     } finally {
       setSavingId(null);
     }
+  };
+
+  const handleQuickPaste = (id: string, e: ClipboardEvent<HTMLTextAreaElement>) => {
+    if (savingId === id || uploadingId === id || deletingId === id) return;
+    const files = Array.from(e.clipboardData.files ?? []);
+    if (files.length > 0) {
+      e.preventDefault();
+      void uploadFile(id, files[0]);
+      return;
+    }
+    const text = e.clipboardData.getData("text/plain").trim();
+    if (!text) return;
+    if (isResultUrlLike(text)) {
+      e.preventDefault();
+      void submitUrlResult(id, text);
+      return;
+    }
+    setError("Из буфера вставки принимаются только файл, URL или data:URL результата.");
   };
 
   const submitTextOnly = async (id: string) => {
@@ -409,6 +434,23 @@ export function AdminGenerationsClient({
                       ) : null}
                     </div>
                     <div className="border-t border-white/10 space-y-3 pt-3">
+                      <div className="space-y-2">
+                        <label className="block text-xs font-medium uppercase tracking-wide text-amber-200/90">
+                          Быстрая вставка результата (Ctrl+V)
+                        </label>
+                        <textarea
+                          rows={2}
+                          placeholder="Вставьте файл, URL или data:URL — отправится сразу"
+                          onPaste={(e) => handleQuickPaste(g.id, e)}
+                          onChange={(e) => {
+                            if (e.currentTarget.value) e.currentTarget.value = "";
+                          }}
+                          className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-amber-400/40"
+                        />
+                        <p className="text-[11px] leading-relaxed text-zinc-500">
+                          Вставка файла запускает загрузку, вставка ссылки отправляет результат пользователю.
+                        </p>
+                      </div>
                       <div className="space-y-2">
                         <label className="block text-xs font-medium uppercase tracking-wide text-amber-200/90">
                           Или URL / data для пользователя

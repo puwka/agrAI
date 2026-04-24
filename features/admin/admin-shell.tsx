@@ -20,6 +20,7 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 import type { ShellUser } from "../dashboard/components/dashboard-shell";
+import { useBrowserNotifier } from "../shared/use-browser-notifier";
 
 const nav = [
   { href: "/admin", label: "Главная", icon: LayoutDashboard },
@@ -41,10 +42,44 @@ export function AdminShell({
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
+  const { notify } = useBrowserNotifier();
   useEffect(() => {
     setMenuOpen(false);
     setNavigatingTo(null);
   }, [pathname]);
+
+  useEffect(() => {
+    let disposed = false;
+    let lastNewestCreatedAt: number | null = null;
+
+    const poll = async () => {
+      try {
+        const response = await fetch("/api/admin/generations?limit=1&offset=0&status=OPEN", { cache: "no-store" });
+        const data = (await response.json().catch(() => null)) as
+          | { items?: Array<{ createdAt?: string }> }
+          | null;
+        if (!response.ok || disposed) return;
+        const createdAt = data?.items?.[0]?.createdAt;
+        const newest = createdAt ? Date.parse(createdAt) : Number.NaN;
+        if (!Number.isFinite(newest)) return;
+        if (lastNewestCreatedAt !== null && newest > lastNewestCreatedAt) {
+          notify();
+        }
+        lastNewestCreatedAt = Math.max(lastNewestCreatedAt ?? 0, newest);
+      } catch {
+        // Ignore transient polling/network issues.
+      }
+    };
+
+    void poll();
+    const id = setInterval(() => {
+      void poll();
+    }, 8000);
+    return () => {
+      disposed = true;
+      clearInterval(id);
+    };
+  }, [notify]);
 
   const handleNavClick = (href: string, e: MouseEvent<HTMLAnchorElement>) => {
     if (navigatingTo) {

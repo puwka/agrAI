@@ -3,11 +3,13 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
+import { useEffect, useRef } from "react";
 
 import { MaintenanceProvider } from "../maintenance-context";
 import { MaintenanceModal } from "./maintenance-modal";
 import { Sidebar } from "./sidebar";
 import { getActiveNavItem } from "../lib";
+import { useBrowserNotifier } from "../../shared/use-browser-notifier";
 
 export type ShellUser = {
   name: string;
@@ -28,8 +30,64 @@ export function DashboardShell({
 }) {
   const pathname = usePathname();
   const activeItem = getActiveNavItem(pathname);
+  const { notify } = useBrowserNotifier();
+  const knownStatusesRef = useRef<Map<string, string>>(new Map());
+  const initializedRef = useRef(false);
 
   const isAdmin = user.role === "ADMIN";
+
+  useEffect(() => {
+    if (isAdmin) return;
+    let disposed = false;
+    const tokenOf = (status: string, hasResult: boolean) => `${status}:${hasResult ? "1" : "0"}`;
+
+    const poll = async () => {
+      try {
+        const response = await fetch("/api/generations?limit=10&offset=0&brief=1", { cache: "no-store" });
+        const data = (await response.json().catch(() => null)) as
+          | { items?: Array<{ id: string; status: string; resultUrl?: string | null; resultMessage?: string | null }> }
+          | null;
+        if (!response.ok || disposed) return;
+        const items = Array.isArray(data?.items) ? data.items : [];
+
+        const next = new Map<string, string>();
+        let shouldNotify = false;
+        for (const item of items) {
+          const hasResult = Boolean(item.resultUrl || item.resultMessage);
+          const nowToken = tokenOf(item.status, hasResult);
+          const prevToken = knownStatusesRef.current.get(item.id);
+          if (initializedRef.current) {
+            const nowReady = item.status === "SUCCESS" && hasResult;
+            const prevReady = prevToken ? prevToken.startsWith("SUCCESS:1") : false;
+            if (nowReady && !prevReady) {
+              shouldNotify = true;
+            }
+          }
+          next.set(item.id, nowToken);
+        }
+
+        knownStatusesRef.current = next;
+        if (!initializedRef.current) {
+          initializedRef.current = true;
+          return;
+        }
+        if (shouldNotify) {
+          notify();
+        }
+      } catch {
+        // Ignore transient polling/network issues.
+      }
+    };
+
+    void poll();
+    const id = setInterval(() => {
+      void poll();
+    }, 12000);
+    return () => {
+      disposed = true;
+      clearInterval(id);
+    };
+  }, [isAdmin, notify]);
 
   return (
     <MaintenanceProvider isAdmin={isAdmin}>
