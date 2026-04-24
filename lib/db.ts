@@ -55,6 +55,16 @@ function project(row: AnyRecord, select?: AnyRecord, extra?: AnyRecord) {
   return out;
 }
 
+function columnsFromSelect(select?: AnyRecord, extras: string[] = []) {
+  if (!select) return "*";
+  const keys = Object.entries(select)
+    .filter(([k, v]) => Boolean(v) && k !== "_count")
+    .map(([k]) => k);
+  const all = [...keys, ...extras];
+  const unique = [...new Set(all.filter(Boolean))];
+  return unique.length > 0 ? unique.join(",") : "*";
+}
+
 function applyWhere(query: any, where?: AnyRecord) {
   if (!where) return query;
   let q = query;
@@ -299,7 +309,9 @@ export const db: any = {
       const dir = String((args.orderBy?.createdAt as string) ?? "desc").toUpperCase() === "ASC" ? "ASC" : "DESC";
       const take = args.take ?? 1000;
       const skip = Math.max(0, args.skip ?? 0);
-      let q = getSupabaseAdmin().from("Generation").select("*");
+      const needUserIdForInclude = Boolean(args.include?.user);
+      const columns = columnsFromSelect(args.select, needUserIdForInclude ? ["userId"] : []);
+      let q = getSupabaseAdmin().from("Generation").select(columns);
       q = applyWhere(q, args.where);
       q = applyGenerationSearchOr(q, args.search);
       q = q.order("createdAt", { ascending: dir === "ASC" });

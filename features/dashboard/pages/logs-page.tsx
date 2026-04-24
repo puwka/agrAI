@@ -60,6 +60,7 @@ export function LogsPage() {
         limit: String(PAGE_SIZE),
         offset: String(page * PAGE_SIZE),
         status: activeFilter,
+        includeTotal: "1",
       });
       if (debouncedSearch) {
         params.set("q", debouncedSearch);

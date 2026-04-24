@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { db } from "../../../../lib/db";
 import { getApiSessionUser } from "../../../../lib/auth/api-session";
 
+const ADMIN_GENERATIONS_CACHE_TTL_MS = 8000;
+const adminGenerationsCache = new Map<string, { expiresAt: number; payload: unknown }>();
+
 function isTransientNetworkError(error: unknown) {
   const msg = error instanceof Error ? error.message : String(error ?? "");
   return msg.includes("ECONNRESET") || msg.includes("terminated") || msg.includes("fetch failed");
@@ -24,7 +27,17 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const limitRaw = Number(requestUrl.searchParams.get("limit") ?? DEFAULT_LIMIT);
   const offsetRaw = Number(requestUrl.searchParams.get("offset") ?? 0);
+  const includeTotal = requestUrl.searchParams.get("includeTotal") === "1";
+  const brief = requestUrl.searchParams.get("brief") === "1";
   const statusRaw = (requestUrl.searchParams.get("status") ?? "").trim().toUpperCase();
+  const cacheKey = [statusRaw || "ALL", limitRaw, offsetRaw, brief ? "1" : "0", includeTotal ? "1" : "0"].join("|");
+  const now = Date.now();
+  const cached = adminGenerationsCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return NextResponse.json(cached.payload, {
+      headers: { "Cache-Control": "private, max-age=3, stale-while-revalidate=8" },
+    });
+  }
   const where =
     statusRaw === "SUCCESS"
       ? { status: "SUCCESS" }
@@ -40,21 +53,59 @@ export async function GET(request: Request) {
     let lastError: unknown = null;
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       try {
-        const [items, total] = await Promise.all([
-          db.generation.findMany({
-            where,
-            orderBy: { createdAt: "desc" },
-            take: limit,
-            skip: offset,
-            include: {
-              user: {
-                select: { id: true, name: true, email: true },
-              },
+        const items = await db.generation.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          take: limit,
+          skip: offset,
+          select: brief
+            ? {
+                id: true,
+                userId: true,
+                modelId: true,
+                modelName: true,
+                prompt: true,
+                aspectRatio: true,
+                status: true,
+                inputMode: true,
+                referenceImageUrl: true,
+                resultUrl: true,
+                resultMessage: true,
+                createdAt: true,
+              }
+            : undefined,
+          include: {
+            user: {
+              select: { id: true, name: true, email: true },
             },
-          }),
-          db.generation.countWhere({ where }),
-        ]);
-        return NextResponse.json({ items, total, limit, offset });
+          },
+        });
+        const total = includeTotal ? await db.generation.countWhere({ where }) : undefined;
+        const normalized = brief
+          ? (items as Array<{ prompt?: string; resultMessage?: string }>).map((item) => {
+              const prompt = typeof item.prompt === "string" ? item.prompt : "";
+              const resultMessage = typeof item.resultMessage === "string" ? item.resultMessage : "";
+              return {
+                ...item,
+                prompt: prompt.length > 320 ? `${prompt.slice(0, 320)}…` : prompt,
+                resultMessage: resultMessage.length > 600 ? `${resultMessage.slice(0, 600)}…` : resultMessage,
+              };
+            })
+          : items;
+        const payload = {
+          items: normalized,
+          ...(typeof total === "number" ? { total } : {}),
+          limit,
+          offset,
+          hasMore: items.length === limit,
+        };
+        adminGenerationsCache.set(cacheKey, {
+          expiresAt: now + ADMIN_GENERATIONS_CACHE_TTL_MS,
+          payload,
+        });
+        return NextResponse.json(payload, {
+          headers: { "Cache-Control": "private, max-age=3, stale-while-revalidate=8" },
+        });
       } catch (e) {
         lastError = e;
         if (attempt < 2 && isTransientNetworkError(e)) {

@@ -34,7 +34,7 @@ export function ProfilePage() {
     const load = async () => {
       const [profileRes, genRes] = await Promise.all([
         fetch("/api/profile"),
-        fetch("/api/generations?limit=1&offset=0"),
+        fetch("/api/generations?limit=1&offset=0&includeTotal=1"),
       ]);
 
       if (!profileRes.ok) {

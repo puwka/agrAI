@@ -7,6 +7,9 @@ import { getMaintenanceState } from "../../../lib/maintenance";
 import { hasActiveSubscription } from "../../../lib/subscription";
 import type { AspectRatio } from "../../../features/dashboard/types";
 
+const GENERATIONS_CACHE_TTL_MS = 8000;
+const generationsListCache = new Map<string, { expiresAt: number; payload: unknown }>();
+
 function isValidHttpUrlForTranscription(link: string): boolean {
   const s = link.trim();
   if (!s || s.length > 4000) return false;
@@ -71,34 +74,51 @@ export async function GET(request: Request) {
       : "all";
   const q = (searchParams.get("q") ?? "").trim();
   const brief = searchParams.get("brief") === "1";
+  const includeTotal = searchParams.get("includeTotal") === "1";
+  const cacheKey = [
+    sessionUser.id,
+    limit,
+    offset,
+    statusFilter,
+    q,
+    brief ? "1" : "0",
+    includeTotal ? "1" : "0",
+  ].join("|");
+  const now = Date.now();
+  const cached = generationsListCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return NextResponse.json(cached.payload, {
+      headers: { "Cache-Control": "private, max-age=3, stale-while-revalidate=8" },
+    });
+  }
 
   const where = generationListWhere(sessionUser.id, statusFilter);
 
-  const [itemsRaw, total] = await Promise.all([
-    db.generation.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      skip: offset,
-      search: q || undefined,
-      select: brief
-        ? {
-            id: true,
-            modelName: true,
-            prompt: true,
-            aspectRatio: true,
-            status: true,
-            resultUrl: true,
-            resultMessage: true,
-            createdAt: true,
-          }
-        : undefined,
-    }),
-    db.generation.countWhere({
-      where,
-      search: q || undefined,
-    }),
-  ]);
+  const itemsRaw = await db.generation.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    skip: offset,
+    search: q || undefined,
+    select: brief
+      ? {
+          id: true,
+          modelName: true,
+          prompt: true,
+          aspectRatio: true,
+          status: true,
+          resultUrl: true,
+          resultMessage: true,
+          createdAt: true,
+        }
+      : undefined,
+  });
+  const total = includeTotal
+    ? await db.generation.countWhere({
+        where,
+        search: q || undefined,
+      })
+    : undefined;
 
   const items = brief
     ? (itemsRaw as Array<{ prompt?: string; resultMessage?: string }>).map((item) => {
@@ -112,7 +132,15 @@ export async function GET(request: Request) {
       })
     : itemsRaw;
 
-  return NextResponse.json({ items, total });
+  const payload = {
+    items,
+    ...(typeof total === "number" ? { total } : {}),
+    hasMore: itemsRaw.length === limit,
+  };
+  generationsListCache.set(cacheKey, { expiresAt: now + GENERATIONS_CACHE_TTL_MS, payload });
+  return NextResponse.json(payload, {
+    headers: { "Cache-Control": "private, max-age=3, stale-while-revalidate=8" },
+  });
 }
 
 export async function POST(request: Request) {
@@ -347,6 +375,13 @@ export async function POST(request: Request) {
       user: { connect: { id: sessionUser.id } },
     },
   });
+
+  // Invalidate list cache for fresh user/admin listings after new request.
+  for (const key of generationsListCache.keys()) {
+    if (key.startsWith(`${sessionUser.id}|`)) {
+      generationsListCache.delete(key);
+    }
+  }
 
   return NextResponse.json(generation);
 }

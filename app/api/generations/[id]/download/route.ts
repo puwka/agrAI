@@ -40,6 +40,21 @@ function attachmentFilename(id: string, ext: string) {
   return `generation-${id}.${safe}`;
 }
 
+function isTransientNetworkError(error: unknown) {
+  const msg = error instanceof Error ? error.message : String(error ?? "");
+  return (
+    msg.includes("ETIMEDOUT") ||
+    msg.includes("ECONNRESET") ||
+    msg.includes("terminated") ||
+    msg.includes("fetch failed") ||
+    msg.includes("aborted")
+  );
+}
+
+async function delay(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const sessionUser = await getApiSessionUser();
 
@@ -144,33 +159,41 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     });
   }
 
-  try {
-    const upstream = await fetch(resultUrl, { redirect: "follow" });
-    if (!upstream.ok) {
-      return NextResponse.json({ error: "Не удалось получить файл" }, { status: 502 });
-    }
-    const ct = upstream.headers.get("content-type") ?? "application/octet-stream";
-    const body = upstream.body;
-    if (!body) {
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const upstream = await fetch(resultUrl, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!upstream.ok) {
+        return NextResponse.json({ error: "Не удалось получить файл" }, { status: 502 });
+      }
+      const ct = upstream.headers.get("content-type") ?? "application/octet-stream";
+      // Read the remote body fully before responding to avoid "failed to pipe response"
+      // when upstream closes the stream with ETIMEDOUT/terminated mid-transfer.
       const buf = Buffer.from(await upstream.arrayBuffer());
       return new NextResponse(buf, {
         status: 200,
         headers: {
           "Content-Type": ct,
+          "Content-Length": String(buf.byteLength),
           "Content-Disposition": inline ? `inline; filename="${filename}"` : `attachment; filename="${filename}"`,
           "Cache-Control": "private, no-store",
         },
       });
+    } catch (e) {
+      lastError = e;
+      if (attempt < 2 && isTransientNetworkError(e)) {
+        await delay(250);
+        continue;
+      }
+      break;
     }
-    return new NextResponse(body, {
-      status: 200,
-      headers: {
-        "Content-Type": ct,
-        "Content-Disposition": inline ? `inline; filename="${filename}"` : `attachment; filename="${filename}"`,
-        "Cache-Control": "private, no-store",
-      },
-    });
-  } catch {
-    return NextResponse.json({ error: "Ошибка загрузки внешнего файла" }, { status: 502 });
   }
+  const detail = lastError instanceof Error ? lastError.message : String(lastError ?? "");
+  return NextResponse.json(
+    { error: "Ошибка загрузки внешнего файла", detail },
+    { status: 502 },
+  );
 }

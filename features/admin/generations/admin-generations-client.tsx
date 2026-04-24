@@ -26,7 +26,7 @@ type AdminGeneration = {
   resultUrl: string | null;
   resultMessage: string | null;
   createdAt: string;
-  user: { id: string; name: string; email: string };
+  user?: { id: string; name: string; email: string } | null;
 };
 
 export function AdminGenerationsClient({
@@ -36,35 +36,44 @@ export function AdminGenerationsClient({
 }) {
   const router = useRouter();
   const [items, setItems] = useState<AdminGeneration[]>([]);
-  const [total, setTotal] = useState(0);
+  const [readyOffset, setReadyOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({});
   const [messageDrafts, setMessageDrafts] = useState<Record<string, string>>({});
   const inFlightRef = useRef(false);
-  const PAGE_SIZE = 60;
+  const PAGE_SIZE = 30;
 
-  const load = useCallback(async (opts?: { silent?: boolean }) => {
+  const load = useCallback(async (opts?: { silent?: boolean; append?: boolean }) => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
+    const append = Boolean(opts?.append && mode === "ready");
     if (!opts?.silent) {
-      setLoading(true);
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
     }
     if (!opts?.silent) {
       setError(null);
       setNotice(null);
     }
     try {
-      const offset = (page - 1) * PAGE_SIZE;
+      const offset = mode === "ready" ? (append ? readyOffset : 0) : (page - 1) * PAGE_SIZE;
       const statusQuery = mode === "ready" ? "&status=SUCCESS" : "&status=OPEN";
-      const response = await fetch(`/api/admin/generations?limit=${PAGE_SIZE}&offset=${offset}${statusQuery}`);
+      const response = await fetch(`/api/admin/generations?limit=${PAGE_SIZE}&offset=${offset}${statusQuery}&brief=1`);
       const data = (await response.json().catch(() => null)) as
-        | { items?: AdminGeneration[]; total?: number; error?: string; detail?: string }
+        | { items?: AdminGeneration[]; hasMore?: boolean; error?: string; detail?: string }
         | null;
       if (!response.ok) {
         setError(
@@ -73,15 +82,26 @@ export function AdminGenerationsClient({
         return;
       }
       const nextItems = Array.isArray(data?.items) ? data.items : [];
-      setItems(nextItems);
-      setTotal(typeof data?.total === "number" ? data.total : 0);
+      let resolvedItems: AdminGeneration[] = nextItems;
+      setItems((prev) => {
+        if (!append) return nextItems;
+        const seen = new Set(prev.map((x) => x.id));
+        resolvedItems = [...prev, ...nextItems.filter((x) => !seen.has(x.id))];
+        return resolvedItems;
+      });
+      setHasMore(Boolean(data?.hasMore));
+      if (mode === "ready") {
+        setReadyOffset(append ? offset + nextItems.length : nextItems.length);
+      }
+      setSelectedIds((prev) => prev.filter((id) => resolvedItems.some((item) => item.id === id)));
     } catch {
       setError("Проблема сети при загрузке генераций. Повторите через пару секунд.");
     } finally {
       setLoading(false);
+      setLoadingMore(false);
       inFlightRef.current = false;
     }
-  }, [mode, page]);
+  }, [mode, page, readyOffset]);
 
   useEffect(() => {
     void load();
@@ -89,12 +109,15 @@ export function AdminGenerationsClient({
 
   useEffect(() => {
     const id = setInterval(() => {
-      void load({ silent: true });
+      void load({ silent: true, append: false });
     }, 8000);
     return () => clearInterval(id);
   }, [load]);
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  useEffect(() => {
+    if (mode !== "ready") return;
+    setReadyOffset(0);
+  }, [mode]);
 
   const setUrlDraft = (id: string, value: string) => {
     setUrlDrafts((d) => ({ ...d, [id]: value }));
@@ -102,6 +125,19 @@ export function AdminGenerationsClient({
 
   const setMessageDraft = (id: string, value: string) => {
     setMessageDrafts((d) => ({ ...d, [id]: value }));
+  };
+
+  const clearDraftsForId = (id: string) => {
+    setUrlDrafts((d) => {
+      const next = { ...d };
+      delete next[id];
+      return next;
+    });
+    setMessageDrafts((d) => {
+      const next = { ...d };
+      delete next[id];
+      return next;
+    });
   };
 
   const isResultUrlLike = (value: string) => {
@@ -243,19 +279,63 @@ export function AdminGenerationsClient({
         setError(data?.error ?? "Не удалось удалить");
         return;
       }
-      setUrlDrafts((d) => {
-        const next = { ...d };
-        delete next[id];
-        return next;
-      });
-      setMessageDrafts((d) => {
-        const next = { ...d };
-        delete next[id];
-        return next;
-      });
+      clearDraftsForId(id);
+      setSelectedIds((prev) => prev.filter((x) => x !== id));
       await load();
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAllVisible = () => {
+    const visibleIds = items.map((item) => item.id);
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+    setSelectedIds((prev) => {
+      if (allVisibleSelected) {
+        return prev.filter((id) => !visibleIds.includes(id));
+      }
+      const next = new Set(prev);
+      for (const id of visibleIds) next.add(id);
+      return Array.from(next);
+    });
+  };
+
+  const deleteSelected = async () => {
+    if (selectedIds.length === 0 || bulkDeleting) return;
+    if (
+      !window.confirm(
+        `Удалить выбранные заявки (${selectedIds.length})? Записи исчезнут из кабинетов пользователей.`,
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setNotice(null);
+    setBulkDeleting(true);
+    try {
+      const ids = [...selectedIds];
+      const failed: string[] = [];
+      for (const id of ids) {
+        const response = await fetch(`/api/admin/generations/${id}`, { method: "DELETE" });
+        if (!response.ok) {
+          failed.push(id);
+          continue;
+        }
+        clearDraftsForId(id);
+      }
+      if (failed.length > 0) {
+        setError(`Удалено не всё: не удалось удалить ${failed.length} из ${ids.length}.`);
+      } else {
+        setNotice(`Удалено заявок: ${ids.length}.`);
+      }
+      setSelectedIds([]);
+      await load({ append: false });
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -280,8 +360,30 @@ export function AdminGenerationsClient({
             : "Для заявок в ожидании: загрузите файл, вставьте URL / data:URL или отправьте текст (ошибка генерации, отказ по авторским правам и т.д.) — пользователь увидит результат в кабинете и сможет скачать файл или ответ в виде .txt."}
         </p>
         <p className="mt-1 text-xs text-zinc-500">
-          Страница {page} из {totalPages} · всего заявок: {total}
+          Страница {page}
         </p>
+        {mode === "ready" ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleSelectAllVisible}
+              className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs text-zinc-200 transition hover:bg-white/10"
+            >
+              {items.length > 0 && items.every((item) => selectedIds.includes(item.id))
+                ? "Снять выделение"
+                : "Выделить все на странице"}
+            </button>
+            <button
+              type="button"
+              disabled={selectedIds.length === 0 || bulkDeleting}
+              onClick={() => void deleteSelected()}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 transition hover:bg-red-500/20 disabled:opacity-50"
+            >
+              {bulkDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              Удалить выбранные ({selectedIds.length})
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {error && (
@@ -311,6 +413,8 @@ export function AdminGenerationsClient({
             g.status === "SUCCESS" && (g.resultUrl || g.resultMessage),
           );
           const motionVideoUrl = g.modelId === "motion-transfer" ? motionVideoUrlFromPrompt(g.prompt) : null;
+          const userName = g.user?.name?.trim() || "Пользователь";
+          const userEmail = g.user?.email?.trim() || "—";
 
           return (
             <article
@@ -320,10 +424,21 @@ export function AdminGenerationsClient({
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                   <div className="flex flex-wrap items-center gap-2">
+                    {mode === "ready" ? (
+                      <label className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs text-zinc-300">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(g.id)}
+                          onChange={() => toggleSelected(g.id)}
+                          className="h-3.5 w-3.5 accent-violet-500"
+                        />
+                        Выбрать
+                      </label>
+                    ) : null}
                     <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-zinc-300">
-                      {g.user.name}
+                      {userName}
                     </span>
-                    <span className="text-zinc-500">{g.user.email}</span>
+                    <span className="text-zinc-500">{userEmail}</span>
                     <span
                       className={
                         pending
@@ -338,7 +453,7 @@ export function AdminGenerationsClient({
                   <button
                     type="button"
                     disabled={
-                      savingId === g.id || uploadingId === g.id || deletingId === g.id
+                      savingId === g.id || uploadingId === g.id || deletingId === g.id || bulkDeleting
                     }
                     onClick={() => void deleteGeneration(g.id)}
                     className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/20 disabled:opacity-50"
@@ -511,42 +626,59 @@ export function AdminGenerationsClient({
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/80">
-                {hasResult && g.resultUrl ? (
-                  detectResultMediaKind(g.resultUrl) === "video" ? (
-                    <video
-                      src={`/api/generations/${g.id}/download?inline=1`}
-                      controls
-                      playsInline
-                      preload="none"
-                      className="h-full w-full max-h-72 bg-black object-contain"
-                    />
-                  ) : detectResultMediaKind(g.resultUrl) === "audio" ? (
-                    <div className="flex min-h-[200px] items-center justify-center bg-black/50 px-4 py-6">
-                      <audio
-                        src={`/api/generations/${g.id}/download?inline=1`}
-                        controls
-                        className="w-full max-w-md"
-                        preload="metadata"
-                      />
-                    </div>
-                  ) : (
-                    <img
-                      src={`/api/generations/${g.id}/download?inline=1`}
-                      alt={`Результат ${g.id}`}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-full w-full max-h-72 object-contain"
-                    />
-                  )
-                ) : hasResult && g.resultMessage ? (
-                  <div className="max-h-72 overflow-y-auto p-4 text-left text-sm leading-relaxed text-zinc-200">
-                    {g.resultMessage}
+                {mode === "ready" ? (
+                  <div className="flex min-h-[200px] flex-col justify-center gap-3 p-4">
+                    {hasResult ? (
+                      <a
+                        href={`/api/generations/${g.id}/download`}
+                        className="inline-flex items-center justify-center rounded-xl border border-violet-400/35 bg-violet-500/15 px-4 py-2 text-sm font-semibold text-violet-200 transition hover:bg-violet-500/25"
+                      >
+                        Скачать результат
+                      </a>
+                    ) : (
+                      <p className="text-center text-sm text-zinc-500">Результат недоступен</p>
+                    )}
                   </div>
                 ) : (
-                  <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 p-6 text-center text-sm text-zinc-500">
-                    <p>Нет превью</p>
-                    {pending && <p className="text-xs text-zinc-600">Ожидает загрузки результата</p>}
-                  </div>
+                  <>
+                    {hasResult && g.resultUrl ? (
+                      detectResultMediaKind(g.resultUrl) === "video" ? (
+                        <video
+                          src={`/api/generations/${g.id}/download?inline=1`}
+                          controls
+                          playsInline
+                          preload="none"
+                          className="h-full w-full max-h-72 bg-black object-contain"
+                        />
+                      ) : detectResultMediaKind(g.resultUrl) === "audio" ? (
+                        <div className="flex min-h-[200px] items-center justify-center bg-black/50 px-4 py-6">
+                          <audio
+                            src={`/api/generations/${g.id}/download?inline=1`}
+                            controls
+                            className="w-full max-w-md"
+                            preload="metadata"
+                          />
+                        </div>
+                      ) : (
+                        <img
+                          src={`/api/generations/${g.id}/download?inline=1`}
+                          alt={`Результат ${g.id}`}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-full w-full max-h-72 object-contain"
+                        />
+                      )
+                    ) : hasResult && g.resultMessage ? (
+                      <div className="max-h-72 overflow-y-auto p-4 text-left text-sm leading-relaxed text-zinc-200">
+                        {g.resultMessage}
+                      </div>
+                    ) : (
+                      <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 p-6 text-center text-sm text-zinc-500">
+                        <p>Нет превью</p>
+                        {pending && <p className="text-xs text-zinc-600">Ожидает загрузки результата</p>}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </article>
@@ -555,22 +687,36 @@ export function AdminGenerationsClient({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled={loading || page <= 1}
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
-        >
-          Назад
-        </button>
-        <button
-          type="button"
-          disabled={loading || page >= totalPages}
-          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
-        >
-          Вперёд
-        </button>
+        {mode === "ready" ? (
+          <button
+            type="button"
+            disabled={loading || loadingMore || !hasMore}
+            onClick={() => void load({ append: true })}
+            className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
+          >
+            {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {hasMore ? "Показать ещё" : "Больше нет"}
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              disabled={loading || page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
+            >
+              Назад
+            </button>
+            <button
+              type="button"
+              disabled={loading || !hasMore}
+              onClick={() => setPage((p) => p + 1)}
+              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
+            >
+              Вперёд
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
