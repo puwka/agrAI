@@ -84,6 +84,6 @@ export async function POST(request: Request) {
   const diskPath = path.join(uploadDir, safeBase);
   await writeFile(diskPath, buffer);
 
-  const publicPath = `/uploads/generations/references/${safeBase}`;
+  const publicPath = `/api/generations/reference-file/${safeBase}`;
   return NextResponse.json({ url: publicPath });
 }

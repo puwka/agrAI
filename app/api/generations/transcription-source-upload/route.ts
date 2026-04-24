@@ -98,6 +98,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Не удалось сохранить файл (${msg})` }, { status: 500 });
   }
 
-  const publicPath = `/uploads/generations/references/${safeBase}`;
+  const publicPath = `/api/generations/reference-file/${safeBase}`;
   return NextResponse.json({ url: publicPath });
 }

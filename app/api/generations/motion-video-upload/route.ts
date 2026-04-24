@@ -73,5 +73,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Не удалось сохранить файл (${msg})` }, { status: 500 });
   }
 
-  return NextResponse.json({ url: `/uploads/generations/references/${safeBase}` });
+  return NextResponse.json({ url: `/api/generations/reference-file/${safeBase}` });
 }
