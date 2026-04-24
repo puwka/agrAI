@@ -24,6 +24,15 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const limitRaw = Number(requestUrl.searchParams.get("limit") ?? DEFAULT_LIMIT);
   const offsetRaw = Number(requestUrl.searchParams.get("offset") ?? 0);
+  const statusRaw = (requestUrl.searchParams.get("status") ?? "").trim().toUpperCase();
+  const where =
+    statusRaw === "SUCCESS"
+      ? { status: "SUCCESS" }
+      : statusRaw === "OPEN"
+        ? { status: { in: ["PENDING", "QUEUED", "ERROR"] } }
+      : statusRaw === "PENDING"
+        ? { status: { in: ["PENDING", "QUEUED"] } }
+        : undefined;
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(MAX_LIMIT, Math.floor(limitRaw))) : DEFAULT_LIMIT;
   const offset = Number.isFinite(offsetRaw) ? Math.max(0, Math.floor(offsetRaw)) : 0;
 
@@ -33,6 +42,7 @@ export async function GET(request: Request) {
       try {
         const [items, total] = await Promise.all([
           db.generation.findMany({
+            where,
             orderBy: { createdAt: "desc" },
             take: limit,
             skip: offset,
@@ -42,7 +52,7 @@ export async function GET(request: Request) {
               },
             },
           }),
-          db.generation.countWhere(),
+          db.generation.countWhere({ where }),
         ]);
         return NextResponse.json({ items, total, limit, offset });
       } catch (e) {

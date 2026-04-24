@@ -59,6 +59,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
+  let supabaseUploadError: string | null = null;
   if (supabaseUploadsEnabled()) {
     try {
       const publicUrl = await uploadGenerationResultFile({
@@ -79,33 +80,45 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return NextResponse.json(updated);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      return NextResponse.json(
-        {
-          error: `Не удалось загрузить в Supabase Storage (${msg}). Создайте бакет «${supabaseStorageBucket()}» и проверьте ключи.`,
-        },
-        { status: 503 },
-      );
+      supabaseUploadError = msg;
     }
   }
 
-  const safeName = `${generationId}${ext}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "generations");
-  await mkdir(uploadDir, { recursive: true });
+  try {
+    const safeName = `${generationId}${ext}`;
+    const uploadDir = path.join(process.cwd(), "public", "uploads", "generations");
+    await mkdir(uploadDir, { recursive: true });
+    const diskPath = path.join(uploadDir, safeName);
+    await writeFile(diskPath, buffer);
 
-  const diskPath = path.join(uploadDir, safeName);
-  await writeFile(diskPath, buffer);
+    const publicPath = `/uploads/generations/${safeName}`;
+    const updated = await db.generation.update({
+      where: { id: generationId },
+      data: {
+        resultUrl: publicPath,
+        resultMessage: null,
+        status: "SUCCESS",
+        errorMessage: null,
+      },
+    });
 
-  const publicPath = `/uploads/generations/${safeName}`;
-
-  const updated = await db.generation.update({
-    where: { id: generationId },
-    data: {
-      resultUrl: publicPath,
-      resultMessage: null,
-      status: "SUCCESS",
-      errorMessage: null,
-    },
-  });
-
-  return NextResponse.json(updated);
+    const response = NextResponse.json(updated);
+    if (supabaseUploadError) {
+      response.headers.set(
+        "X-Upload-Warning",
+        `Supabase upload failed, saved locally instead: ${supabaseUploadError}`,
+      );
+    }
+    return response;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json(
+      {
+        error: supabaseUploadError
+          ? `Не удалось загрузить в Supabase (${supabaseUploadError}) и сохранить локально (${msg}).`
+          : `Не удалось сохранить файл на сервере (${msg}).`,
+      },
+      { status: 503 },
+    );
+  }
 }

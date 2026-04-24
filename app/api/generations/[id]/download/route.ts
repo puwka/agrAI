@@ -40,7 +40,7 @@ function attachmentFilename(id: string, ext: string) {
   return `generation-${id}.${safe}`;
 }
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const sessionUser = await getApiSessionUser();
 
   if (!sessionUser?.id) {
@@ -66,6 +66,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
   const msg = gen.resultMessage?.trim();
   const url = gen.resultUrl?.trim();
+  const inline = new URL(request.url).searchParams.get("inline") === "1";
 
   if (!url && msg) {
     const buf = Buffer.from(msg, "utf8");
@@ -73,7 +74,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       status: 200,
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
-        "Content-Disposition": `attachment; filename="generation-${gen.id}.txt"`,
+        "Content-Disposition": inline
+          ? `inline; filename="generation-${gen.id}.txt"`
+          : `attachment; filename="generation-${gen.id}.txt"`,
         "Cache-Control": "private, no-store",
       },
     });
@@ -95,7 +98,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       status: 200,
       headers: {
         "Content-Type": parsed.mime,
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": inline ? `inline; filename="${filename}"` : `attachment; filename="${filename}"`,
         "Cache-Control": "private, no-store",
       },
     });
@@ -135,7 +138,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       headers: {
         "Content-Type": mime,
         "Content-Length": String(stat.size),
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": inline ? `inline; filename="${filename}"` : `attachment; filename="${filename}"`,
         "Cache-Control": "private, no-store",
       },
     });
@@ -154,7 +157,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         status: 200,
         headers: {
           "Content-Type": ct,
-          "Content-Disposition": `attachment; filename="${filename}"`,
+          "Content-Disposition": inline ? `inline; filename="${filename}"` : `attachment; filename="${filename}"`,
           "Cache-Control": "private, no-store",
         },
       });
@@ -163,7 +166,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       status: 200,
       headers: {
         "Content-Type": ct,
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": inline ? `inline; filename="${filename}"` : `attachment; filename="${filename}"`,
         "Cache-Control": "private, no-store",
       },
     });

@@ -292,6 +292,7 @@ export const db: any = {
         take?: number;
         skip?: number;
         include?: AnyRecord;
+        select?: AnyRecord;
         search?: string;
       } = {},
     ) {
@@ -306,7 +307,11 @@ export const db: any = {
       const { data, error } = await q.range(skip, end);
       if (error) throw error;
       const rows = hydrateRows((data ?? []) as AnyRecord[]);
-      return withUserInclude(rows, args.include);
+      const withIncluded = await withUserInclude(rows, args.include);
+      if (args.select) {
+        return withIncluded.map((r) => project(r, args.select));
+      }
+      return withIncluded;
     },
     async countWhere(args: { where?: AnyRecord; search?: string } = {}) {
       let q = getSupabaseAdmin().from("Generation").select("*", { count: "exact", head: true });

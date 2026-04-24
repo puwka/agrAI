@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CirclePlus,
+  CircleCheck,
   Construction,
   LayoutDashboard,
   LogOut,
@@ -24,6 +25,7 @@ const nav = [
   { href: "/admin", label: "Главная", icon: LayoutDashboard },
   { href: "/admin/users", label: "Пользователи", icon: Users },
   { href: "/admin/generations", label: "Генерации", icon: Shield },
+  { href: "/admin/generations-ready", label: "Готовые генерации", icon: CircleCheck },
   { href: "/admin/voice-previews", label: "Превью голосов", icon: Mic },
   { href: "/admin/custom-voices", label: "Свои голоса", icon: CirclePlus },
   { href: "/admin/maintenance", label: "Техработы", icon: Construction },

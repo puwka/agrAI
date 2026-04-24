@@ -319,7 +319,7 @@ export function DashboardHomePage({
 
   const loadGenerations = useCallback(async () => {
     setLoadError(null);
-    const response = await fetch("/api/generations?limit=10&offset=0");
+    const response = await fetch("/api/generations?limit=10&offset=0&brief=1");
 
     if (!response.ok) {
       setLoadError("Не удалось загрузить историю генераций");
@@ -834,12 +834,14 @@ export function DashboardHomePage({
               const ready = item.status === "SUCCESS" && (item.resultUrl || item.resultMessage);
               const failed = item.status === "ERROR";
               const mediaKind = item.resultUrl ? detectResultMediaKind(item.resultUrl) : "image";
+              const inlineResultSrc =
+                ready && item.resultUrl ? `/api/generations/${item.id}/download?inline=1` : "";
               return (
                 <div key={item.id} className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
                   {ready && item.resultUrl ? (
                     mediaKind === "video" ? (
                       <video
-                        src={item.resultUrl}
+                        src={inlineResultSrc}
                         controls
                         playsInline
                         preload="none"
@@ -848,7 +850,7 @@ export function DashboardHomePage({
                     ) : mediaKind === "audio" ? (
                       <div className="flex aspect-video w-full items-center justify-center bg-black/50 px-4 py-6">
                         <audio
-                          src={item.resultUrl}
+                          src={inlineResultSrc}
                           controls
                           className="w-full max-w-md"
                           preload="metadata"
@@ -856,7 +858,7 @@ export function DashboardHomePage({
                       </div>
                     ) : (
                       <img
-                        src={item.resultUrl}
+                        src={inlineResultSrc}
                         alt={item.modelName}
                         loading="lazy"
                         decoding="async"

@@ -40,6 +40,13 @@ export function ResultPreview({
 }: ResultPreviewProps) {
   const [mediaFailed, setMediaFailed] = useState(false);
   const mediaKind = useMemo(() => detectResultMediaKind(resultUrl), [resultUrl]);
+  const previewSrc = useMemo(() => {
+    if (!resultUrl.trim()) return "";
+    if (downloadGenerationId) {
+      return `/api/generations/${downloadGenerationId}/download?inline=1`;
+    }
+    return resultUrl;
+  }, [downloadGenerationId, resultUrl]);
 
   const showDownload =
     Boolean(downloadGenerationId) &&
@@ -94,7 +101,7 @@ export function ResultPreview({
                 </div>
               ) : mediaKind === "video" ? (
                 <video
-                  src={resultUrl}
+                  src={previewSrc}
                   controls
                   playsInline
                   className="h-full w-full min-h-0 flex-1 object-contain bg-black"
@@ -102,11 +109,11 @@ export function ResultPreview({
                 />
               ) : mediaKind === "audio" ? (
                 <div className="flex h-full w-full min-h-0 flex-1 flex-col items-center justify-center gap-4 bg-black/50 px-6 py-8">
-                  <audio src={resultUrl} controls className="w-full max-w-md" onError={() => setMediaFailed(true)} />
+                  <audio src={previewSrc} controls className="w-full max-w-md" onError={() => setMediaFailed(true)} />
                 </div>
               ) : (
                 <img
-                  src={resultUrl}
+                  src={previewSrc}
                   alt="Generated preview"
                   className="h-full w-full min-h-0 flex-1 object-cover"
                   onError={() => setMediaFailed(true)}

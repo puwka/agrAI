@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Send, Trash2, Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { detectResultMediaKind } from "../../../features/dashboard/lib";
 
@@ -27,12 +28,18 @@ type AdminGeneration = {
   user: { id: string; name: string; email: string };
 };
 
-export function AdminGenerationsClient() {
+export function AdminGenerationsClient({
+  mode = "all",
+}: {
+  mode?: "all" | "ready";
+}) {
+  const router = useRouter();
   const [items, setItems] = useState<AdminGeneration[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -49,10 +56,12 @@ export function AdminGenerationsClient() {
     }
     if (!opts?.silent) {
       setError(null);
+      setNotice(null);
     }
     try {
       const offset = (page - 1) * PAGE_SIZE;
-      const response = await fetch(`/api/admin/generations?limit=${PAGE_SIZE}&offset=${offset}`);
+      const statusQuery = mode === "ready" ? "&status=SUCCESS" : "&status=OPEN";
+      const response = await fetch(`/api/admin/generations?limit=${PAGE_SIZE}&offset=${offset}${statusQuery}`);
       const data = (await response.json().catch(() => null)) as
         | { items?: AdminGeneration[]; total?: number; error?: string; detail?: string }
         | null;
@@ -70,7 +79,7 @@ export function AdminGenerationsClient() {
       setLoading(false);
       inFlightRef.current = false;
     }
-  }, [page]);
+  }, [mode, page]);
 
   useEffect(() => {
     void load();
@@ -95,6 +104,7 @@ export function AdminGenerationsClient() {
 
   const uploadFile = async (id: string, file: File) => {
     setError(null);
+    setNotice(null);
     setUploadingId(id);
     try {
       const fd = new FormData();
@@ -107,6 +117,11 @@ export function AdminGenerationsClient() {
       if (!response.ok) {
         setError(data?.error ?? "Не удалось загрузить файл");
         return;
+      }
+      if (mode === "all") {
+        setNotice("Файл загружен. Заявка перенесена во вкладку «Готовые генерации».");
+      } else {
+        setNotice("Файл успешно загружен.");
       }
       await load();
     } finally {
@@ -121,6 +136,7 @@ export function AdminGenerationsClient() {
       return;
     }
     setError(null);
+    setNotice(null);
     setSavingId(id);
     try {
       const response = await fetch(`/api/admin/generations/${id}`, {
@@ -138,6 +154,11 @@ export function AdminGenerationsClient() {
         delete next[id];
         return next;
       });
+      if (mode === "all") {
+        setNotice("Результат отправлен. Заявка перенесена во вкладку «Готовые генерации».");
+      } else {
+        setNotice("Результат успешно отправлен.");
+      }
       await load();
     } finally {
       setSavingId(null);
@@ -151,6 +172,7 @@ export function AdminGenerationsClient() {
       return;
     }
     setError(null);
+    setNotice(null);
     setSavingId(id);
     try {
       const response = await fetch(`/api/admin/generations/${id}`, {
@@ -168,6 +190,11 @@ export function AdminGenerationsClient() {
         delete next[id];
         return next;
       });
+      if (mode === "all") {
+        setNotice("Ответ отправлен. Заявка перенесена во вкладку «Готовые генерации».");
+      } else {
+        setNotice("Ответ успешно отправлен.");
+      }
       await load();
     } finally {
       setSavingId(null);
@@ -219,11 +246,13 @@ export function AdminGenerationsClient() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold text-white">Все генерации</h1>
+        <h1 className="text-3xl font-semibold text-white">
+          {mode === "ready" ? "Готовые генерации" : "Все генерации"}
+        </h1>
         <p className="mt-2 text-sm text-zinc-400">
-          Для заявок в ожидании: загрузите файл, вставьте URL / data:URL или отправьте текст (ошибка
-          генерации, отказ по авторским правам и т.д.) — пользователь увидит результат в кабинете и
-          сможет скачать файл или ответ в виде .txt.
+          {mode === "ready"
+            ? "Только завершённые заявки (SUCCESS) с готовым результатом."
+            : "Для заявок в ожидании: загрузите файл, вставьте URL / data:URL или отправьте текст (ошибка генерации, отказ по авторским правам и т.д.) — пользователь увидит результат в кабинете и сможет скачать файл или ответ в виде .txt."}
         </p>
         <p className="mt-1 text-xs text-zinc-500">
           Страница {page} из {totalPages} · всего заявок: {total}
@@ -233,6 +262,20 @@ export function AdminGenerationsClient() {
       {error && (
         <p className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
           {error}
+        </p>
+      )}
+      {notice && (
+        <p className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+          {notice}
+          {mode === "all" ? (
+            <button
+              type="button"
+              onClick={() => router.push("/admin/generations-ready")}
+              className="ml-2 underline underline-offset-2"
+            >
+              Открыть готовые
+            </button>
+          ) : null}
         </p>
       )}
 
@@ -427,13 +470,32 @@ export function AdminGenerationsClient() {
 
               <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/80">
                 {hasResult && g.resultUrl ? (
-                  <img
-                    src={g.resultUrl}
-                    alt={`Результат ${g.id}`}
-                    loading="lazy"
-                    decoding="async"
-                    className="h-full w-full max-h-72 object-contain"
-                  />
+                  detectResultMediaKind(g.resultUrl) === "video" ? (
+                    <video
+                      src={`/api/generations/${g.id}/download?inline=1`}
+                      controls
+                      playsInline
+                      preload="none"
+                      className="h-full w-full max-h-72 bg-black object-contain"
+                    />
+                  ) : detectResultMediaKind(g.resultUrl) === "audio" ? (
+                    <div className="flex min-h-[200px] items-center justify-center bg-black/50 px-4 py-6">
+                      <audio
+                        src={`/api/generations/${g.id}/download?inline=1`}
+                        controls
+                        className="w-full max-w-md"
+                        preload="metadata"
+                      />
+                    </div>
+                  ) : (
+                    <img
+                      src={`/api/generations/${g.id}/download?inline=1`}
+                      alt={`Результат ${g.id}`}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full max-h-72 object-contain"
+                    />
+                  )
                 ) : hasResult && g.resultMessage ? (
                   <div className="max-h-72 overflow-y-auto p-4 text-left text-sm leading-relaxed text-zinc-200">
                     {g.resultMessage}

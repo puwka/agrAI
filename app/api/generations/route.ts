@@ -70,22 +70,47 @@ export async function GET(request: Request) {
       ? statusRaw
       : "all";
   const q = (searchParams.get("q") ?? "").trim();
+  const brief = searchParams.get("brief") === "1";
 
   const where = generationListWhere(sessionUser.id, statusFilter);
 
-  const [items, total] = await Promise.all([
+  const [itemsRaw, total] = await Promise.all([
     db.generation.findMany({
       where,
       orderBy: { createdAt: "desc" },
       take: limit,
       skip: offset,
       search: q || undefined,
+      select: brief
+        ? {
+            id: true,
+            modelName: true,
+            prompt: true,
+            aspectRatio: true,
+            status: true,
+            resultUrl: true,
+            resultMessage: true,
+            createdAt: true,
+          }
+        : undefined,
     }),
     db.generation.countWhere({
       where,
       search: q || undefined,
     }),
   ]);
+
+  const items = brief
+    ? (itemsRaw as Array<{ prompt?: string; resultMessage?: string }>).map((item) => {
+        const prompt = typeof item.prompt === "string" ? item.prompt : "";
+        const resultMessage = typeof item.resultMessage === "string" ? item.resultMessage : "";
+        return {
+          ...item,
+          prompt: prompt.length > 280 ? `${prompt.slice(0, 280)}…` : prompt,
+          resultMessage: resultMessage.length > 500 ? `${resultMessage.slice(0, 500)}…` : resultMessage,
+        };
+      })
+    : itemsRaw;
 
   return NextResponse.json({ items, total });
 }
