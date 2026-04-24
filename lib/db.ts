@@ -6,6 +6,49 @@ const globalForSupabase = globalThis as unknown as {
   supabaseAdmin: SupabaseClient | undefined;
 };
 
+const SUPABASE_FETCH_TIMEOUT_MS = 15000;
+const SUPABASE_FETCH_RETRIES = 2;
+
+function isTransientNetworkError(error: unknown) {
+  const msg = error instanceof Error ? error.message : String(error ?? "");
+  return (
+    msg.includes("ETIMEDOUT") ||
+    msg.includes("ECONNRESET") ||
+    msg.includes("terminated") ||
+    msg.includes("fetch failed") ||
+    msg.includes("aborted")
+  );
+}
+
+async function delay(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function supabaseFetchWithRetry(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= SUPABASE_FETCH_RETRIES; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(new Error("SUPABASE_TIMEOUT")), SUPABASE_FETCH_TIMEOUT_MS);
+    try {
+      const response = await fetch(input, {
+        ...init,
+        signal: init?.signal ?? controller.signal,
+      });
+      clearTimeout(timeout);
+      return response;
+    } catch (error) {
+      clearTimeout(timeout);
+      lastError = error;
+      if (attempt < SUPABASE_FETCH_RETRIES && isTransientNetworkError(error)) {
+        await delay(200 * attempt);
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError ?? "Supabase fetch failed"));
+}
+
 function getSupabaseAdmin() {
   if (!globalForSupabase.supabaseAdmin) {
     const url = process.env.SUPABASE_URL ?? "";
@@ -14,6 +57,7 @@ function getSupabaseAdmin() {
     if (!serviceRole) throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
     globalForSupabase.supabaseAdmin = createClient(url, serviceRole, {
       auth: { autoRefreshToken: false, persistSession: false },
+      global: { fetch: supabaseFetchWithRetry },
     });
   }
   return globalForSupabase.supabaseAdmin;

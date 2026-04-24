@@ -1,7 +1,6 @@
-import { createReadStream, createWriteStream } from "node:fs";
+import { createWriteStream } from "node:fs";
 import { mkdir, unlink } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -13,11 +12,6 @@ import { db } from "../../../../lib/db";
 import { hasActiveSubscription } from "../../../../lib/subscription";
 import { inferUploadExtAndMime } from "../../../../lib/upload-media-infer";
 import { MAX_TRANSCRIPTION_UPLOAD_BYTES } from "../../../../lib/transcription-limits";
-import {
-  supabaseStorageBucket,
-  supabaseUploadsEnabled,
-  uploadUserReferenceImageStream,
-} from "../../../../lib/supabase-storage";
 
 const ALLOWED_EXT = new Set([
   ".mp4",
@@ -90,31 +84,6 @@ export async function POST(request: Request) {
 
   const webStream = file.stream();
   const nodeIn = Readable.fromWeb(webStream as import("stream/web").ReadableStream<Uint8Array>);
-
-  if (supabaseUploadsEnabled()) {
-    const tmpName = `tr-${sessionUser.id}-${Date.now()}-${randomBytes(6).toString("hex")}${extLower}`;
-    const tmpPath = path.join(tmpdir(), tmpName);
-    try {
-      await pipeline(nodeIn, createWriteStream(tmpPath));
-      const publicUrl = await uploadUserReferenceImageStream({
-        userId: sessionUser.id,
-        stream: createReadStream(tmpPath),
-        mime,
-        ext: extLower,
-      });
-      return NextResponse.json({ url: publicUrl });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      return NextResponse.json(
-        {
-          error: `Не удалось загрузить файл в Supabase Storage (${msg}). Проверьте бакет «${supabaseStorageBucket()}» и лимиты размера объекта в проекте.`,
-        },
-        { status: 503 },
-      );
-    } finally {
-      await unlink(tmpPath).catch(() => {});
-    }
-  }
 
   const safeBase = `${sessionUser.id}-${Date.now()}-${randomBytes(6).toString("hex")}${extLower}`;
   const uploadDir = path.join(process.cwd(), "public", "uploads", "generations", "references");

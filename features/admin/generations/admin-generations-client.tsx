@@ -51,10 +51,16 @@ export function AdminGenerationsClient({
   const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({});
   const [messageDrafts, setMessageDrafts] = useState<Record<string, string>>({});
   const inFlightRef = useRef(false);
+  const pendingFreshReloadRef = useRef(false);
   const PAGE_SIZE = 30;
 
-  const load = useCallback(async (opts?: { silent?: boolean; append?: boolean }) => {
-    if (inFlightRef.current) return;
+  const load = useCallback(async (opts?: { silent?: boolean; append?: boolean; fresh?: boolean; keepNotice?: boolean }) => {
+    if (inFlightRef.current) {
+      if (opts?.fresh) {
+        pendingFreshReloadRef.current = true;
+      }
+      return;
+    }
     inFlightRef.current = true;
     const append = Boolean(opts?.append && mode === "ready");
     if (!opts?.silent) {
@@ -66,12 +72,16 @@ export function AdminGenerationsClient({
     }
     if (!opts?.silent) {
       setError(null);
-      setNotice(null);
+      if (!opts?.keepNotice) setNotice(null);
     }
     try {
       const offset = mode === "ready" ? (append ? readyOffset : 0) : (page - 1) * PAGE_SIZE;
       const statusQuery = mode === "ready" ? "&status=SUCCESS" : "&status=OPEN";
-      const response = await fetch(`/api/admin/generations?limit=${PAGE_SIZE}&offset=${offset}${statusQuery}&brief=1`);
+      const freshQuery = opts?.fresh ? "&fresh=1" : "";
+      const response = await fetch(
+        `/api/admin/generations?limit=${PAGE_SIZE}&offset=${offset}${statusQuery}&brief=1${freshQuery}`,
+        { cache: "no-store" },
+      );
       const data = (await response.json().catch(() => null)) as
         | { items?: AdminGeneration[]; hasMore?: boolean; error?: string; detail?: string }
         | null;
@@ -100,6 +110,10 @@ export function AdminGenerationsClient({
       setLoading(false);
       setLoadingMore(false);
       inFlightRef.current = false;
+      if (pendingFreshReloadRef.current) {
+        pendingFreshReloadRef.current = false;
+        void load({ fresh: true, append: false, silent: true, keepNotice: true });
+      }
     }
   }, [mode, page, readyOffset]);
 
@@ -162,11 +176,12 @@ export function AdminGenerationsClient({
         return;
       }
       if (mode === "all") {
-        setNotice("Файл загружен. Заявка перенесена во вкладку «Готовые генерации».");
+        setNotice("Заявка выполнена: результат успешно загружен и отправлен пользователю.");
       } else {
         setNotice("Файл успешно загружен.");
       }
-      await load();
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      await load({ fresh: true, silent: true, keepNotice: true });
     } finally {
       setUploadingId(null);
     }
@@ -198,11 +213,12 @@ export function AdminGenerationsClient({
         return next;
       });
       if (mode === "all") {
-        setNotice("Результат отправлен. Заявка перенесена во вкладку «Готовые генерации».");
+        setNotice("Заявка выполнена: результат успешно отправлен пользователю.");
       } else {
         setNotice("Результат успешно отправлен.");
       }
-      await load();
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      await load({ fresh: true, silent: true, keepNotice: true });
     } finally {
       setSavingId(null);
     }
@@ -252,11 +268,12 @@ export function AdminGenerationsClient({
         return next;
       });
       if (mode === "all") {
-        setNotice("Ответ отправлен. Заявка перенесена во вкладку «Готовые генерации».");
+        setNotice("Заявка выполнена: ответ успешно отправлен пользователю.");
       } else {
         setNotice("Ответ успешно отправлен.");
       }
-      await load();
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      await load({ fresh: true, silent: true, keepNotice: true });
     } finally {
       setSavingId(null);
     }
@@ -281,7 +298,9 @@ export function AdminGenerationsClient({
       }
       clearDraftsForId(id);
       setSelectedIds((prev) => prev.filter((x) => x !== id));
-      await load();
+      setNotice("Заявка успешно удалена.");
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      await load({ fresh: true, silent: true, keepNotice: true });
     } finally {
       setDeletingId(null);
     }
@@ -333,7 +352,8 @@ export function AdminGenerationsClient({
         setNotice(`Удалено заявок: ${ids.length}.`);
       }
       setSelectedIds([]);
-      await load({ append: false });
+      setItems((prev) => prev.filter((item) => !ids.includes(item.id)));
+      await load({ append: false, fresh: true, silent: true, keepNotice: true });
     } finally {
       setBulkDeleting(false);
     }

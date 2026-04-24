@@ -29,11 +29,12 @@ export async function GET(request: Request) {
   const offsetRaw = Number(requestUrl.searchParams.get("offset") ?? 0);
   const includeTotal = requestUrl.searchParams.get("includeTotal") === "1";
   const brief = requestUrl.searchParams.get("brief") === "1";
+  const fresh = requestUrl.searchParams.get("fresh") === "1";
   const statusRaw = (requestUrl.searchParams.get("status") ?? "").trim().toUpperCase();
   const cacheKey = [statusRaw || "ALL", limitRaw, offsetRaw, brief ? "1" : "0", includeTotal ? "1" : "0"].join("|");
   const now = Date.now();
   const cached = adminGenerationsCache.get(cacheKey);
-  if (cached && cached.expiresAt > now) {
+  if (!fresh && cached && cached.expiresAt > now) {
     return NextResponse.json(cached.payload, {
       headers: { "Cache-Control": "private, max-age=3, stale-while-revalidate=8" },
     });
