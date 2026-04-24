@@ -36,7 +36,6 @@ export function AdminGenerationsClient({
 }) {
   const router = useRouter();
   const [items, setItems] = useState<AdminGeneration[]>([]);
-  const [readyOffset, setReadyOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -52,7 +51,8 @@ export function AdminGenerationsClient({
   const [messageDrafts, setMessageDrafts] = useState<Record<string, string>>({});
   const inFlightRef = useRef(false);
   const pendingFreshReloadRef = useRef(false);
-  const PAGE_SIZE = 30;
+  const readyOffsetRef = useRef(0);
+  const pageSize = mode === "ready" ? 10 : 30;
 
   const load = useCallback(async (opts?: { silent?: boolean; append?: boolean; fresh?: boolean; keepNotice?: boolean }) => {
     if (inFlightRef.current) {
@@ -75,11 +75,11 @@ export function AdminGenerationsClient({
       if (!opts?.keepNotice) setNotice(null);
     }
     try {
-      const offset = mode === "ready" ? (append ? readyOffset : 0) : (page - 1) * PAGE_SIZE;
+      const offset = mode === "ready" ? (append ? readyOffsetRef.current : 0) : (page - 1) * pageSize;
       const statusQuery = mode === "ready" ? "&status=SUCCESS" : "&status=OPEN";
       const freshQuery = opts?.fresh ? "&fresh=1" : "";
       const response = await fetch(
-        `/api/admin/generations?limit=${PAGE_SIZE}&offset=${offset}${statusQuery}&brief=1${freshQuery}`,
+        `/api/admin/generations?limit=${pageSize}&offset=${offset}${statusQuery}&brief=1${freshQuery}`,
         { cache: "no-store" },
       );
       const data = (await response.json().catch(() => null)) as
@@ -101,7 +101,7 @@ export function AdminGenerationsClient({
       });
       setHasMore(Boolean(data?.hasMore));
       if (mode === "ready") {
-        setReadyOffset(append ? offset + nextItems.length : nextItems.length);
+        readyOffsetRef.current = append ? offset + nextItems.length : nextItems.length;
       }
       setSelectedIds((prev) => prev.filter((id) => resolvedItems.some((item) => item.id === id)));
     } catch {
@@ -115,22 +115,23 @@ export function AdminGenerationsClient({
         void load({ fresh: true, append: false, silent: true, keepNotice: true });
       }
     }
-  }, [mode, page, readyOffset]);
+  }, [mode, page, pageSize]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   useEffect(() => {
+    if (mode !== "all") return;
     const id = setInterval(() => {
       void load({ silent: true, append: false });
     }, 8000);
     return () => clearInterval(id);
-  }, [load]);
+  }, [load, mode]);
 
   useEffect(() => {
     if (mode !== "ready") return;
-    setReadyOffset(0);
+    readyOffsetRef.current = 0;
   }, [mode]);
 
   const setUrlDraft = (id: string, value: string) => {
@@ -711,7 +712,7 @@ export function AdminGenerationsClient({
           <button
             type="button"
             disabled={loading || loadingMore || !hasMore}
-            onClick={() => void load({ append: true })}
+            onClick={() => void load({ append: true, fresh: true })}
             className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
           >
             {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
