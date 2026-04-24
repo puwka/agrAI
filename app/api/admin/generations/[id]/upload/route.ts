@@ -6,11 +6,6 @@ import { NextResponse } from "next/server";
 import { db } from "../../../../../../lib/db";
 import { getApiSessionUser } from "../../../../../../lib/auth/api-session";
 import { inferUploadExtAndMime } from "../../../../../../lib/upload-media-infer";
-import {
-  supabaseStorageBucket,
-  supabaseUploadsEnabled,
-  uploadGenerationResultFile,
-} from "../../../../../../lib/supabase-storage";
 
 const MAX_BYTES = 80 * 1024 * 1024;
 
@@ -59,31 +54,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  let supabaseUploadError: string | null = null;
-  if (supabaseUploadsEnabled()) {
-    try {
-      const publicUrl = await uploadGenerationResultFile({
-        generationId,
-        buffer,
-        mime,
-        ext,
-      });
-      const updated = await db.generation.update({
-        where: { id: generationId },
-        data: {
-          resultUrl: publicUrl,
-          resultMessage: null,
-          status: "SUCCESS",
-          errorMessage: null,
-        },
-      });
-      return NextResponse.json(updated);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      supabaseUploadError = msg;
-    }
-  }
-
   try {
     const safeName = `${generationId}${ext}`;
     const uploadDir = path.join(process.cwd(), "public", "uploads", "generations");
@@ -101,22 +71,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         errorMessage: null,
       },
     });
-
-    const response = NextResponse.json(updated);
-    if (supabaseUploadError) {
-      response.headers.set(
-        "X-Upload-Warning",
-        `Supabase upload failed, saved locally instead: ${supabaseUploadError}`,
-      );
-    }
-    return response;
+    return NextResponse.json(updated);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json(
       {
-        error: supabaseUploadError
-          ? `Не удалось загрузить в Supabase (${supabaseUploadError}) и сохранить локально (${msg}).`
-          : `Не удалось сохранить файл на сервере (${msg}).`,
+        error: `Не удалось сохранить файл на сервере (${msg}).`,
       },
       { status: 503 },
     );
