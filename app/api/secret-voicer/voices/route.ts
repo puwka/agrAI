@@ -9,19 +9,9 @@ const SHOWCASE_FETCH_URLS = [
   `${VOICES_URL}?gender=MALE`,
   `${VOICES_URL}?gender=FEMALE`,
 ] as const;
-const FETCH_TIMEOUT_MS = 4500;
 
-let voicesCache:
-  | {
-      expiresAt: number;
-      payload: {
-        voices: Array<NormalizedVoice & { hidden: boolean }>;
-        total_count: number;
-        secret_voicer_public_total_hint?: number;
-        sources: string[];
-      };
-    }
-  | null = null;
+const VOICES_CACHE_TTL_MS = 60_000;
+const voicesCache = new Map<string, { expiresAt: number; payload: unknown }>();
 
 type UpstreamVoice = {
   id?: string;
@@ -44,47 +34,22 @@ type NormalizedVoice = {
   usage_count: number;
 };
 
-function shouldProxyPreview(url: string) {
-  const v = url.trim();
-  if (!v) return false;
-  if (v.startsWith("/")) return false;
-  if (v.startsWith("/api/voice-preview?u=")) return false;
-  return v.startsWith("http://") || v.startsWith("https://");
-}
-
-function toPreviewClientUrl(url: string) {
-  const normalized = toAbsoluteMediaUrl(url);
-  if (!shouldProxyPreview(normalized)) return normalized;
-  return `/api/voice-preview?u=${encodeURIComponent(normalized)}`;
-}
-
 function toAbsoluteMediaUrl(url: string) {
   const trimmed = url.trim();
   if (!trimmed) return "";
-  const absolute = trimmed.startsWith("http://") || trimmed.startsWith("https://")
-    ? trimmed
-    : new URL(trimmed, "https://secretvoicer.com").toString();
-  // На HTTPS-сайте http-аудио может блокироваться как mixed content.
-  return absolute.replace(/^http:\/\//i, "https://");
-}
-
-async function fetchShowcase(url: string) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const r = await fetch(url, {
-      headers: { Accept: "application/json" },
-      next: { revalidate: 300 },
-      signal: ctrl.signal,
-    });
-    if (!r.ok) throw new Error(`${url} → ${r.status}`);
-    return (await r.json()) as {
-      voices?: UpstreamVoice[];
-      total_count?: number;
-    };
-  } finally {
-    clearTimeout(timer);
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    // На HTTPS-сайте блокируется mixed content, поэтому форсируем HTTPS для превью.
+    try {
+      const u = new URL(trimmed);
+      if (u.protocol === "http:") {
+        u.protocol = "https:";
+      }
+      return u.toString();
+    } catch {
+      return trimmed;
+    }
   }
+  return new URL(trimmed, "https://secretvoicer.com").toString();
 }
 
 function normalizeUpstreamVoice(v: UpstreamVoice): NormalizedVoice | null {
@@ -95,7 +60,7 @@ function normalizeUpstreamVoice(v: UpstreamVoice): NormalizedVoice | null {
     name: v.name ?? "—",
     gender: v.gender ?? "",
     locale: v.locale ?? "",
-    preview_audio_url: toPreviewClientUrl(v.preview_audio_url ?? ""),
+    preview_audio_url: toAbsoluteMediaUrl(v.preview_audio_url ?? ""),
     voice_style_tags: v.voice_style_tags ?? [],
     usage_count: typeof v.usage_count === "number" ? v.usage_count : 0,
   };
@@ -118,20 +83,53 @@ function mergeVoicePreferSv(existing: NormalizedVoice, incoming: NormalizedVoice
 
 export async function GET(request: Request) {
   const includeHidden = new URL(request.url).searchParams.get("includeHidden") === "1";
-  return getVoicesResponse(includeHidden);
+  const cacheKey = includeHidden ? "with-hidden" : "visible-only";
+  const now = Date.now();
+  const cached = voicesCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return NextResponse.json(cached.payload, {
+      headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },
+    });
+  }
+  try {
+    const payload = await getVoicesPayload(includeHidden);
+    voicesCache.set(cacheKey, { expiresAt: now + VOICES_CACHE_TTL_MS, payload });
+    return NextResponse.json(payload, {
+      headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error ?? "");
+    return NextResponse.json({ error: "Не удалось загрузить голоса Secret Voicer", detail }, { status: 502 });
+  }
 }
 
-async function getVoicesResponse(includeHidden: boolean) {
-  if (!includeHidden && voicesCache && voicesCache.expiresAt > Date.now()) {
-    return NextResponse.json(voicesCache.payload);
-  }
-
-  const upstreamResults = await Promise.allSettled(SHOWCASE_FETCH_URLS.map((url) => fetchShowcase(url)));
+async function getVoicesPayload(includeHidden: boolean) {
+  const upstreamResults = await Promise.allSettled(
+    SHOWCASE_FETCH_URLS.map((url) =>
+      fetch(url, {
+        headers: { Accept: "application/json" },
+        next: { revalidate: 300 },
+      }).then(async (r) => {
+        if (!r.ok) throw new Error(`${url} → ${r.status}`);
+        return (await r.json()) as {
+          voices?: UpstreamVoice[];
+          total_count?: number;
+        };
+      }),
+    ),
+  );
 
   const firstOk = upstreamResults.find((r) => r.status === "fulfilled") as
     | PromiseFulfilledResult<{ voices?: UpstreamVoice[]; total_count?: number }>
     | undefined;
-  const secretVoicerHint = firstOk?.value?.total_count;
+
+  if (!firstOk) {
+    const reason = upstreamResults.find((r) => r.status === "rejected") as PromiseRejectedResult | undefined;
+    throw new Error(`Не удалось загрузить голоса Secret Voicer: ${String(reason?.reason ?? "")}`);
+  }
+
+  const secretVoicerHint =
+    typeof firstOk.value.total_count === "number" ? firstOk.value.total_count : undefined;
 
   const byId = new Map<string, NormalizedVoice>();
 
@@ -154,7 +152,7 @@ async function getVoicesResponse(includeHidden: boolean) {
       name: p.name,
       gender: p.gender,
       locale: p.locale,
-      preview_audio_url: toPreviewClientUrl(p.preview_audio_url),
+        preview_audio_url: toAbsoluteMediaUrl(p.preview_audio_url),
       voice_style_tags: p.voice_style_tags ?? [],
       usage_count: typeof p.usage_count === "number" ? p.usage_count : 0,
     });
@@ -175,7 +173,7 @@ async function getVoicesResponse(includeHidden: boolean) {
       name: c.name.trim() || "—",
       gender: c.gender,
       locale: c.locale,
-      preview_audio_url: toPreviewClientUrl(c.previewUrl),
+      preview_audio_url: toAbsoluteMediaUrl(c.previewUrl),
       voice_style_tags: tags,
       usage_count: 1_000_000,
     });
@@ -193,7 +191,7 @@ async function getVoicesResponse(includeHidden: boolean) {
   const voicesWithPreview = voices.map((v) => {
     const custom = previewOverrides[v.id]?.trim();
     if (!custom) return v;
-    return { ...v, preview_audio_url: toPreviewClientUrl(custom) };
+    return { ...v, preview_audio_url: toAbsoluteMediaUrl(custom) };
   });
 
   const hiddenSet = await db.voiceHidden.listSet();
@@ -202,16 +200,11 @@ async function getVoicesResponse(includeHidden: boolean) {
     hidden: hiddenSet.has(v.id),
   }));
   const visibleVoices = includeHidden ? withHidden : withHidden.filter((v) => !v.hidden);
-  const payload = {
+
+  return {
     voices: visibleVoices,
     total_count: visibleVoices.length,
-    secret_voicer_public_total_hint:
-      typeof secretVoicerHint === "number" ? secretVoicerHint : undefined,
-    secret_voicer_unavailable: !firstOk,
+    secret_voicer_public_total_hint: secretVoicerHint,
     sources: [...SHOWCASE_FETCH_URLS, "elevenlabs-premade-voices.json", "CustomVoice (admin)"],
   };
-  if (!includeHidden) {
-    voicesCache = { expiresAt: Date.now() + 60_000, payload };
-  }
-  return NextResponse.json(payload);
 }

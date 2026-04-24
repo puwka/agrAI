@@ -28,13 +28,16 @@ export async function GET() {
       restrictedReason: true,
       subscriptionUntil: true,
       createdAt: true,
-      _count: {
-        select: { generations: true, apiKeys: true },
-      },
     },
   });
 
-  return NextResponse.json(users);
+  return NextResponse.json(
+    users.map((u: any) => ({
+      ...u,
+      generationsCount: 0,
+      apiKeysCount: 0,
+    })),
+  );
 }
 
 export async function POST(request: Request) {
@@ -92,7 +95,6 @@ export async function POST(request: Request) {
       restrictedReason: true,
       subscriptionUntil: true,
       createdAt: true,
-      _count: { select: { generations: true, apiKeys: true } },
     },
   });
 
@@ -102,8 +104,8 @@ export async function POST(request: Request) {
     email: user.email,
     role: user.role as "ADMIN" | "USER",
     createdAt: user.createdAt.toISOString(),
-    generationsCount: user._count.generations,
-    apiKeysCount: user._count.apiKeys,
+    generationsCount: 0,
+    apiKeysCount: 0,
     restrictedUntil: user.restrictedUntil ? user.restrictedUntil.toISOString() : null,
     restrictedReason: user.restrictedReason,
     subscriptionUntil: user.subscriptionUntil ? user.subscriptionUntil.toISOString() : null,

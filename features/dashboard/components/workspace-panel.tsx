@@ -193,11 +193,6 @@ export function WorkspacePanel({
   const imageFromLabel = isPhotoMode ? "Из фото в фото" : "Из фото в видео";
   const [voiceModalOpen, setVoiceModalOpen] = useState(false);
   const { enabled: maintenanceLocked } = useMaintenance();
-  const submitLabel = isVideoEnhanceMode
-    ? "Улучшить"
-    : isTranscriptionMode
-      ? "Транскрибировать"
-      : "Сгенерировать";
 
   return (
     <motion.section
@@ -338,7 +333,7 @@ export function WorkspacePanel({
                         <option value="nana-pro">Nana Banana Pro</option>
                         <option value="sora-image">Sora image</option>
                       </select>
-                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                     </div>
                   </div>
                 ) : null}
@@ -359,7 +354,7 @@ export function WorkspacePanel({
                         <option value="veo-3.1-relax">Veo 3.1 Relax</option>
                         <option value="runway-gen-4">Runway Gen-4</option>
                       </select>
-                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                     </div>
                   </div>
                 ) : null}
@@ -828,7 +823,7 @@ export function WorkspacePanel({
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/25 bg-[#27272a] px-5 py-4 text-sm font-semibold text-white shadow-[0_0_24px_rgba(220,223,224,0.16)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#303030] hover:shadow-[0_0_30px_rgba(220,223,224,0.18)] focus:outline-none focus:ring-2 focus:ring-white/30 disabled:pointer-events-none disabled:opacity-45"
                 >
                   <Sparkles className="h-4 w-4" />
-                  {submitLabel}
+                  Сгенерировать
                 </button>
               </div>
             </div>

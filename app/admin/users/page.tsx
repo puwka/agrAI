@@ -13,7 +13,6 @@ export default async function AdminUsersPage() {
       restrictedReason: true,
       subscriptionUntil: true,
       createdAt: true,
-      _count: { select: { generations: true, apiKeys: true } },
     },
   });
 
@@ -23,8 +22,8 @@ export default async function AdminUsersPage() {
     email: u.email,
     role: u.role as "ADMIN" | "USER",
     createdAt: u.createdAt.toISOString(),
-    generationsCount: u._count.generations,
-    apiKeysCount: u._count.apiKeys,
+    generationsCount: 0,
+    apiKeysCount: 0,
     restrictedUntil: u.restrictedUntil ? u.restrictedUntil.toISOString() : null,
     restrictedReason: u.restrictedReason,
     subscriptionUntil: u.subscriptionUntil ? u.subscriptionUntil.toISOString() : null,

@@ -10,9 +10,9 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { currentPassword?: unknown; newPassword?: unknown };
+  let body: { currentPassword?: string; newPassword?: string };
   try {
-    body = (await request.json()) as { currentPassword?: unknown; newPassword?: unknown };
+    body = (await request.json()) as { currentPassword?: string; newPassword?: string };
   } catch {
     return NextResponse.json({ error: "Некорректный JSON" }, { status: 400 });
   }
@@ -21,7 +21,7 @@ export async function PATCH(request: Request) {
   const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
 
   if (!currentPassword || !newPassword) {
-    return NextResponse.json({ error: "Заполните текущий и новый пароль" }, { status: 400 });
+    return NextResponse.json({ error: "Укажите текущий и новый пароль" }, { status: 400 });
   }
   if (newPassword.length < 8) {
     return NextResponse.json({ error: "Новый пароль должен быть не короче 8 символов" }, { status: 400 });

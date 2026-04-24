@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import type { MouseEvent } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -37,9 +38,23 @@ export function AdminShell({
 }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
   useEffect(() => {
     setMenuOpen(false);
+    setNavigatingTo(null);
   }, [pathname]);
+
+  const handleNavClick = (href: string, e: MouseEvent<HTMLAnchorElement>) => {
+    if (navigatingTo) {
+      e.preventDefault();
+      return;
+    }
+    if (href === pathname) {
+      e.preventDefault();
+      return;
+    }
+    setNavigatingTo(href);
+  };
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -68,11 +83,13 @@ export function AdminShell({
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={(e) => handleNavClick(item.href, e)}
                   className={[
                     "group relative flex items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all duration-300",
                     isActive
                       ? "border-white/25 text-white bg-white/10"
                       : "border-white/8 bg-white/5 text-zinc-400 hover:border-white/25 hover:bg-white/10 hover:text-white",
+                    navigatingTo ? "pointer-events-none opacity-80" : "",
                   ].join(" ")}
                 >
                   {isActive && (
@@ -92,6 +109,7 @@ export function AdminShell({
 
             <Link
               href="/dashboard"
+              onClick={(e) => handleNavClick("/dashboard", e)}
               className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm font-medium text-zinc-400 transition hover:border-white/25 hover:text-white"
             >
               ← Личный кабинет
@@ -160,7 +178,10 @@ export function AdminShell({
                     <Link
                       key={item.href}
                       href={item.href}
-                      onClick={() => setMenuOpen(false)}
+                      onClick={(e) => {
+                        handleNavClick(item.href, e);
+                        if (!e.defaultPrevented) setMenuOpen(false);
+                      }}
                       className={[
                         "flex items-center gap-3 rounded-2xl border px-3.5 py-3 text-sm font-medium transition",
                         isActive
@@ -177,7 +198,10 @@ export function AdminShell({
                 })}
                 <Link
                   href="/dashboard"
-                  onClick={() => setMenuOpen(false)}
+                  onClick={(e) => {
+                    handleNavClick("/dashboard", e);
+                    if (!e.defaultPrevented) setMenuOpen(false);
+                  }}
                   className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-3.5 py-3 text-sm font-medium text-zinc-300"
                 >
                   ← Личный кабинет

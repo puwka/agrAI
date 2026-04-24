@@ -2,7 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-import { CalendarDays, Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
+import { CalendarDays, Eye, EyeOff, UserRound } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { subscriptionSummaryForUser } from "../../../lib/subscription";
@@ -20,15 +20,15 @@ type ProfileDto = {
 export function ProfilePage() {
   const [profile, setProfile] = useState<ProfileDto | null>(null);
   const [generationsCount, setGenerationsCount] = useState<number>(0);
-  const [profileError, setProfileError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordVisible, setPasswordVisible] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+  const [showPasswords, setShowPasswords] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -38,7 +38,7 @@ export function ProfilePage() {
       ]);
 
       if (!profileRes.ok) {
-        setProfileError("Не удалось загрузить профиль");
+        setError("Не удалось загрузить профиль");
         return;
       }
 
@@ -61,7 +61,7 @@ export function ProfilePage() {
     }
 
     setSaving(true);
-    setProfileError(null);
+    setError(null);
 
     const response = await fetch("/api/profile", {
       method: "PATCH",
@@ -76,7 +76,7 @@ export function ProfilePage() {
     setSaving(false);
 
     if (!response.ok) {
-      setProfileError("Не удалось сохранить изменения");
+      setError("Не удалось сохранить изменения");
     }
   };
 
@@ -84,6 +84,7 @@ export function ProfilePage() {
     event.preventDefault();
     setPasswordError(null);
     setPasswordSuccess(null);
+
     if (!currentPassword || !newPassword || !confirmPassword) {
       setPasswordError("Заполните все поля пароля");
       return;
@@ -108,7 +109,6 @@ export function ProfilePage() {
     });
     const data = (await response.json().catch(() => null)) as { error?: string } | null;
     setPasswordSaving(false);
-
     if (!response.ok) {
       setPasswordError(data?.error ?? "Не удалось сменить пароль");
       return;
@@ -117,13 +117,13 @@ export function ProfilePage() {
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
-    setPasswordSuccess("Пароль успешно изменён");
+    setPasswordSuccess("Пароль успешно обновлён");
   };
 
   if (!profile) {
     return (
       <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center text-zinc-400">
-        {profileError ?? "Загрузка профиля…"}
+        {error ?? "Загрузка профиля…"}
       </div>
     );
   }
@@ -210,7 +210,7 @@ export function ProfilePage() {
             </div>
           ) : null}
 
-          {profileError && <p className="mt-4 text-sm text-red-300">{profileError}</p>}
+          {error && <p className="mt-4 text-sm text-red-300">{error}</p>}
 
           <button
             type="submit"
@@ -222,28 +222,33 @@ export function ProfilePage() {
         </motion.section>
       </form>
 
-      <form onSubmit={handlePasswordSubmit}>
+      <form onSubmit={handlePasswordSubmit} className="mt-6">
         <motion.section
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.08 }}
-          className="mt-5 rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur-2xl"
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur-2xl"
         >
-          <div className="mb-6 flex items-center gap-3">
-            <div className="rounded-2xl border border-violet-400/20 bg-violet-500/10 p-3 text-violet-200">
-              <LockKeyhole className="h-5 w-5" />
-            </div>
+          <div className="mb-6 flex items-center justify-between gap-3">
             <div>
               <h3 className="text-xl font-semibold text-white">Смена пароля</h3>
-              <p className="text-sm text-zinc-400">Введите текущий пароль и задайте новый.</p>
+              <p className="text-sm text-zinc-400">Измените пароль для входа в ваш аккаунт</p>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowPasswords((v) => !v)}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-xs text-zinc-300 transition hover:border-white/25 hover:text-white"
+            >
+              {showPasswords ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showPasswords ? "Скрыть" : "Показать"}
+            </button>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4">
             <label className="space-y-2">
               <span className="text-sm font-medium text-zinc-300">Текущий пароль</span>
               <input
-                type={passwordVisible ? "text" : "password"}
+                type={showPasswords ? "text" : "password"}
                 value={currentPassword}
                 onChange={(event) => setCurrentPassword(event.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-400/40"
@@ -254,22 +259,24 @@ export function ProfilePage() {
             <label className="space-y-2">
               <span className="text-sm font-medium text-zinc-300">Новый пароль</span>
               <input
-                type={passwordVisible ? "text" : "password"}
+                type={showPasswords ? "text" : "password"}
                 value={newPassword}
                 onChange={(event) => setNewPassword(event.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-400/40"
                 autoComplete="new-password"
+                minLength={8}
                 required
               />
             </label>
             <label className="space-y-2">
-              <span className="text-sm font-medium text-zinc-300">Подтверждение</span>
+              <span className="text-sm font-medium text-zinc-300">Подтвердите новый пароль</span>
               <input
-                type={passwordVisible ? "text" : "password"}
+                type={showPasswords ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-400/40"
                 autoComplete="new-password"
+                minLength={8}
                 required
               />
             </label>
@@ -278,24 +285,13 @@ export function ProfilePage() {
           {passwordError ? <p className="mt-4 text-sm text-red-300">{passwordError}</p> : null}
           {passwordSuccess ? <p className="mt-4 text-sm text-emerald-300">{passwordSuccess}</p> : null}
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button
-              type="button"
-              onClick={() => setPasswordVisible((v) => !v)}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-black/25 px-4 text-sm font-semibold text-zinc-200 transition hover:bg-black/35 sm:min-w-[180px]"
-            >
-              {passwordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              {passwordVisible ? "Скрыть пароль" : "Показать пароль"}
-            </button>
-
-            <button
-              type="submit"
-              disabled={passwordSaving}
-              className="inline-flex h-12 items-center justify-center rounded-2xl border border-violet-300/30 bg-violet-600 px-6 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-60 sm:min-w-[190px]"
-            >
-              {passwordSaving ? "Сохранение…" : "Изменить пароль"}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={passwordSaving}
+            className="mt-6 w-full rounded-2xl border border-violet-300/30 bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-60 sm:w-auto"
+          >
+            {passwordSaving ? "Сохранение…" : "Сменить пароль"}
+          </button>
         </motion.section>
       </form>
     </>

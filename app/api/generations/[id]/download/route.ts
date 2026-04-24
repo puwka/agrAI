@@ -40,32 +40,7 @@ function attachmentFilename(id: string, ext: string) {
   return `generation-${id}.${safe}`;
 }
 
-function parseRangeHeader(rangeHeader: string, size: number) {
-  const m = /^bytes=(\d*)-(\d*)$/i.exec(rangeHeader.trim());
-  if (!m) return null;
-  const startRaw = m[1];
-  const endRaw = m[2];
-  let start = startRaw ? Number(startRaw) : NaN;
-  let end = endRaw ? Number(endRaw) : NaN;
-  if (Number.isNaN(start) && Number.isNaN(end)) return null;
-  if (Number.isNaN(start)) {
-    const suffixLen = Number(endRaw);
-    if (!Number.isFinite(suffixLen) || suffixLen <= 0) return null;
-    start = Math.max(0, size - suffixLen);
-    end = size - 1;
-  } else if (Number.isNaN(end)) {
-    end = size - 1;
-  }
-  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
-  if (start < 0 || end < 0 || start > end || start >= size) return null;
-  end = Math.min(end, size - 1);
-  return { start, end };
-}
-
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const requestUrl = new URL(_request.url);
-  const inline = requestUrl.searchParams.get("inline") === "1";
-  const contentDispositionType = inline ? "inline" : "attachment";
   const sessionUser = await getApiSessionUser();
 
   if (!sessionUser?.id) {
@@ -98,7 +73,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       status: 200,
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
-        "Content-Disposition": `${contentDispositionType}; filename="generation-${gen.id}.txt"`,
+        "Content-Disposition": `attachment; filename="generation-${gen.id}.txt"`,
         "Cache-Control": "private, no-store",
       },
     });
@@ -120,7 +95,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       status: 200,
       headers: {
         "Content-Type": parsed.mime,
-        "Content-Disposition": `${contentDispositionType}; filename="${filename}"`,
+        "Content-Disposition": `attachment; filename="${filename}"`,
         "Cache-Control": "private, no-store",
       },
     });
@@ -150,81 +125,45 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       return NextResponse.json({ error: "Файл не найден на сервере" }, { status: 404 });
     }
     const stat = await fs.stat(abs);
+    const nodeStream = createReadStream(abs);
+    const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream;
     const dotExt = `.${extFromPath(abs)}`;
     const mime = mimeFromExtension(dotExt);
-    const rangeHeader = _request.headers.get("range");
-    const parsedRange = rangeHeader ? parseRangeHeader(rangeHeader, stat.size) : null;
-
-    if (rangeHeader && !parsedRange) {
-      return new NextResponse(null, {
-        status: 416,
-        headers: {
-          "Content-Range": `bytes */${stat.size}`,
-          "Cache-Control": "private, no-store",
-        },
-      });
-    }
-
-    const start = parsedRange?.start ?? 0;
-    const end = parsedRange?.end ?? stat.size - 1;
-    const chunkSize = end - start + 1;
-    const nodeStream = createReadStream(abs, { start, end });
-    const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream;
 
     return new NextResponse(webStream, {
-      status: parsedRange ? 206 : 200,
+      status: 200,
       headers: {
         "Content-Type": mime,
-        "Content-Length": String(chunkSize),
-        "Accept-Ranges": "bytes",
-        ...(parsedRange ? { "Content-Range": `bytes ${start}-${end}/${stat.size}` } : {}),
-        "Content-Disposition": `${contentDispositionType}; filename="${filename}"`,
+        "Content-Length": String(stat.size),
+        "Content-Disposition": `attachment; filename="${filename}"`,
         "Cache-Control": "private, no-store",
       },
     });
   }
 
   try {
-    const upstreamHeaders: Record<string, string> = {
-      Accept: "*/*",
-      "User-Agent": "agrAI-download-proxy/1.0",
-    };
-    const rangeHeader = _request.headers.get("range");
-    if (rangeHeader) upstreamHeaders.Range = rangeHeader;
-    const upstream = await fetch(resultUrl, {
-      redirect: "follow",
-      headers: upstreamHeaders,
-    });
+    const upstream = await fetch(resultUrl, { redirect: "follow" });
     if (!upstream.ok) {
       return NextResponse.json({ error: "Не удалось получить файл" }, { status: 502 });
     }
     const ct = upstream.headers.get("content-type") ?? "application/octet-stream";
-    const contentLength = upstream.headers.get("content-length");
-    const acceptRanges = upstream.headers.get("accept-ranges");
-    const contentRange = upstream.headers.get("content-range");
     const body = upstream.body;
     if (!body) {
       const buf = Buffer.from(await upstream.arrayBuffer());
       return new NextResponse(buf, {
-        status: upstream.status === 206 ? 206 : 200,
+        status: 200,
         headers: {
           "Content-Type": ct,
-          ...(contentLength ? { "Content-Length": contentLength } : {}),
-          ...(acceptRanges ? { "Accept-Ranges": acceptRanges } : {}),
-          ...(contentRange ? { "Content-Range": contentRange } : {}),
-          "Content-Disposition": `${contentDispositionType}; filename="${filename}"`,
+          "Content-Disposition": `attachment; filename="${filename}"`,
           "Cache-Control": "private, no-store",
         },
       });
     }
     return new NextResponse(body, {
-      status: upstream.status === 206 ? 206 : 200,
+      status: 200,
       headers: {
         "Content-Type": ct,
-        ...(contentLength ? { "Content-Length": contentLength } : {}),
-        ...(acceptRanges ? { "Accept-Ranges": acceptRanges } : {}),
-        ...(contentRange ? { "Content-Range": contentRange } : {}),
-        "Content-Disposition": `${contentDispositionType}; filename="${filename}"`,
+        "Content-Disposition": `attachment; filename="${filename}"`,
         "Cache-Control": "private, no-store",
       },
     });

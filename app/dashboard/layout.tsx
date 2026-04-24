@@ -8,39 +8,6 @@ import { requireUser } from "../../lib/auth/session";
 import { getDashboardBannerState } from "../../lib/dashboard-banner";
 import { hasActiveSubscription, subscriptionSummaryForUser } from "../../lib/subscription";
 
-type FreshUser = { name?: string | null; email?: string | null; role?: string | null } | null;
-type RestrictionInfo = {
-  restrictedUntil?: Date | null;
-  restrictedReason?: string | null;
-  subscriptionUntil?: Date | null;
-} | null;
-
-function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T, label: string): Promise<T> {
-  return new Promise<T>((resolve) => {
-    let finished = false;
-    const timer = setTimeout(() => {
-      if (finished) return;
-      finished = true;
-      console.error(`[dashboard/layout] timeout: ${label} (${ms}ms)`);
-      resolve(fallback);
-    }, ms);
-    void promise
-      .then((value) => {
-        if (finished) return;
-        finished = true;
-        clearTimeout(timer);
-        resolve(value);
-      })
-      .catch((error) => {
-        if (finished) return;
-        finished = true;
-        clearTimeout(timer);
-        console.error(`[dashboard/layout] failed: ${label}`, error);
-        resolve(fallback);
-      });
-  });
-}
-
 export default async function DashboardLayout({
   children,
 }: Readonly<{
@@ -49,27 +16,15 @@ export default async function DashboardLayout({
   const user = await requireUser();
   const userId = user.id;
 
-  const [freshUser, restriction, dashboardBanner] = await Promise.all([
-    withTimeout<FreshUser>(
-      db.user.findUnique({
-        where: { id: userId },
-        select: { name: true, email: true, role: true },
-      }),
-      2500,
-      null,
-      "db.user.findUnique(freshUser)",
-    ),
-    withTimeout<RestrictionInfo>(
-      db.user.findUnique({
-        where: { id: userId },
-        select: { restrictedUntil: true, restrictedReason: true, subscriptionUntil: true },
-      }),
-      2500,
-      null,
-      "db.user.findUnique(restriction)",
-    ),
-    withTimeout(getDashboardBannerState(), 1500, { enabled: false, message: "" }, "getDashboardBannerState"),
-  ]);
+  const freshUser = await db.user.findUnique({
+    where: { id: userId },
+    select: { name: true, email: true, role: true },
+  });
+
+  const restriction = await db.user.findUnique({
+    where: { id: userId },
+    select: { restrictedUntil: true, restrictedReason: true, subscriptionUntil: true },
+  });
 
   const now = new Date();
   const isRestricted =
@@ -79,6 +34,8 @@ export default async function DashboardLayout({
   const subscriptionOk = hasActiveSubscription(user.role, restriction?.subscriptionUntil ?? null);
   const subscriptionExpired = user.role !== "ADMIN" && !isRestricted && !subscriptionOk;
   const subscriptionSummary = subscriptionSummaryForUser(user.role, restriction?.subscriptionUntil ?? null);
+  const dashboardBanner = await getDashboardBannerState();
+
   return (
     <DashboardShell
       user={{

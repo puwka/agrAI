@@ -842,12 +842,13 @@ export function DashboardHomePage({
                         src={item.resultUrl}
                         controls
                         playsInline
+                        preload="none"
                         className="aspect-video w-full bg-black object-contain"
                       />
                     ) : mediaKind === "audio" ? (
                       <div className="flex aspect-video w-full items-center justify-center bg-black/50 px-4 py-6">
                         <audio
-                          src={`/api/generations/${item.id}/download?inline=1`}
+                          src={item.resultUrl}
                           controls
                           className="w-full max-w-md"
                           preload="metadata"
@@ -857,6 +858,8 @@ export function DashboardHomePage({
                       <img
                         src={item.resultUrl}
                         alt={item.modelName}
+                        loading="lazy"
+                        decoding="async"
                         className="aspect-video w-full object-cover"
                       />
                     )

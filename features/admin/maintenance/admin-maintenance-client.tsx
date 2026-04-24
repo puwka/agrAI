@@ -41,33 +41,24 @@ export function AdminMaintenanceClient() {
     setError(null);
     setLoading(true);
     try {
-      const [maintRes, bannerRes, modelLocksRes] = await Promise.all([
-        fetch("/api/admin/maintenance"),
-        fetch("/api/admin/dashboard-banner"),
-        fetch("/api/admin/model-locks"),
-      ]);
-      const maintData = (await maintRes.json().catch(() => null)) as MaintenanceState & { error?: string };
-      const bannerData = (await bannerRes.json().catch(() => null)) as DashboardBannerState & { error?: string };
-      const modelLocksData = (await modelLocksRes.json().catch(() => null)) as
-        | { locks?: Record<string, { enabled?: boolean; message?: string }>; error?: string }
+      const res = await fetch("/api/admin/maintenance-state");
+      const data = (await res.json().catch(() => null)) as
+        | {
+            maintenance?: { enabled?: boolean; message?: string };
+            banner?: { enabled?: boolean; message?: string };
+            locks?: Record<string, { enabled?: boolean; message?: string }>;
+            error?: string;
+          }
         | null;
-      if (!maintRes.ok) {
-        setError(maintData?.error ?? "Не удалось загрузить настройки");
+      if (!res.ok) {
+        setError(data?.error ?? "Не удалось загрузить настройки");
         return;
       }
-      if (!bannerRes.ok) {
-        setError(bannerData?.error ?? "Не удалось загрузить настройки плашки");
-        return;
-      }
-      if (!modelLocksRes.ok) {
-        setError(modelLocksData?.error ?? "Не удалось загрузить блокировки моделей");
-        return;
-      }
-      setEnabled(Boolean(maintData.enabled));
-      setMessage(typeof maintData.message === "string" ? maintData.message : "");
-      setBannerEnabled(Boolean(bannerData.enabled));
-      setBannerMessage(typeof bannerData.message === "string" ? bannerData.message : "");
-      const rawLocks = modelLocksData?.locks ?? {};
+      setEnabled(Boolean(data?.maintenance?.enabled));
+      setMessage(typeof data?.maintenance?.message === "string" ? data.maintenance.message : "");
+      setBannerEnabled(Boolean(data?.banner?.enabled));
+      setBannerMessage(typeof data?.banner?.message === "string" ? data.banner.message : "");
+      const rawLocks = data?.locks ?? {};
       const nextLocks: Record<string, ModelLockRow> = {};
       for (const [modelId, row] of Object.entries(rawLocks)) {
         nextLocks[modelId] = {

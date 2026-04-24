@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Send, Trash2, Upload } from "lucide-react";
 
 import { detectResultMediaKind } from "../../../features/dashboard/lib";
@@ -29,6 +29,8 @@ type AdminGeneration = {
 
 export function AdminGenerationsClient() {
   const [items, setItems] = useState<AdminGeneration[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -36,22 +38,39 @@ export function AdminGenerationsClient() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({});
   const [messageDrafts, setMessageDrafts] = useState<Record<string, string>>({});
+  const inFlightRef = useRef(false);
+  const PAGE_SIZE = 60;
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     if (!opts?.silent) {
       setLoading(true);
     }
-    setError(null);
-    const response = await fetch("/api/admin/generations");
-    if (!response.ok) {
-      setError("Не удалось загрузить генерации");
-      setLoading(false);
-      return;
+    if (!opts?.silent) {
+      setError(null);
     }
-    const data = (await response.json()) as AdminGeneration[];
-    setItems(data);
-    setLoading(false);
-  }, []);
+    try {
+      const offset = (page - 1) * PAGE_SIZE;
+      const response = await fetch(`/api/admin/generations?limit=${PAGE_SIZE}&offset=${offset}`);
+      const data = (await response.json().catch(() => null)) as
+        | { items?: AdminGeneration[]; total?: number; error?: string; detail?: string }
+        | null;
+      if (!response.ok) {
+        setError(
+          data?.error || "Не удалось загрузить генерации",
+        );
+        return;
+      }
+      setItems(Array.isArray(data?.items) ? data.items : []);
+      setTotal(typeof data?.total === "number" ? data.total : 0);
+    } catch {
+      setError("Проблема сети при загрузке генераций. Повторите через пару секунд.");
+    } finally {
+      setLoading(false);
+      inFlightRef.current = false;
+    }
+  }, [page]);
 
   useEffect(() => {
     void load();
@@ -63,6 +82,8 @@ export function AdminGenerationsClient() {
     }, 8000);
     return () => clearInterval(id);
   }, [load]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const setUrlDraft = (id: string, value: string) => {
     setUrlDrafts((d) => ({ ...d, [id]: value }));
@@ -204,6 +225,9 @@ export function AdminGenerationsClient() {
           генерации, отказ по авторским правам и т.д.) — пользователь увидит результат в кабинете и
           сможет скачать файл или ответ в виде .txt.
         </p>
+        <p className="mt-1 text-xs text-zinc-500">
+          Страница {page} из {totalPages} · всего заявок: {total}
+        </p>
       </div>
 
       {error && (
@@ -275,6 +299,7 @@ export function AdminGenerationsClient() {
                         src={g.referenceImageUrl}
                         controls
                         playsInline
+                        preload="none"
                         className="max-h-64 w-full bg-black object-contain"
                       />
                     ) : detectResultMediaKind(g.referenceImageUrl) === "audio" ? (
@@ -285,6 +310,8 @@ export function AdminGenerationsClient() {
                       <img
                         src={g.referenceImageUrl}
                         alt="Референс"
+                        loading="lazy"
+                        decoding="async"
                         className="max-h-48 w-full object-contain"
                       />
                     )}
@@ -299,6 +326,7 @@ export function AdminGenerationsClient() {
                       src={motionVideoUrl}
                       controls
                       playsInline
+                      preload="none"
                       className="max-h-64 w-full bg-black object-contain"
                     />
                   </div>
@@ -399,29 +427,13 @@ export function AdminGenerationsClient() {
 
               <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/80">
                 {hasResult && g.resultUrl ? (
-                  detectResultMediaKind(g.resultUrl) === "video" ? (
-                    <video
-                      src={g.resultUrl}
-                      controls
-                      playsInline
-                      className="h-full w-full max-h-72 bg-black object-contain"
-                    />
-                  ) : detectResultMediaKind(g.resultUrl) === "audio" ? (
-                    <div className="flex min-h-[200px] items-center justify-center bg-black/50 px-4 py-6">
-                      <audio
-                        src={`/api/generations/${g.id}/download?inline=1`}
-                        controls
-                        className="w-full max-w-md"
-                        preload="metadata"
-                      />
-                    </div>
-                  ) : (
-                    <img
-                      src={g.resultUrl}
-                      alt={`Результат ${g.id}`}
-                      className="h-full w-full max-h-72 object-contain"
-                    />
-                  )
+                  <img
+                    src={g.resultUrl}
+                    alt={`Результат ${g.id}`}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full max-h-72 object-contain"
+                  />
                 ) : hasResult && g.resultMessage ? (
                   <div className="max-h-72 overflow-y-auto p-4 text-left text-sm leading-relaxed text-zinc-200">
                     {g.resultMessage}
@@ -436,6 +448,25 @@ export function AdminGenerationsClient() {
             </article>
           );
         })}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          disabled={loading || page <= 1}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
+        >
+          Назад
+        </button>
+        <button
+          type="button"
+          disabled={loading || page >= totalPages}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
+        >
+          Вперёд
+        </button>
       </div>
     </div>
   );
