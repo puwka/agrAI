@@ -84,11 +84,10 @@ export async function GET(request: Request) {
         const total = includeTotal ? await db.generation.countWhere({ where }) : undefined;
         const normalized = brief
           ? (items as Array<{ prompt?: string; resultMessage?: string }>).map((item) => {
-              const prompt = typeof item.prompt === "string" ? item.prompt : "";
               const resultMessage = typeof item.resultMessage === "string" ? item.resultMessage : "";
               return {
                 ...item,
-                prompt: prompt.length > 320 ? `${prompt.slice(0, 320)}…` : prompt,
+                // Промпт не укорачиваем: админу нужен полный текст (раскрыть/свернуть в UI).
                 resultMessage: resultMessage.length > 600 ? `${resultMessage.slice(0, 600)}…` : resultMessage,
               };
             })

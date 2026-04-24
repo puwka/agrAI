@@ -49,10 +49,12 @@ export function AdminGenerationsClient({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({});
   const [messageDrafts, setMessageDrafts] = useState<Record<string, string>>({});
+  const [promptExpanded, setPromptExpanded] = useState<Record<string, boolean>>({});
   const inFlightRef = useRef(false);
   const pendingFreshReloadRef = useRef(false);
   const readyOffsetRef = useRef(0);
   const pageSize = mode === "ready" ? 10 : 30;
+  const PROMPT_TOGGLE_MIN_LEN = 240;
 
   const load = useCallback(async (opts?: { silent?: boolean; append?: boolean; fresh?: boolean; keepNotice?: boolean }) => {
     if (inFlightRef.current) {
@@ -488,7 +490,34 @@ export function AdminGenerationsClient({
                   </button>
                 </div>
                 <p className="text-sm font-medium text-white">{g.modelName}</p>
-                <p className="text-sm leading-6 text-zinc-300">{g.prompt}</p>
+                {(() => {
+                  const text = g.prompt ?? "";
+                  const needsToggle = text.length > PROMPT_TOGGLE_MIN_LEN;
+                  const expanded = Boolean(promptExpanded[g.id]);
+                  return (
+                    <div className="space-y-2">
+                      <p
+                        className={[
+                          "text-sm leading-6 text-zinc-300 whitespace-pre-wrap break-words",
+                          needsToggle && !expanded ? "line-clamp-5" : "",
+                        ].join(" ")}
+                      >
+                        {text || "—"}
+                      </p>
+                      {needsToggle ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPromptExpanded((prev) => ({ ...prev, [g.id]: !prev[g.id] }))
+                          }
+                          className="text-xs font-semibold text-violet-300 underline-offset-2 hover:text-violet-200 hover:underline"
+                        >
+                          {expanded ? "Свернуть" : "Показать полностью"}
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })()}
                 {g.referenceImageUrl ? (
                   <div className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
                     <p className="border-b border-white/10 bg-black/50 px-3 py-2 text-xs font-medium text-fuchsia-200/90">

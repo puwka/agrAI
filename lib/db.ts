@@ -6,8 +6,8 @@ const globalForSupabase = globalThis as unknown as {
   supabaseAdmin: SupabaseClient | undefined;
 };
 
-const SUPABASE_FETCH_TIMEOUT_MS = 15000;
-const SUPABASE_FETCH_RETRIES = 2;
+const SUPABASE_FETCH_TIMEOUT_MS = 30000;
+const SUPABASE_FETCH_RETRIES = 4;
 
 function isTransientNetworkError(error: unknown) {
   const msg = error instanceof Error ? error.message : String(error ?? "");
@@ -40,7 +40,7 @@ async function supabaseFetchWithRetry(input: RequestInfo | URL, init?: RequestIn
       clearTimeout(timeout);
       lastError = error;
       if (attempt < SUPABASE_FETCH_RETRIES && isTransientNetworkError(error)) {
-        await delay(200 * attempt);
+        await delay(300 * attempt);
         continue;
       }
       throw error;
