@@ -29,9 +29,6 @@ function emergencyAuthorize(email: string, password: string): SessionUser | null
 }
 
 export async function POST(request: Request) {
-  const forwardedProto = (request.headers.get("x-forwarded-proto") ?? "").toLowerCase().trim();
-  const forwardedSsl = (request.headers.get("x-forwarded-ssl") ?? "").toLowerCase().trim();
-  const isHttps = forwardedProto === "https" || forwardedSsl === "on";
   let body: { email?: string; password?: string };
   try {
     body = (await request.json()) as { email?: string; password?: string };
@@ -76,7 +73,9 @@ export async function POST(request: Request) {
     name: sessionCookieName(),
     value: token,
     httpOnly: true,
-    secure: isHttps,
+    // Радикально: не полагаемся на x-forwarded-proto от прокси.
+    // Secure-cookie легко "теряется" при нестабильных прокси/HTTP, из-за чего вход работает через раз.
+    secure: false,
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 7,

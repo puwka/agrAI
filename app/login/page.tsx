@@ -16,26 +16,30 @@ export default function LoginPage() {
     setError(null);
     setPending(true);
 
-    const result = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        email: email.trim().toLowerCase(),
-        password,
-      }),
-    });
-    const data = (await result.json().catch(() => null)) as { role?: string; error?: string } | null;
-    setPending(false);
+    try {
+      const result = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+        }),
+      });
+      const data = (await result.json().catch(() => null)) as { role?: string; error?: string } | null;
 
-    if (!result.ok) {
-      setError(data?.error?.trim() || "Неверный email или пароль");
-      return;
+      if (!result.ok) {
+        setError(data?.error?.trim() || "Неверный email или пароль");
+        return;
+      }
+
+      const role = data?.role === "ADMIN" ? "ADMIN" : "USER";
+      // Радикально: полный переход страницы гарантирует, что сервер увидит cookie сразу.
+      window.location.href = role === "ADMIN" ? "/admin" : "/dashboard";
+    } finally {
+      setPending(false);
     }
-
-    const role = data?.role === "ADMIN" ? "ADMIN" : "USER";
-    router.replace(role === "ADMIN" ? "/admin" : "/dashboard");
-    router.refresh();
   };
 
   return (
