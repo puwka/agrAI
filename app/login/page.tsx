@@ -24,24 +24,16 @@ export default function LoginPage() {
         password,
       }),
     });
-
+    const data = (await result.json().catch(() => null)) as { role?: string; error?: string } | null;
     setPending(false);
 
     if (!result.ok) {
-      setError("Неверный email или пароль");
+      setError(data?.error?.trim() || "Неверный email или пароль");
       return;
     }
 
-    const profileResponse = await fetch("/api/profile");
-    const profile = (await profileResponse.json()) as { role?: string };
-
-    if (profile.role === "ADMIN") {
-      router.push("/admin");
-      router.refresh();
-      return;
-    }
-
-    router.push("/dashboard");
+    const role = data?.role === "ADMIN" ? "ADMIN" : "USER";
+    router.replace(role === "ADMIN" ? "/admin" : "/dashboard");
     router.refresh();
   };
 

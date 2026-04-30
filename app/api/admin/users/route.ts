@@ -28,14 +28,15 @@ export async function GET() {
       restrictedReason: true,
       subscriptionUntil: true,
       createdAt: true,
+      _count: { select: { generations: true, apiKeys: true } },
     },
   });
 
   return NextResponse.json(
     users.map((u: any) => ({
       ...u,
-      generationsCount: 0,
-      apiKeysCount: 0,
+      generationsCount: Number(u?._count?.generations ?? 0),
+      apiKeysCount: Number(u?._count?.apiKeys ?? 0),
     })),
   );
 }

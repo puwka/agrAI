@@ -71,6 +71,8 @@ type WorkspacePanelProps = {
   onPhotoModelVariantChange: (v: "nana2" | "nana-pro" | "sora-image") => void;
   videoModelVariant: "veo-3.1-relax" | "runway-gen-4";
   onVideoModelVariantChange: (v: "veo-3.1-relax" | "runway-gen-4") => void;
+  runwayDurationSec: 5 | 10;
+  onRunwayDurationChange: (v: 5 | 10) => void;
   motionCharacterUrl: string | null;
   motionCharacterUploading: boolean;
   motionCharacterUploadError: string | null;
@@ -169,6 +171,8 @@ export function WorkspacePanel({
   onPhotoModelVariantChange,
   videoModelVariant,
   onVideoModelVariantChange,
+  runwayDurationSec,
+  onRunwayDurationChange,
   motionCharacterUrl,
   motionCharacterUploading,
   motionCharacterUploadError,
@@ -189,6 +193,7 @@ export function WorkspacePanel({
   const isTranscriptionMode = selectedModel?.id === "transcription";
   const isVideoEnhanceMode = selectedModel?.id === "video-enhance";
   const isMotionTransferMode = selectedModel?.id === "motion-transfer";
+  const voiceMaxChars = 4000;
   const textFromLabel = isPhotoMode ? "Из текста в фото" : "Из текста в видео";
   const imageFromLabel = isPhotoMode ? "Из фото в фото" : "Из фото в видео";
   const [voiceModalOpen, setVoiceModalOpen] = useState(false);
@@ -353,6 +358,25 @@ export function WorkspacePanel({
                       >
                         <option value="veo-3.1-relax">Veo 3.1 Relax</option>
                         <option value="runway-gen-4">Runway Gen-4</option>
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                    </div>
+                  </div>
+                ) : null}
+                {isVideoMode && videoModelVariant === "runway-gen-4" ? (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-zinc-300" htmlFor="runway-duration">
+                      Длительность видео
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="runway-duration"
+                        value={String(runwayDurationSec)}
+                        onChange={(e) => onRunwayDurationChange(e.target.value === "10" ? 10 : 5)}
+                        className="w-full appearance-none rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 pr-11 text-sm text-white outline-none transition focus:border-white/30"
+                      >
+                        <option value="5">5 секунд</option>
+                        <option value="10">10 секунд</option>
                       </select>
                       <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                     </div>
@@ -719,6 +743,13 @@ export function WorkspacePanel({
                       id="prompt"
                       value={prompt}
                       onChange={(event) => onPromptChange(event.target.value)}
+                      maxLength={
+                        isVoiceMode
+                          ? voiceMaxChars
+                          : isVideoMode && videoModelVariant === "runway-gen-4"
+                            ? 1000
+                            : undefined
+                      }
                       placeholder={
                         showMediaInputModes && mediaInputMode === "IMAGE_REF"
                           ? "Например: сделать вечерний свет, добавить дождь, сменить стиль на аниме…"
@@ -726,6 +757,12 @@ export function WorkspacePanel({
                       }
                       className="min-h-[220px] w-full resize-none rounded-[24px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-white outline-none backdrop-blur-xl transition-all duration-300 placeholder:text-zinc-500 focus:border-white/30 focus:bg-white/8 focus:shadow-[0_0_0_1px_rgba(220,223,224,0.2),0_0_24px_rgba(220,223,224,0.1)]"
                     />
+                    {isVoiceMode ? (
+                      <p className="text-xs text-zinc-500">{`Символов: ${prompt.length}/${voiceMaxChars}`}</p>
+                    ) : null}
+                    {isVideoMode && videoModelVariant === "runway-gen-4" ? (
+                      <p className="text-xs text-zinc-500">{`Символов: ${prompt.length}/1000`}</p>
+                    ) : null}
                   </div>
                 )}
 

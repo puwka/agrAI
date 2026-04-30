@@ -59,22 +59,7 @@ export async function GET(request: Request) {
           orderBy: { createdAt: "desc" },
           take: limit,
           skip: offset,
-          select: brief
-            ? {
-                id: true,
-                userId: true,
-                modelId: true,
-                modelName: true,
-                prompt: true,
-                aspectRatio: true,
-                status: true,
-                inputMode: true,
-                referenceImageUrl: true,
-                resultUrl: true,
-                resultMessage: true,
-                createdAt: true,
-              }
-            : undefined,
+          select: undefined,
           include: {
             user: {
               select: { id: true, name: true, email: true },

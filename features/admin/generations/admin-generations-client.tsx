@@ -436,7 +436,7 @@ export function AdminGenerationsClient({
             g.status === "SUCCESS" && (g.resultUrl || g.resultMessage),
           );
           const motionVideoUrl = g.modelId === "motion-transfer" ? motionVideoUrlFromPrompt(g.prompt) : null;
-          const userName = g.user?.name?.trim() || "Пользователь";
+          const userName = g.user?.name?.trim() || `Пользователь ${g.userId.slice(0, 8)}`;
           const userEmail = g.user?.email?.trim() || "—";
 
           return (

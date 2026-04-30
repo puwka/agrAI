@@ -6,17 +6,44 @@ const globalForSupabase = globalThis as unknown as {
   supabaseAdmin: SupabaseClient | undefined;
 };
 
-const SUPABASE_FETCH_TIMEOUT_MS = 30000;
+const SUPABASE_FETCH_TIMEOUT_MS = 90000;
 const SUPABASE_FETCH_RETRIES = 4;
 
 function isTransientNetworkError(error: unknown) {
-  const msg = error instanceof Error ? error.message : String(error ?? "");
+  const parts: string[] = [];
+  const collect = (value: unknown) => {
+    if (value == null) return;
+    if (typeof value === "string") {
+      parts.push(value);
+      return;
+    }
+    if (value instanceof Error) {
+      parts.push(value.name, value.message, value.stack ?? "");
+      collect((value as Error & { cause?: unknown }).cause);
+      return;
+    }
+    if (typeof value === "object") {
+      const obj = value as Record<string, unknown>;
+      collect(obj.message);
+      collect(obj.details);
+      collect(obj.hint);
+      collect(obj.code);
+      collect(obj.error);
+      collect(obj.cause);
+      return;
+    }
+    parts.push(String(value));
+  };
+  collect(error);
+  const msg = parts.join(" ").toLowerCase();
   return (
-    msg.includes("ETIMEDOUT") ||
-    msg.includes("ECONNRESET") ||
+    msg.includes("etimedout") ||
+    msg.includes("econnreset") ||
     msg.includes("terminated") ||
     msg.includes("fetch failed") ||
-    msg.includes("aborted")
+    msg.includes("aborted") ||
+    msg.includes("socket hang up") ||
+    msg.includes("supabase_timeout")
   );
 }
 
@@ -26,9 +53,11 @@ async function delay(ms: number) {
 
 async function supabaseFetchWithRetry(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   let lastError: unknown = null;
+  const method = String(init?.method ?? "GET").toUpperCase();
+  const timeoutMs = method === "GET" || method === "HEAD" ? SUPABASE_FETCH_TIMEOUT_MS : 120000;
   for (let attempt = 1; attempt <= SUPABASE_FETCH_RETRIES; attempt += 1) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(new Error("SUPABASE_TIMEOUT")), SUPABASE_FETCH_TIMEOUT_MS);
+    const timeout = setTimeout(() => controller.abort(new Error("SUPABASE_TIMEOUT")), timeoutMs);
     try {
       const response = await fetch(input, {
         ...init,

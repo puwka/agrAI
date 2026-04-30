@@ -27,6 +27,36 @@ type GenerationRow = {
   createdAt: string;
 };
 
+const MAX_RUNWAY_PROMPT_LEN = 1000;
+const MAX_VOICE_PROMPT_LEN = 4000;
+
+function normalizeApiErrorText(value: unknown): string {
+  if (!value) return "";
+  if (typeof value === "string") return value.trim();
+  if (value instanceof Error) return value.message.trim();
+  if (typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    const preferred = [
+      obj.detail,
+      obj.details,
+      obj.error,
+      obj.message,
+      obj.hint,
+      obj.code,
+    ];
+    for (const item of preferred) {
+      const normalized = normalizeApiErrorText(item);
+      if (normalized) return normalized;
+    }
+    try {
+      return JSON.stringify(obj);
+    } catch {
+      return String(obj);
+    }
+  }
+  return String(value).trim();
+}
+
 export function DashboardHomePage({
   userName,
   isAdmin = false,
@@ -64,6 +94,7 @@ export function DashboardHomePage({
   const [enhanceFps, setEnhanceFps] = useState<"24" | "25" | "30" | "45" | "50" | "60">("60");
   const [photoModelVariant, setPhotoModelVariant] = useState<"nana2" | "nana-pro" | "sora-image">("nana2");
   const [videoModelVariant, setVideoModelVariant] = useState<"veo-3.1-relax" | "runway-gen-4">("veo-3.1-relax");
+  const [runwayDurationSec, setRunwayDurationSec] = useState<5 | 10>(5);
   const [motionCharacterUrl, setMotionCharacterUrl] = useState<string | null>(null);
   const [motionCharacterUploading, setMotionCharacterUploading] = useState(false);
   const [motionCharacterUploadError, setMotionCharacterUploadError] = useState<string | null>(null);
@@ -84,9 +115,15 @@ export function DashboardHomePage({
   const setPromptForSelectedModel = useCallback(
     (value: string) => {
       if (!selectedModelId) return;
-      setPromptsByModel((prev) => ({ ...prev, [selectedModelId]: value }));
+      const nextValue =
+        selectedModelId === "video" && videoModelVariant === "runway-gen-4"
+          ? value.slice(0, MAX_RUNWAY_PROMPT_LEN)
+          : selectedModelId === "voice"
+            ? value.slice(0, MAX_VOICE_PROMPT_LEN)
+            : value;
+      setPromptsByModel((prev) => ({ ...prev, [selectedModelId]: nextValue }));
     },
-    [selectedModelId],
+    [selectedModelId, videoModelVariant],
   );
 
   const hasActiveGenerationInQueue = useMemo(() => {
@@ -423,6 +460,7 @@ export function DashboardHomePage({
     setEnhanceQuality("original");
     setEnhanceFps("60");
     setVideoModelVariant("veo-3.1-relax");
+    setRunwayDurationSec(5);
     setMotionCharacterUrl(null);
     setMotionCharacterUploading(false);
     setMotionCharacterUploadError(null);
@@ -447,8 +485,11 @@ export function DashboardHomePage({
       setVoiceError("Сначала выберите голос в каталоге.");
       return;
     }
-
     if (selectedModel.id === "photo" || selectedModel.id === "video") {
+      if (selectedModel.id === "video" && videoModelVariant === "runway-gen-4" && prompt.length > MAX_RUNWAY_PROMPT_LEN) {
+        setGenerationSubmitError(`Для Runway Gen-4 максимум ${MAX_RUNWAY_PROMPT_LEN} символов в промпте.`);
+        return;
+      }
       if (mediaInputMode === "TEXT" && !prompt.trim()) {
         setGenerationSubmitError("Введите описание для режима «из текста».");
         return;
@@ -462,6 +503,11 @@ export function DashboardHomePage({
           return;
         }
       }
+    }
+
+    if (selectedModel.id === "voice" && prompt.length > MAX_VOICE_PROMPT_LEN) {
+      setGenerationSubmitError(`Текст для озвучки не длиннее ${MAX_VOICE_PROMPT_LEN} символов.`);
+      return;
     }
 
     if (selectedModel.id === "transcription") {
@@ -543,78 +589,96 @@ export function DashboardHomePage({
           ? `${selectedModel.name} • ${mediaModeSuffix}`
           : selectedModel.name;
 
-    const response = await fetch("/api/generations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        modelId: selectedModel.id,
-        modelName: displayModelName,
-        prompt,
-        aspectRatio,
-        ...(selectedModel.id === "voice" && selectedVoice
-          ? { voiceId: selectedVoice.id, voiceName: selectedVoice.name }
-          : {}),
-        ...((selectedModel.id === "photo" || selectedModel.id === "video") && {
-          inputMode: mediaInputMode,
-          referenceImageUrl: mediaInputMode === "IMAGE_REF" ? referenceImageUrl : null,
+    try {
+      const response = await fetch("/api/generations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modelId: selectedModel.id,
+          modelName: displayModelName,
+          prompt,
+          aspectRatio,
+          ...(selectedModel.id === "voice" && selectedVoice
+            ? { voiceId: selectedVoice.id, voiceName: selectedVoice.name }
+            : {}),
+          ...((selectedModel.id === "photo" || selectedModel.id === "video") && {
+            inputMode: mediaInputMode,
+            referenceImageUrl: mediaInputMode === "IMAGE_REF" ? referenceImageUrl : null,
+            ...(selectedModel.id === "video" && videoModelVariant === "runway-gen-4"
+              ? { runwayDurationSec }
+              : {}),
+          }),
+          ...(selectedModel.id === "transcription" && {
+            referenceImageUrl: transcriptionFileUrl || null,
+          }),
+          ...(selectedModel.id === "video-enhance" && {
+            referenceImageUrl: enhanceFileUrl || null,
+            enhanceQuality,
+            enhanceFps,
+          }),
+          ...(selectedModel.id === "motion-transfer" && {
+            referenceImageUrl: motionCharacterUrl || null,
+            motionVideoUrl: motionVideoUrl || null,
+            motionVideoDurationSec: motionVideoDurationSec ?? null,
+          }),
         }),
-        ...(selectedModel.id === "transcription" && {
-          referenceImageUrl: transcriptionFileUrl || null,
-        }),
-        ...(selectedModel.id === "video-enhance" && {
-          referenceImageUrl: enhanceFileUrl || null,
-          enhanceQuality,
-          enhanceFps,
-        }),
-        ...(selectedModel.id === "motion-transfer" && {
-          referenceImageUrl: motionCharacterUrl || null,
-          motionVideoUrl: motionVideoUrl || null,
-          motionVideoDurationSec: motionVideoDurationSec ?? null,
-        }),
-      }),
-    });
+      });
 
-    if (!response.ok) {
-      const raw = (await response.json().catch(() => null)) as {
-        error?: string;
-        maintenanceMessage?: string;
-      } | null;
-      if (response.status === 503) {
-        setGenerationSubmitError(
-          raw?.maintenanceMessage?.trim() || raw?.error || "Технические работы. Попробуйте позже.",
-        );
-        void refreshMaintenance();
-      } else if (response.status === 409) {
-        setGenerationSubmitError(raw?.error ?? "Уже есть заявка в работе.");
-        void loadGenerations();
+      if (!response.ok) {
+        const raw = (await response.json().catch(() => null)) as
+          | {
+              error?: unknown;
+              maintenanceMessage?: unknown;
+              detail?: unknown;
+              details?: unknown;
+              message?: unknown;
+            }
+          | null;
+        const errorText =
+          normalizeApiErrorText(raw?.maintenanceMessage) ||
+          normalizeApiErrorText(raw?.detail) ||
+          normalizeApiErrorText(raw?.details) ||
+          normalizeApiErrorText(raw?.error) ||
+          normalizeApiErrorText(raw?.message);
+        if (response.status === 503) {
+          setGenerationSubmitError(errorText || "Технические работы. Попробуйте позже.");
+          void refreshMaintenance();
+        } else if (response.status === 409) {
+          setGenerationSubmitError(errorText || "Уже есть заявка в работе.");
+          void loadGenerations();
+        } else {
+          setGenerationSubmitError(errorText || "Не удалось отправить заявку. Попробуйте ещё раз.");
+        }
+        return;
       }
-      setIsLoading(false);
-      return;
-    }
 
-    const created = (await response.json()) as GenerationRow;
-    setLastSubmittedId(created.id);
-    setDeliveryPending(true);
-    setResultUrl("");
-    setResultMessage("");
-    setMediaInputMode("TEXT");
-    setReferenceImageUrl(null);
-    setReferenceUploadError(null);
-    setTranscriptionFileUrl(null);
-    setTranscriptionUploadError(null);
-    setTranscriptionUploadProgress(null);
-    setEnhanceFileUrl(null);
-    setEnhanceUploadError(null);
-    setEnhanceUploadProgress(null);
-    setMotionCharacterUrl(null);
-    setMotionCharacterUploading(false);
-    setMotionCharacterUploadError(null);
-    setMotionVideoUrl(null);
-    setMotionVideoDurationSec(null);
-    setMotionVideoUploadError(null);
-    setMotionVideoUploadProgress(null);
-    setIsLoading(false);
-    void loadGenerations();
+      const created = (await response.json()) as GenerationRow;
+      setLastSubmittedId(created.id);
+      setDeliveryPending(true);
+      setResultUrl("");
+      setResultMessage("");
+      setMediaInputMode("TEXT");
+      setReferenceImageUrl(null);
+      setReferenceUploadError(null);
+      setTranscriptionFileUrl(null);
+      setTranscriptionUploadError(null);
+      setTranscriptionUploadProgress(null);
+      setEnhanceFileUrl(null);
+      setEnhanceUploadError(null);
+      setEnhanceUploadProgress(null);
+      setMotionCharacterUrl(null);
+      setMotionCharacterUploading(false);
+      setMotionCharacterUploadError(null);
+      setMotionVideoUrl(null);
+      setMotionVideoDurationSec(null);
+      setMotionVideoUploadError(null);
+      setMotionVideoUploadProgress(null);
+      void loadGenerations();
+    } catch {
+      setGenerationSubmitError("Ошибка сети при отправке заявки. Попробуйте ещё раз.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -776,6 +840,12 @@ export function DashboardHomePage({
         onVideoModelVariantChange={(v) => {
           setVideoModelVariant(v);
           if (v === "runway-gen-4") {
+            setPromptsByModel((prev) => {
+              const current = prev.video ?? "";
+              if (current.length <= MAX_RUNWAY_PROMPT_LEN) return prev;
+              return { ...prev, video: current.slice(0, MAX_RUNWAY_PROMPT_LEN) };
+            });
+            setRunwayDurationSec((prev) => (prev === 10 ? 10 : 5));
             if (
               aspectRatio !== "21:9" &&
               aspectRatio !== "16:9" &&
@@ -790,6 +860,8 @@ export function DashboardHomePage({
             setAspectRatio("16:9");
           }
         }}
+        runwayDurationSec={runwayDurationSec}
+        onRunwayDurationChange={setRunwayDurationSec}
         motionCharacterUrl={motionCharacterUrl}
         motionCharacterUploading={motionCharacterUploading}
         motionCharacterUploadError={motionCharacterUploadError}

@@ -9,6 +9,55 @@ import type { AspectRatio } from "../../../features/dashboard/types";
 
 const GENERATIONS_CACHE_TTL_MS = 8000;
 const generationsListCache = new Map<string, { expiresAt: number; payload: unknown }>();
+const MAX_VOICE_PROMPT_CHARS = 4000;
+
+function extractErrorText(error: unknown): string {
+  const chunks: string[] = [];
+  const push = (value: unknown) => {
+    if (value == null) return;
+    if (typeof value === "string") {
+      const t = value.trim();
+      if (t) chunks.push(t);
+      return;
+    }
+    if (value instanceof Error) {
+      push(value.message);
+      push((value as Error & { cause?: unknown }).cause);
+      return;
+    }
+    if (typeof value === "object") {
+      const obj = value as Record<string, unknown>;
+      push(obj.error);
+      push(obj.message);
+      push(obj.details);
+      push(obj.detail);
+      push(obj.hint);
+      push(obj.code);
+      push(obj.cause);
+      return;
+    }
+    push(String(value));
+  };
+  push(error);
+  return chunks.join(" | ").trim();
+}
+
+function isTransientWriteError(error: unknown): boolean {
+  const text = extractErrorText(error).toLowerCase();
+  return (
+    text.includes("econnreset") ||
+    text.includes("etimedout") ||
+    text.includes("fetch failed") ||
+    text.includes("terminated") ||
+    text.includes("aborted") ||
+    text.includes("supabase_timeout") ||
+    text.includes("socket hang up")
+  );
+}
+
+async function wait(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function isValidHttpUrlForTranscription(link: string): boolean {
   const s = link.trim();
@@ -221,6 +270,7 @@ export async function POST(request: Request) {
     enhanceFps?: string;
     motionVideoUrl?: string | null;
     motionVideoDurationSec?: number;
+    runwayDurationSec?: number;
   };
 
   try {
@@ -353,6 +403,16 @@ export async function POST(request: Request) {
     }
   }
 
+  if (modelId === "video") {
+    const runwayDurationRaw =
+      typeof body.runwayDurationSec === "number" && Number.isFinite(body.runwayDurationSec)
+        ? Math.round(body.runwayDurationSec)
+        : null;
+    if (runwayDurationRaw === 5 || runwayDurationRaw === 10) {
+      promptToStore = `${promptToStore}\n[RunwayDurationSec:${runwayDurationRaw}]`;
+    }
+  }
+
   const storedPrompt =
     modelId === "voice"
       ? mergeVoicePrompt(prompt, voiceName)
@@ -362,19 +422,44 @@ export async function POST(request: Request) {
           : prompt
         : promptToStore;
 
-  const generation = await db.generation.create({
-    data: {
-      modelId,
-      modelName,
-      inputMode: modelId === "voice" || modelId === "transcription" || modelId === "video-enhance" || modelId === "motion-transfer" ? "TEXT" : inputMode,
-      referenceImageUrl: modelId === "voice" ? null : referenceImageUrl,
-      prompt: storedPrompt,
-      aspectRatio,
-      status: "PENDING",
-      resultUrl: null,
-      user: { connect: { id: sessionUser.id } },
-    },
-  });
+  if (modelId === "voice" && typeof storedPrompt === "string" && storedPrompt.length > MAX_VOICE_PROMPT_CHARS) {
+    return NextResponse.json(
+      { error: `Текст для озвучки не длиннее ${MAX_VOICE_PROMPT_CHARS} символов.` },
+      { status: 400 },
+    );
+  }
+
+  let generation;
+  let lastWriteError: unknown = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      generation = await db.generation.create({
+        data: {
+          modelId,
+          modelName,
+          inputMode: modelId === "voice" || modelId === "transcription" || modelId === "video-enhance" || modelId === "motion-transfer" ? "TEXT" : inputMode,
+          referenceImageUrl: modelId === "voice" ? null : referenceImageUrl,
+          prompt: storedPrompt,
+          aspectRatio,
+          status: "PENDING",
+          resultUrl: null,
+          user: { connect: { id: sessionUser.id } },
+        },
+      });
+      break;
+    } catch (error) {
+      lastWriteError = error;
+      if (attempt < 3 && isTransientWriteError(error)) {
+        await wait(300 * attempt);
+        continue;
+      }
+      break;
+    }
+  }
+  if (!generation) {
+    const detail = extractErrorText(lastWriteError) || "unknown_error";
+    return NextResponse.json({ error: "Не удалось сохранить заявку", detail }, { status: 503 });
+  }
 
   // Invalidate list cache for fresh user/admin listings after new request.
   for (const key of generationsListCache.keys()) {

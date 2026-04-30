@@ -153,6 +153,7 @@ export async function uploadVoicePreviewFile(input: {
   return data.publicUrl;
 }
 
+/** Полный текст для озвучки (> лимита в БД): хранится в Storage, в Generation.prompt — только маркер. */
 export async function uploadGenerationResultFile(input: {
   generationId: string;
   buffer: Buffer;
