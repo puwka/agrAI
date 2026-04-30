@@ -29,7 +29,9 @@ function emergencyAuthorize(email: string, password: string): SessionUser | null
 }
 
 export async function POST(request: Request) {
-  const isHttps = (request.headers.get("x-forwarded-proto") ?? "http").toLowerCase() === "https";
+  const forwardedProto = (request.headers.get("x-forwarded-proto") ?? "").toLowerCase().trim();
+  const forwardedSsl = (request.headers.get("x-forwarded-ssl") ?? "").toLowerCase().trim();
+  const isHttps = forwardedProto === "https" || forwardedSsl === "on";
   let body: { email?: string; password?: string };
   try {
     body = (await request.json()) as { email?: string; password?: string };
