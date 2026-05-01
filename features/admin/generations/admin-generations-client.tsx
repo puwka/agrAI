@@ -13,6 +13,17 @@ function motionVideoUrlFromPrompt(prompt: string): string | null {
   return raw || null;
 }
 
+function runwayDurationSecFromPrompt(prompt: string): number | null {
+  const m = /\[RunwayDurationSec:(\d+)\]/.exec(prompt ?? "");
+  const raw = m?.[1] ?? "";
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+function stripRunwayDurationMarker(prompt: string): string {
+  return (prompt ?? "").replace(/\s*\[RunwayDurationSec:\d+\]\s*/g, "\n").trim();
+}
+
 type AdminGeneration = {
   id: string;
   userId: string;
@@ -491,11 +502,15 @@ export function AdminGenerationsClient({
                 </div>
                 <p className="text-sm font-medium text-white">{g.modelName}</p>
                 {(() => {
-                  const text = g.prompt ?? "";
+                  const runwayDuration = runwayDurationSecFromPrompt(g.prompt);
+                  const text = stripRunwayDurationMarker(g.prompt ?? "");
                   const needsToggle = text.length > PROMPT_TOGGLE_MIN_LEN;
                   const expanded = Boolean(promptExpanded[g.id]);
                   return (
                     <div className="space-y-2">
+                      {typeof runwayDuration === "number" ? (
+                        <p className="text-xs text-zinc-500">{`Runway Gen-4: ${runwayDuration} сек`}</p>
+                      ) : null}
                       <p
                         className={[
                           "text-sm leading-6 text-zinc-300 whitespace-pre-wrap break-words",

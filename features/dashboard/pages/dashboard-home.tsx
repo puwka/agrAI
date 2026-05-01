@@ -589,11 +589,17 @@ export function DashboardHomePage({
           ? `${selectedModel.name} • ${mediaModeSuffix}`
           : selectedModel.name;
 
+    const clientRequestId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
     try {
       const response = await fetch("/api/generations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          clientRequestId,
           modelId: selectedModel.id,
           modelName: displayModelName,
           prompt,

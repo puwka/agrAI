@@ -55,6 +55,17 @@ function isTransientWriteError(error: unknown): boolean {
   );
 }
 
+function isDuplicateKeyError(error: unknown): boolean {
+  if (!error) return false;
+  if (typeof error === "object") {
+    const obj = error as Record<string, unknown>;
+    const code = typeof obj.code === "string" ? obj.code : "";
+    if (code === "23505") return true;
+  }
+  const text = extractErrorText(error).toLowerCase();
+  return text.includes("duplicate key") || text.includes("already exists") || text.includes("23505");
+}
+
 async function wait(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -258,6 +269,7 @@ export async function POST(request: Request) {
   }
 
   let body: {
+    clientRequestId?: string;
     modelId?: string;
     modelName?: string;
     prompt?: string;
@@ -281,6 +293,7 @@ export async function POST(request: Request) {
 
   const modelId = body.modelId?.trim();
   const modelName = body.modelName?.trim();
+  const clientRequestIdRaw = typeof body.clientRequestId === "string" ? body.clientRequestId.trim() : "";
   const voiceId = typeof body.voiceId === "string" ? body.voiceId.trim() : "";
   const voiceName = typeof body.voiceName === "string" ? body.voiceName.trim() : "";
   const prompt = typeof body.prompt === "string" ? body.prompt : "";
@@ -303,6 +316,11 @@ export async function POST(request: Request) {
   if (!modelId || !modelName || !aspectRatio) {
     return NextResponse.json({ error: "Укажите модель и формат" }, { status: 400 });
   }
+
+  const clientRequestId =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clientRequestIdRaw)
+      ? clientRequestIdRaw
+      : "";
 
   if (sessionUser.role !== "ADMIN") {
     const lockMap = await db.modelLock.listMap();
@@ -419,7 +437,7 @@ export async function POST(request: Request) {
       : modelId === "photo" || modelId === "video"
         ? inputMode === "IMAGE_REF" && !prompt.trim()
           ? "—"
-          : prompt
+          : promptToStore
         : promptToStore;
 
   if (modelId === "voice" && typeof storedPrompt === "string" && storedPrompt.length > MAX_VOICE_PROMPT_CHARS) {
@@ -435,6 +453,7 @@ export async function POST(request: Request) {
     try {
       generation = await db.generation.create({
         data: {
+          ...(clientRequestId ? { id: clientRequestId } : {}),
           modelId,
           modelName,
           inputMode: modelId === "voice" || modelId === "transcription" || modelId === "video-enhance" || modelId === "motion-transfer" ? "TEXT" : inputMode,
@@ -449,6 +468,38 @@ export async function POST(request: Request) {
       break;
     } catch (error) {
       lastWriteError = error;
+      // Если id уже существует — значит это повтор того же запроса. Возвращаем существующую запись.
+      if (clientRequestId && isDuplicateKeyError(error)) {
+        for (let gAttempt = 1; gAttempt <= 4; gAttempt += 1) {
+          try {
+            const existing = await db.generation.findUnique({ where: { id: clientRequestId } });
+            if (existing) {
+              generation = existing;
+              break;
+            }
+          } catch (e) {
+            if (gAttempt < 4 && isTransientWriteError(e)) {
+              await wait(200 * gAttempt);
+              continue;
+            }
+            break;
+          }
+          await wait(120 * gAttempt);
+        }
+        if (generation) break;
+      }
+      // Идемпотентность: если запись уже создалась с тем же id — просто вернём её.
+      if (clientRequestId) {
+        try {
+          const existing = await db.generation.findUnique({ where: { id: clientRequestId } });
+          if (existing) {
+            generation = existing;
+            break;
+          }
+        } catch {
+          // ignore and continue regular retry logic
+        }
+      }
       if (attempt < 3 && isTransientWriteError(error)) {
         await wait(300 * attempt);
         continue;

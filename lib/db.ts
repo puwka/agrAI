@@ -6,7 +6,8 @@ const globalForSupabase = globalThis as unknown as {
   supabaseAdmin: SupabaseClient | undefined;
 };
 
-const SUPABASE_FETCH_TIMEOUT_MS = 90000;
+const SUPABASE_FETCH_TIMEOUT_MS = 30000;
+const SUPABASE_FETCH_WRITE_TIMEOUT_MS = 45000;
 const SUPABASE_FETCH_RETRIES = 4;
 
 function isTransientNetworkError(error: unknown) {
@@ -51,10 +52,42 @@ async function delay(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function extractErrorText(error: unknown): string {
+  const parts: string[] = [];
+  const collect = (value: unknown) => {
+    if (value == null) return;
+    if (typeof value === "string") {
+      const t = value.trim();
+      if (t) parts.push(t);
+      return;
+    }
+    if (value instanceof Error) {
+      collect(value.message);
+      collect((value as Error & { cause?: unknown }).cause);
+      return;
+    }
+    if (typeof value === "object") {
+      const obj = value as Record<string, unknown>;
+      collect(obj.error);
+      collect(obj.message);
+      collect(obj.details);
+      collect(obj.detail);
+      collect(obj.hint);
+      collect(obj.code);
+      collect(obj.cause);
+      return;
+    }
+    collect(String(value));
+  };
+  collect(error);
+  return parts.join(" | ").trim();
+}
+
 async function supabaseFetchWithRetry(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   let lastError: unknown = null;
   const method = String(init?.method ?? "GET").toUpperCase();
-  const timeoutMs = method === "GET" || method === "HEAD" ? SUPABASE_FETCH_TIMEOUT_MS : 120000;
+  const timeoutMs =
+    method === "GET" || method === "HEAD" ? SUPABASE_FETCH_TIMEOUT_MS : SUPABASE_FETCH_WRITE_TIMEOUT_MS;
   for (let attempt = 1; attempt <= SUPABASE_FETCH_RETRIES; attempt += 1) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(new Error("SUPABASE_TIMEOUT")), timeoutMs);
@@ -69,13 +102,17 @@ async function supabaseFetchWithRetry(input: RequestInfo | URL, init?: RequestIn
       clearTimeout(timeout);
       lastError = error;
       if (attempt < SUPABASE_FETCH_RETRIES && isTransientNetworkError(error)) {
-        await delay(300 * attempt);
+        // Exponential backoff with a little jitter to avoid herd retries.
+        const jitter = Math.floor(Math.random() * 200);
+        await delay(350 * 2 ** (attempt - 1) + jitter);
         continue;
       }
-      throw error;
+      const detail = extractErrorText(error) || "Supabase fetch failed";
+      throw new Error(`SUPABASE_FETCH_ERROR: ${detail}`);
     }
   }
-  throw lastError instanceof Error ? lastError : new Error(String(lastError ?? "Supabase fetch failed"));
+  const detail = extractErrorText(lastError) || "Supabase fetch failed";
+  throw new Error(`SUPABASE_FETCH_ERROR: ${detail}`);
 }
 
 function getSupabaseAdmin() {
