@@ -95,6 +95,7 @@ export function DashboardHomePage({
   const [photoModelVariant, setPhotoModelVariant] = useState<"nana2" | "nana-pro" | "sora-image">("nana2");
   const [videoModelVariant, setVideoModelVariant] = useState<"veo-3.1-relax" | "runway-gen-4">("veo-3.1-relax");
   const [runwayDurationSec, setRunwayDurationSec] = useState<5 | 10>(5);
+  const [veoResolution, setVeoResolution] = useState<"720p" | "1080p">("1080p");
   const [motionCharacterUrl, setMotionCharacterUrl] = useState<string | null>(null);
   const [motionCharacterUploading, setMotionCharacterUploading] = useState(false);
   const [motionCharacterUploadError, setMotionCharacterUploadError] = useState<string | null>(null);
@@ -461,6 +462,7 @@ export function DashboardHomePage({
     setEnhanceFps("60");
     setVideoModelVariant("veo-3.1-relax");
     setRunwayDurationSec(5);
+    setVeoResolution("1080p");
     setMotionCharacterUrl(null);
     setMotionCharacterUploading(false);
     setMotionCharacterUploadError(null);
@@ -612,6 +614,9 @@ export function DashboardHomePage({
             referenceImageUrl: mediaInputMode === "IMAGE_REF" ? referenceImageUrl : null,
             ...(selectedModel.id === "video" && videoModelVariant === "runway-gen-4"
               ? { runwayDurationSec }
+              : {}),
+            ...(selectedModel.id === "video" && videoModelVariant === "veo-3.1-relax"
+              ? { veoResolution }
               : {}),
           }),
           ...(selectedModel.id === "transcription" && {
@@ -868,6 +873,8 @@ export function DashboardHomePage({
         }}
         runwayDurationSec={runwayDurationSec}
         onRunwayDurationChange={setRunwayDurationSec}
+        veoResolution={veoResolution}
+        onVeoResolutionChange={setVeoResolution}
         motionCharacterUrl={motionCharacterUrl}
         motionCharacterUploading={motionCharacterUploading}
         motionCharacterUploadError={motionCharacterUploadError}

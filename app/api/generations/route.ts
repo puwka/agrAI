@@ -283,6 +283,7 @@ export async function POST(request: Request) {
     motionVideoUrl?: string | null;
     motionVideoDurationSec?: number;
     runwayDurationSec?: number;
+    veoResolution?: string;
   };
 
   try {
@@ -428,6 +429,11 @@ export async function POST(request: Request) {
         : null;
     if (runwayDurationRaw === 5 || runwayDurationRaw === 10) {
       promptToStore = `${promptToStore}\n[RunwayDurationSec:${runwayDurationRaw}]`;
+    } else {
+      const vrRaw = typeof body.veoResolution === "string" ? body.veoResolution.trim().toLowerCase() : "";
+      if (vrRaw === "720p" || vrRaw === "1080p") {
+        promptToStore = `${promptToStore}\n[VeoResolution:${vrRaw}]`;
+      }
     }
   }
 

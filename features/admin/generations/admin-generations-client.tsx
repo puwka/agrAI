@@ -24,6 +24,16 @@ function stripRunwayDurationMarker(prompt: string): string {
   return (prompt ?? "").replace(/\s*\[RunwayDurationSec:\d+\]\s*/g, "\n").trim();
 }
 
+function veoResolutionFromPrompt(prompt: string): string | null {
+  const m = /\[VeoResolution:(720p|1080p)\]/.exec(prompt ?? "");
+  const raw = m?.[1];
+  return raw === "720p" || raw === "1080p" ? raw : null;
+}
+
+function stripVeoResolutionMarker(prompt: string): string {
+  return (prompt ?? "").replace(/\s*\[VeoResolution:(720p|1080p)\]\s*/g, "\n").trim();
+}
+
 type AdminGeneration = {
   id: string;
   userId: string;
@@ -503,13 +513,17 @@ export function AdminGenerationsClient({
                 <p className="text-sm font-medium text-white">{g.modelName}</p>
                 {(() => {
                   const runwayDuration = runwayDurationSecFromPrompt(g.prompt);
-                  const text = stripRunwayDurationMarker(g.prompt ?? "");
+                  const veoRes = veoResolutionFromPrompt(g.prompt ?? "");
+                  const text = stripVeoResolutionMarker(stripRunwayDurationMarker(g.prompt ?? ""));
                   const needsToggle = text.length > PROMPT_TOGGLE_MIN_LEN;
                   const expanded = Boolean(promptExpanded[g.id]);
                   return (
                     <div className="space-y-2">
                       {typeof runwayDuration === "number" ? (
                         <p className="text-xs text-zinc-500">{`Runway Gen-4: ${runwayDuration} сек`}</p>
+                      ) : null}
+                      {veoRes ? (
+                        <p className="text-xs text-zinc-500">{`Veo: ${veoRes}`}</p>
                       ) : null}
                       <p
                         className={[

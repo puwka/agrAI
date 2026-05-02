@@ -73,6 +73,8 @@ type WorkspacePanelProps = {
   onVideoModelVariantChange: (v: "veo-3.1-relax" | "runway-gen-4") => void;
   runwayDurationSec: 5 | 10;
   onRunwayDurationChange: (v: 5 | 10) => void;
+  veoResolution: "720p" | "1080p";
+  onVeoResolutionChange: (v: "720p" | "1080p") => void;
   motionCharacterUrl: string | null;
   motionCharacterUploading: boolean;
   motionCharacterUploadError: string | null;
@@ -173,6 +175,8 @@ export function WorkspacePanel({
   onVideoModelVariantChange,
   runwayDurationSec,
   onRunwayDurationChange,
+  veoResolution,
+  onVeoResolutionChange,
   motionCharacterUrl,
   motionCharacterUploading,
   motionCharacterUploadError,
@@ -358,6 +362,27 @@ export function WorkspacePanel({
                       >
                         <option value="veo-3.1-relax">Veo 3.1 Relax</option>
                         <option value="runway-gen-4">Runway Gen-4</option>
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                    </div>
+                  </div>
+                ) : null}
+                {isVideoMode && videoModelVariant === "veo-3.1-relax" ? (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-zinc-300" htmlFor="veo-resolution">
+                      Разрешение видео
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="veo-resolution"
+                        value={veoResolution}
+                        onChange={(e) =>
+                          onVeoResolutionChange(e.target.value as "720p" | "1080p")
+                        }
+                        className="w-full appearance-none rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 pr-11 text-sm text-white outline-none transition focus:border-white/30"
+                      >
+                        <option value="720p">720p</option>
+                        <option value="1080p">1080p</option>
                       </select>
                       <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                     </div>
