@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 
   if (file.size <= 0) return NextResponse.json({ error: "Пустой файл" }, { status: 400 });
   if (file.size > MAX_ACT_TWO_VIDEO_UPLOAD_BYTES) {
-    return NextResponse.json({ error: "Файл слишком большой (макс. 200 МБ)" }, { status: 400 });
+    return NextResponse.json({ error: "Файл слишком большой (макс. 20 МБ)" }, { status: 400 });
   }
 
   const { ext, mime } = inferUploadExtAndMime(file);
