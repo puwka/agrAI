@@ -111,6 +111,8 @@ export function DashboardHomePage({
 
   const selectedModel = models.find((model) => model.id === selectedModelId) ?? null;
   const activeModelsCount = models.filter((m) => !m.disabled).length;
+  const maxReferenceImages =
+    selectedModelId === "video" && videoModelVariant === "runway-gen-4" ? 1 : 3;
 
   const prompt = selectedModelId ? promptsByModel[selectedModelId] ?? "" : "";
 
@@ -136,8 +138,12 @@ export function DashboardHomePage({
   const uploadReferenceImage = useCallback(async (file: File) => {
     setReferenceUploadError(null);
     setGenerationSubmitError(null);
-    if (referenceImageUrls.length >= 3) {
-      setReferenceUploadError("Можно загрузить не более 3 изображений.");
+    if (referenceImageUrls.length >= maxReferenceImages) {
+      setReferenceUploadError(
+        maxReferenceImages === 1
+          ? "Для Runway Gen-4 можно загрузить только 1 фото."
+          : "Можно загрузить не более 3 фото.",
+      );
       return;
     }
     setReferenceUploading(true);
@@ -154,14 +160,16 @@ export function DashboardHomePage({
         return;
       }
       if (data?.url) {
-        setReferenceImageUrls((prev) => (prev.includes(data.url as string) ? prev : [...prev, data.url as string].slice(0, 3)));
+        setReferenceImageUrls((prev) =>
+          prev.includes(data.url as string) ? prev : [...prev, data.url as string].slice(0, maxReferenceImages),
+        );
       } else {
         setReferenceUploadError("Пустой ответ сервера");
       }
     } finally {
       setReferenceUploading(false);
     }
-  }, [referenceImageUrls.length]);
+  }, [maxReferenceImages, referenceImageUrls.length]);
 
   const uploadTranscriptionSource = useCallback(async (file: File) => {
     setTranscriptionUploadError(null);
@@ -508,6 +516,14 @@ export function DashboardHomePage({
           setGenerationSubmitError("Загрузите исходное фото для режима «из фото».");
           return;
         }
+        if (referenceImageUrls.length > maxReferenceImages) {
+          setGenerationSubmitError(
+            maxReferenceImages === 1
+              ? "Для Runway Gen-4 можно загрузить только 1 фото."
+              : "Можно загрузить не более 3 фото.",
+          );
+          return;
+        }
       }
     }
 
@@ -616,7 +632,7 @@ export function DashboardHomePage({
           ...((selectedModel.id === "photo" || selectedModel.id === "video") && {
             inputMode: mediaInputMode,
             referenceImageUrl: mediaInputMode === "IMAGE_REF" ? (referenceImageUrls[0] ?? null) : null,
-            referenceImageUrls: mediaInputMode === "IMAGE_REF" ? referenceImageUrls : null,
+            referenceImageUrls: mediaInputMode === "IMAGE_REF" ? referenceImageUrls.slice(0, maxReferenceImages) : null,
             ...(selectedModel.id === "video" && videoModelVariant === "runway-gen-4"
               ? { runwayDurationSec }
               : {}),
@@ -791,6 +807,7 @@ export function DashboardHomePage({
           }
         }}
         referenceImageUrls={referenceImageUrls}
+        maxReferenceImages={maxReferenceImages}
         referenceUploading={referenceUploading}
         referenceUploadError={referenceUploadError}
         onReferenceFileSelected={(file) => {
@@ -859,6 +876,7 @@ export function DashboardHomePage({
         onVideoModelVariantChange={(v) => {
           setVideoModelVariant(v);
           if (v === "runway-gen-4") {
+            setReferenceImageUrls((prev) => prev.slice(0, 1));
             setPromptsByModel((prev) => {
               const current = prev.video ?? "";
               if (current.length <= MAX_RUNWAY_PROMPT_LEN) return prev;

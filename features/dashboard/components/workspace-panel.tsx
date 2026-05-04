@@ -39,6 +39,7 @@ type WorkspacePanelProps = {
   mediaInputMode: MediaInputMode;
   onMediaInputModeChange: (mode: MediaInputMode) => void;
   referenceImageUrls: string[];
+  maxReferenceImages: 1 | 3;
   referenceUploading: boolean;
   referenceUploadError: string | null;
   onReferenceFileSelected: (file: File) => void;
@@ -144,6 +145,7 @@ export function WorkspacePanel({
   mediaInputMode,
   onMediaInputModeChange,
   referenceImageUrls,
+  maxReferenceImages,
   referenceUploading,
   referenceUploadError,
   onReferenceFileSelected,
@@ -418,15 +420,15 @@ export function WorkspacePanel({
                       <span className="text-center text-sm text-zinc-300">
                         {referenceUploading
                           ? "Загрузка…"
-                          : referenceImageUrls.length >= 3
-                            ? "Лимит: 3 изображения"
-                            : "Нажмите или перетащите файл (PNG, JPEG, WebP, GIF)"}
+                          : referenceImageUrls.length >= maxReferenceImages
+                            ? `Лимит: ${maxReferenceImages} ${maxReferenceImages === 1 ? "фото" : "фото"}`
+                            : `Нажмите или перетащите файл (PNG, JPEG, WebP, GIF) — до ${maxReferenceImages} фото`}
                       </span>
                       <input
                         type="file"
                         accept="image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif"
                         className="sr-only"
-                        disabled={referenceUploading || queueBlocked || referenceImageUrls.length >= 3}
+                        disabled={referenceUploading || queueBlocked || referenceImageUrls.length >= maxReferenceImages}
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           e.target.value = "";

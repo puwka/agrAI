@@ -186,9 +186,9 @@ export function LogsPage() {
                   const logStatus = mapGenerationStatusToLogStatus(log.status);
                   const errorText = ((log.errorMessage ?? "").trim() || (log.resultMessage ?? "").trim());
                   const textResult = (log.resultMessage ?? "").trim();
-                  const canDownload =
-                    log.status === "SUCCESS" &&
-                    (Boolean(log.resultUrl?.trim()) || Boolean(textResult));
+                  const fileResultUrl = (log.resultUrl ?? "").trim();
+                  const hasTextOnlyResult = log.status === "SUCCESS" && !fileResultUrl && Boolean(textResult);
+                  const canDownloadFile = log.status === "SUCCESS" && Boolean(fileResultUrl);
 
                   return (
                     <motion.div
@@ -251,12 +251,17 @@ export function LogsPage() {
                               {errorText}
                             </div>
                           ) : null}
-                          {canDownload ? (
+                          {hasTextOnlyResult ? (
+                            <div className="rounded-2xl border border-zinc-500/25 bg-zinc-700/15 px-4 py-3 text-sm leading-6 text-zinc-200">
+                              {textResult}
+                            </div>
+                          ) : null}
+                          {canDownloadFile ? (
                             <a
                               href={`/api/generations/${log.id}/download`}
                               className="inline-flex items-center gap-2 self-start rounded-2xl border border-violet-400/35 bg-violet-500/15 px-4 py-2 text-xs font-semibold text-violet-200 transition hover:border-violet-400/50 hover:bg-violet-500/25"
                             >
-                              {log.resultUrl?.trim() ? "Скачать файл" : "Скачать ответ (.txt)"}
+                              Скачать файл
                             </a>
                           ) : null}
                         </div>

@@ -426,6 +426,11 @@ export async function POST(request: Request) {
     const ref = typeof body.referenceImageUrl === "string" ? body.referenceImageUrl.trim() : "";
     const refsRaw = Array.isArray(body.referenceImageUrls) ? body.referenceImageUrls : [];
     const refsNormalized = refsRaw.map((x) => (typeof x === "string" ? x.trim() : "")).filter(Boolean);
+    const requestedRunwayDuration =
+      modelId === "video" && typeof body.runwayDurationSec === "number" && Number.isFinite(body.runwayDurationSec)
+        ? Math.round(body.runwayDurationSec)
+        : null;
+    const maxRefsAllowed = modelId === "video" && (requestedRunwayDuration === 5 || requestedRunwayDuration === 10) ? 1 : 3;
 
     if (inputMode === "IMAGE_REF") {
       const refs = refsNormalized.length > 0 ? refsNormalized : ref ? [ref] : [];
@@ -435,9 +440,14 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
-      if (refs.length > 3) {
+      if (refs.length > maxRefsAllowed) {
         return NextResponse.json(
-          { error: "Можно загрузить не более 3 изображений." },
+          {
+            error:
+              maxRefsAllowed === 1
+                ? "Для Runway Gen-4 можно загрузить только 1 фото."
+                : "Можно загрузить не более 3 фото.",
+          },
           { status: 400 },
         );
       }
