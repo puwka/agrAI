@@ -19,7 +19,12 @@ export function detectResultMediaKind(url: string): "image" | "video" | "audio" 
 /** Убирает технический id из префикса `[Голос: Имя (voiceId)]` (старые записи в БД). */
 export function formatPromptForLogsDisplay(prompt: string): string {
   if (!prompt || typeof prompt !== "string") return prompt;
-  return prompt.replace(/^\[Голос:\s*(.+?)\s*\([^)]+\)\s*\]/, "[Голос: $1]");
+  return prompt
+    .replace(/^\[Голос:\s*(.+?)\s*\([^)]+\)\s*\]/, "[Голос: $1]")
+    .replace(/\s*\[RefImage:.+?\]\s*/g, "\n")
+    .replace(/\s*\[RunwayDurationSec:\d+\]\s*/g, "\n")
+    .replace(/\s*\[VeoResolution:(720p|1080p)\]\s*/g, "\n")
+    .trim();
 }
 
 export function getActiveNavItem(pathname: string): NavItem {

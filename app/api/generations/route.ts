@@ -94,6 +94,24 @@ function mergeVoicePrompt(prompt: string, voiceName?: string | null) {
   return `${prefix}\n${base}`;
 }
 
+function extractPhotoRefsFromPrompt(prompt: string): string[] {
+  const out: string[] = [];
+  const re = /\[RefImage:(.+?)\]/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(prompt ?? "")) !== null) {
+    const raw = (m[1] ?? "").trim();
+    if (raw) out.push(raw);
+  }
+  return out;
+}
+
+function appendPhotoRefsToPrompt(prompt: string, refs: string[]): string {
+  const cleanRefs = refs.map((x) => x.trim()).filter(Boolean);
+  if (cleanRefs.length <= 1) return prompt;
+  const markers = cleanRefs.slice(1).map((url) => `[RefImage:${url}]`).join("\n");
+  return `${prompt}\n${markers}`;
+}
+
 function generationListWhere(
   userId: string,
   statusFilter: string,
@@ -169,6 +187,7 @@ export async function GET(request: Request) {
           status: true,
           resultUrl: true,
           resultMessage: true,
+          errorMessage: true,
           createdAt: true,
         }
       : undefined,
@@ -181,13 +200,15 @@ export async function GET(request: Request) {
     : undefined;
 
   const items = brief
-    ? (itemsRaw as Array<{ prompt?: string; resultMessage?: string }>).map((item) => {
+    ? (itemsRaw as Array<{ prompt?: string; resultMessage?: string; errorMessage?: string }>).map((item) => {
         const prompt = typeof item.prompt === "string" ? item.prompt : "";
         const resultMessage = typeof item.resultMessage === "string" ? item.resultMessage : "";
+        const errorMessage = typeof item.errorMessage === "string" ? item.errorMessage : "";
         return {
           ...item,
           prompt: prompt.length > 280 ? `${prompt.slice(0, 280)}…` : prompt,
           resultMessage: resultMessage.length > 500 ? `${resultMessage.slice(0, 500)}…` : resultMessage,
+          errorMessage: errorMessage.length > 500 ? `${errorMessage.slice(0, 500)}…` : errorMessage,
         };
       })
     : itemsRaw;
@@ -278,6 +299,7 @@ export async function POST(request: Request) {
     voiceName?: string;
     inputMode?: string;
     referenceImageUrl?: string | null;
+    referenceImageUrls?: string[] | null;
     enhanceQuality?: string;
     enhanceFps?: string;
     motionVideoUrl?: string | null;
@@ -401,17 +423,36 @@ export async function POST(request: Request) {
     if (rawMode === "IMAGE_REF" || rawMode === "IMAGE") {
       inputMode = "IMAGE_REF";
     }
-    const ref =
-      typeof body.referenceImageUrl === "string" ? body.referenceImageUrl.trim() : "";
+    const ref = typeof body.referenceImageUrl === "string" ? body.referenceImageUrl.trim() : "";
+    const refsRaw = Array.isArray(body.referenceImageUrls) ? body.referenceImageUrls : [];
+    const refsNormalized = refsRaw.map((x) => (typeof x === "string" ? x.trim() : "")).filter(Boolean);
 
     if (inputMode === "IMAGE_REF") {
-      if (!(await isValidUserReferenceImageUrl(ref, sessionUser.id))) {
+      const refs = refsNormalized.length > 0 ? refsNormalized : ref ? [ref] : [];
+      if (refs.length === 0) {
         return NextResponse.json(
           { error: "Загрузите исходное фото для режима «из фото»." },
           { status: 400 },
         );
       }
-      referenceImageUrl = ref;
+      if (refs.length > 3) {
+        return NextResponse.json(
+          { error: "Можно загрузить не более 3 изображений." },
+          { status: 400 },
+        );
+      }
+      const validRefs: string[] = [];
+      for (const item of refs) {
+        if (!(await isValidUserReferenceImageUrl(item, sessionUser.id))) {
+          return NextResponse.json(
+            { error: "Некоторые изображения недоступны. Загрузите их заново." },
+            { status: 400 },
+          );
+        }
+        validRefs.push(item);
+      }
+      referenceImageUrl = validRefs[0] ?? null;
+      promptToStore = appendPhotoRefsToPrompt(promptToStore, validRefs);
     } else {
       if (!prompt.trim()) {
         return NextResponse.json(
@@ -441,7 +482,7 @@ export async function POST(request: Request) {
     modelId === "voice"
       ? mergeVoicePrompt(prompt, voiceName)
       : modelId === "photo" || modelId === "video"
-        ? inputMode === "IMAGE_REF" && !prompt.trim()
+        ? inputMode === "IMAGE_REF" && !prompt.trim() && extractPhotoRefsFromPrompt(promptToStore).length === 0
           ? "—"
           : promptToStore
         : promptToStore;

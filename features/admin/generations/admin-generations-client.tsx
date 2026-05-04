@@ -34,6 +34,21 @@ function stripVeoResolutionMarker(prompt: string): string {
   return (prompt ?? "").replace(/\s*\[VeoResolution:(720p|1080p)\]\s*/g, "\n").trim();
 }
 
+function extractExtraRefImages(prompt: string): string[] {
+  const refs: string[] = [];
+  const re = /\[RefImage:(.+?)\]/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(prompt ?? "")) !== null) {
+    const raw = (m[1] ?? "").trim();
+    if (raw) refs.push(raw);
+  }
+  return refs;
+}
+
+function stripExtraRefImages(prompt: string): string {
+  return (prompt ?? "").replace(/\s*\[RefImage:.+?\]\s*/g, "\n").trim();
+}
+
 type AdminGeneration = {
   id: string;
   userId: string;
@@ -457,6 +472,8 @@ export function AdminGenerationsClient({
             g.status === "SUCCESS" && (g.resultUrl || g.resultMessage),
           );
           const motionVideoUrl = g.modelId === "motion-transfer" ? motionVideoUrlFromPrompt(g.prompt) : null;
+          const extraRefImages = extractExtraRefImages(g.prompt ?? "");
+          const referenceImages = [g.referenceImageUrl, ...extraRefImages].filter((x): x is string => Boolean(x));
           const userName = g.user?.name?.trim() || `Пользователь ${g.userId.slice(0, 8)}`;
           const userEmail = g.user?.email?.trim() || "—";
 
@@ -492,7 +509,9 @@ export function AdminGenerationsClient({
                     >
                       {g.status}
                     </span>
-                    <span className="text-zinc-500">{g.aspectRatio}</span>
+                    <span className="rounded-full border border-red-400/35 bg-red-500/15 px-3 py-1 text-red-200">
+                      {g.aspectRatio}
+                    </span>
                   </div>
                   <button
                     type="button"
@@ -514,7 +533,7 @@ export function AdminGenerationsClient({
                 {(() => {
                   const runwayDuration = runwayDurationSecFromPrompt(g.prompt);
                   const veoRes = veoResolutionFromPrompt(g.prompt ?? "");
-                  const text = stripVeoResolutionMarker(stripRunwayDurationMarker(g.prompt ?? ""));
+                  const text = stripExtraRefImages(stripVeoResolutionMarker(stripRunwayDurationMarker(g.prompt ?? "")));
                   const needsToggle = text.length > PROMPT_TOGGLE_MIN_LEN;
                   const expanded = Boolean(promptExpanded[g.id]);
                   return (
@@ -547,7 +566,7 @@ export function AdminGenerationsClient({
                     </div>
                   );
                 })()}
-                {g.referenceImageUrl ? (
+                {referenceImages.length > 0 ? (
                   <div className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
                     <p className="border-b border-white/10 bg-black/50 px-3 py-2 text-xs font-medium text-fuchsia-200/90">
                       {g.modelId === "transcription"
@@ -556,27 +575,33 @@ export function AdminGenerationsClient({
                           ? "Исходник для улучшения видео"
                           : "Исходное фото пользователя"}
                     </p>
-                    {detectResultMediaKind(g.referenceImageUrl) === "video" ? (
-                      <video
-                        src={g.referenceImageUrl}
-                        controls
-                        playsInline
-                        preload="none"
-                        className="max-h-64 w-full bg-black object-contain"
-                      />
-                    ) : detectResultMediaKind(g.referenceImageUrl) === "audio" ? (
-                      <div className="flex max-h-64 items-center justify-center bg-black/50 px-4 py-6">
-                        <audio src={g.referenceImageUrl} controls className="w-full max-w-md" preload="metadata" />
-                      </div>
-                    ) : (
-                      <img
-                        src={g.referenceImageUrl}
-                        alt="Референс"
-                        loading="lazy"
-                        decoding="async"
-                        className="max-h-48 w-full object-contain"
-                      />
-                    )}
+                    <div className="grid gap-2 p-2 sm:grid-cols-2 xl:grid-cols-3">
+                      {referenceImages.map((ref, idx) =>
+                        detectResultMediaKind(ref) === "video" ? (
+                          <video
+                            key={`${ref}-${idx}`}
+                            src={ref}
+                            controls
+                            playsInline
+                            preload="none"
+                            className="max-h-56 w-full rounded-xl bg-black object-contain"
+                          />
+                        ) : detectResultMediaKind(ref) === "audio" ? (
+                          <div key={`${ref}-${idx}`} className="flex max-h-56 items-center justify-center rounded-xl bg-black/50 px-3 py-4">
+                            <audio src={ref} controls className="w-full max-w-md" preload="metadata" />
+                          </div>
+                        ) : (
+                          <img
+                            key={`${ref}-${idx}`}
+                            src={ref}
+                            alt={`Референс ${idx + 1}`}
+                            loading="lazy"
+                            decoding="async"
+                            className="max-h-48 w-full rounded-xl object-contain"
+                          />
+                        ),
+                      )}
+                    </div>
                   </div>
                 ) : null}
                 {motionVideoUrl ? (

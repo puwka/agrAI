@@ -19,6 +19,17 @@ function isUploadedGenerationFile(absPath: string) {
   return normalized === root || normalized.startsWith(root + path.sep);
 }
 
+function extractExtraRefImages(prompt: string): string[] {
+  const refs: string[] = [];
+  const re = /\[RefImage:(.+?)\]/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(prompt ?? "")) !== null) {
+    const raw = (m[1] ?? "").trim();
+    if (raw) refs.push(raw);
+  }
+  return refs;
+}
+
 async function tryRemoveReferenceUpload(refUrl: string | null) {
   const raw = refUrl?.trim();
   if (!raw) return;
@@ -228,6 +239,9 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
 
   await tryRemoveUploadedResultFile(existing.resultUrl, generationId);
   await tryRemoveReferenceUpload(existing.referenceImageUrl);
+  for (const ref of extractExtraRefImages(existing.prompt ?? "")) {
+    await tryRemoveReferenceUpload(ref);
+  }
   await db.generation.delete({ where: { id: generationId } });
 
   return NextResponse.json({ ok: true });

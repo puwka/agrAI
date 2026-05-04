@@ -24,6 +24,7 @@ type GenerationRow = {
   resultMessage: string | null;
   inputMode?: string;
   referenceImageUrl?: string | null;
+  errorMessage?: string | null;
   createdAt: string;
 };
 
@@ -79,7 +80,7 @@ export function DashboardHomePage({
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [generationSubmitError, setGenerationSubmitError] = useState<string | null>(null);
   const [mediaInputMode, setMediaInputMode] = useState<MediaInputMode>("TEXT");
-  const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(null);
+  const [referenceImageUrls, setReferenceImageUrls] = useState<string[]>([]);
   const [referenceUploading, setReferenceUploading] = useState(false);
   const [referenceUploadError, setReferenceUploadError] = useState<string | null>(null);
   const [transcriptionFileUrl, setTranscriptionFileUrl] = useState<string | null>(null);
@@ -134,6 +135,11 @@ export function DashboardHomePage({
 
   const uploadReferenceImage = useCallback(async (file: File) => {
     setReferenceUploadError(null);
+    setGenerationSubmitError(null);
+    if (referenceImageUrls.length >= 3) {
+      setReferenceUploadError("Можно загрузить не более 3 изображений.");
+      return;
+    }
     setReferenceUploading(true);
     try {
       const fd = new FormData();
@@ -145,19 +151,17 @@ export function DashboardHomePage({
       const data = (await response.json().catch(() => null)) as { url?: string; error?: string } | null;
       if (!response.ok) {
         setReferenceUploadError(data?.error ?? "Не удалось загрузить фото");
-        setReferenceImageUrl(null);
         return;
       }
       if (data?.url) {
-        setReferenceImageUrl(data.url);
+        setReferenceImageUrls((prev) => (prev.includes(data.url as string) ? prev : [...prev, data.url as string].slice(0, 3)));
       } else {
         setReferenceUploadError("Пустой ответ сервера");
-        setReferenceImageUrl(null);
       }
     } finally {
       setReferenceUploading(false);
     }
-  }, []);
+  }, [referenceImageUrls.length]);
 
   const uploadTranscriptionSource = useCallback(async (file: File) => {
     setTranscriptionUploadError(null);
@@ -450,7 +454,7 @@ export function DashboardHomePage({
     setVoiceError(null);
     setGenerationSubmitError(null);
     setMediaInputMode("TEXT");
-    setReferenceImageUrl(null);
+    setReferenceImageUrls([]);
     setReferenceUploadError(null);
     setTranscriptionFileUrl(null);
     setTranscriptionUploadError(null);
@@ -500,7 +504,7 @@ export function DashboardHomePage({
         if (referenceUploading) {
           return;
         }
-        if (!referenceImageUrl) {
+        if (referenceImageUrls.length === 0) {
           setGenerationSubmitError("Загрузите исходное фото для режима «из фото».");
           return;
         }
@@ -611,7 +615,8 @@ export function DashboardHomePage({
             : {}),
           ...((selectedModel.id === "photo" || selectedModel.id === "video") && {
             inputMode: mediaInputMode,
-            referenceImageUrl: mediaInputMode === "IMAGE_REF" ? referenceImageUrl : null,
+            referenceImageUrl: mediaInputMode === "IMAGE_REF" ? (referenceImageUrls[0] ?? null) : null,
+            referenceImageUrls: mediaInputMode === "IMAGE_REF" ? referenceImageUrls : null,
             ...(selectedModel.id === "video" && videoModelVariant === "runway-gen-4"
               ? { runwayDurationSec }
               : {}),
@@ -669,7 +674,7 @@ export function DashboardHomePage({
       setResultUrl("");
       setResultMessage("");
       setMediaInputMode("TEXT");
-      setReferenceImageUrl(null);
+      setReferenceImageUrls([]);
       setReferenceUploadError(null);
       setTranscriptionFileUrl(null);
       setTranscriptionUploadError(null);
@@ -781,18 +786,21 @@ export function DashboardHomePage({
           setMediaInputMode(mode);
           setGenerationSubmitError(null);
           if (mode === "TEXT") {
-            setReferenceImageUrl(null);
+            setReferenceImageUrls([]);
             setReferenceUploadError(null);
           }
         }}
-        referenceImageUrl={referenceImageUrl}
+        referenceImageUrls={referenceImageUrls}
         referenceUploading={referenceUploading}
         referenceUploadError={referenceUploadError}
         onReferenceFileSelected={(file) => {
           void uploadReferenceImage(file);
         }}
-        onClearReference={() => {
-          setReferenceImageUrl(null);
+        onRemoveReferenceImage={(url) => {
+          setReferenceImageUrls((prev) => prev.filter((item) => item !== url));
+        }}
+        onClearReferenceImages={() => {
+          setReferenceImageUrls([]);
           setReferenceUploadError(null);
         }}
         onPromptChange={setPromptForSelectedModel}

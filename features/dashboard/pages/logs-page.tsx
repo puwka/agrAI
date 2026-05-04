@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, ChevronLeft, ChevronRight, Download, Search } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { motion } from "framer-motion";
 
 import {
@@ -21,6 +21,7 @@ type GenerationRow = {
   status: string;
   resultUrl: string | null;
   resultMessage: string | null;
+  errorMessage?: string | null;
   createdAt: string;
 };
 
@@ -183,9 +184,11 @@ export function LogsPage() {
               ) : (
                 items.map((log, index) => {
                   const logStatus = mapGenerationStatusToLogStatus(log.status);
+                  const errorText = ((log.errorMessage ?? "").trim() || (log.resultMessage ?? "").trim());
+                  const textResult = (log.resultMessage ?? "").trim();
                   const canDownload =
                     log.status === "SUCCESS" &&
-                    (Boolean(log.resultUrl?.trim()) || Boolean(log.resultMessage?.trim()));
+                    (Boolean(log.resultUrl?.trim()) || Boolean(textResult));
 
                   return (
                     <motion.div
@@ -243,12 +246,16 @@ export function LogsPage() {
                       <div className="rounded-2xl border border-white/10 bg-zinc-950/70 px-4 py-3 text-sm leading-6 text-zinc-300">
                         {formatPromptForLogsDisplay(log.prompt)}
                       </div>
+                          {logStatus === "error" && errorText ? (
+                            <div className="rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm leading-6 text-red-200">
+                              {errorText}
+                            </div>
+                          ) : null}
                           {canDownload ? (
                             <a
                               href={`/api/generations/${log.id}/download`}
                               className="inline-flex items-center gap-2 self-start rounded-2xl border border-violet-400/35 bg-violet-500/15 px-4 py-2 text-xs font-semibold text-violet-200 transition hover:border-violet-400/50 hover:bg-violet-500/25"
                             >
-                              <Download className="h-3.5 w-3.5" />
                               {log.resultUrl?.trim() ? "Скачать файл" : "Скачать ответ (.txt)"}
                             </a>
                           ) : null}

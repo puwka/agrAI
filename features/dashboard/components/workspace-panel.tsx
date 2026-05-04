@@ -38,11 +38,12 @@ type WorkspacePanelProps = {
   showMediaInputModes: boolean;
   mediaInputMode: MediaInputMode;
   onMediaInputModeChange: (mode: MediaInputMode) => void;
-  referenceImageUrl: string | null;
+  referenceImageUrls: string[];
   referenceUploading: boolean;
   referenceUploadError: string | null;
   onReferenceFileSelected: (file: File) => void;
-  onClearReference: () => void;
+  onRemoveReferenceImage: (url: string) => void;
+  onClearReferenceImages: () => void;
   onPromptChange: (value: string) => void;
   onAspectRatioChange: (value: AspectRatio) => void;
   onVoiceChange: (voice: VoiceOption | null) => void;
@@ -142,11 +143,12 @@ export function WorkspacePanel({
   showMediaInputModes,
   mediaInputMode,
   onMediaInputModeChange,
-  referenceImageUrl,
+  referenceImageUrls,
   referenceUploading,
   referenceUploadError,
   onReferenceFileSelected,
-  onClearReference,
+  onRemoveReferenceImage,
+  onClearReferenceImages,
   onPromptChange,
   onAspectRatioChange,
   onVoiceChange,
@@ -414,13 +416,17 @@ export function WorkspacePanel({
                     <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-fuchsia-400/35 bg-black/30 px-4 py-8 transition hover:border-fuchsia-400/55 hover:bg-black/40">
                       <Upload className="h-8 w-8 text-fuchsia-200/80" />
                       <span className="text-center text-sm text-zinc-300">
-                        {referenceUploading ? "Загрузка…" : "Нажмите или перетащите файл (PNG, JPEG, WebP, GIF)"}
+                        {referenceUploading
+                          ? "Загрузка…"
+                          : referenceImageUrls.length >= 3
+                            ? "Лимит: 3 изображения"
+                            : "Нажмите или перетащите файл (PNG, JPEG, WebP, GIF)"}
                       </span>
                       <input
                         type="file"
                         accept="image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif"
                         className="sr-only"
-                        disabled={referenceUploading || queueBlocked}
+                        disabled={referenceUploading || queueBlocked || referenceImageUrls.length >= 3}
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           e.target.value = "";
@@ -431,20 +437,33 @@ export function WorkspacePanel({
                     {referenceUploadError ? (
                       <p className="text-sm text-red-300">{referenceUploadError}</p>
                     ) : null}
-                    {referenceImageUrl ? (
-                      <div className="relative overflow-hidden rounded-2xl border border-white/10">
-                        <img
-                          src={referenceImageUrl}
-                          alt="Референс"
-                          className="max-h-56 w-full object-contain bg-black/40"
-                        />
+                    {referenceImageUrls.length > 0 ? (
+                      <div className="space-y-2">
+                        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                          {referenceImageUrls.map((url, index) => (
+                            <div key={url} className="relative overflow-hidden rounded-2xl border border-white/10">
+                              <img
+                                src={url}
+                                alt={`Референс ${index + 1}`}
+                                className="max-h-40 w-full object-contain bg-black/40"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => onRemoveReferenceImage(url)}
+                                className="absolute right-2 top-2 rounded-xl border border-white/20 bg-black/70 p-2 text-zinc-200 transition hover:bg-black/90"
+                                aria-label={`Убрать фото ${index + 1}`}
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                         <button
                           type="button"
-                          onClick={onClearReference}
-                          className="absolute right-2 top-2 rounded-xl border border-white/20 bg-black/70 p-2 text-zinc-200 transition hover:bg-black/90"
-                          aria-label="Убрать фото"
+                          onClick={onClearReferenceImages}
+                          className="rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-xs text-zinc-200 transition hover:bg-black/45"
                         >
-                          <X className="h-4 w-4" />
+                          Очистить все фото
                         </button>
                       </div>
                     ) : null}
@@ -875,7 +894,7 @@ export function WorkspacePanel({
                     enhanceUploading ||
                     (showMediaInputModes &&
                       mediaInputMode === "IMAGE_REF" &&
-                      !referenceImageUrl) ||
+                      referenceImageUrls.length === 0) ||
                     (isTranscriptionMode &&
                       !transcriptionFileUrl?.trim() &&
                       !prompt.trim()) ||
