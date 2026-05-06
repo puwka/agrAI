@@ -30,7 +30,10 @@ type GenerationRow = {
 };
 
 function stripRepeatMarker(prompt: string): string {
-  return (prompt ?? "").replace(/\s*\[RepeatOf:[^\]]+\]\s*/g, "\n").trim();
+  return (prompt ?? "")
+    .replace(/\s*\[RepeatOf:[^\]]+\]\s*/gi, "\n")
+    .replace(/\s*\[Repeat\]\s*/gi, "\n")
+    .trim();
 }
 
 const MAX_RUNWAY_PROMPT_LEN = 1000;

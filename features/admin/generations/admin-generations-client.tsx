@@ -50,13 +50,18 @@ function stripExtraRefImages(prompt: string): string {
 }
 
 function repeatSourceIdFromPrompt(prompt: string): string | null {
-  const m = /\[RepeatOf:([^\]]+)\]/i.exec(prompt ?? "");
-  const id = (m?.[1] ?? "").trim();
-  return id || null;
+  const value = prompt ?? "";
+  const withId = /\[RepeatOf:([^\]]+)\]/i.exec(value);
+  const id = (withId?.[1] ?? "").trim();
+  if (id) return id;
+  return /\[Repeat\]/i.test(value) ? "1" : null;
 }
 
 function stripRepeatMarker(prompt: string): string {
-  return (prompt ?? "").replace(/\s*\[RepeatOf:[^\]]+\]\s*/gi, "\n").trim();
+  return (prompt ?? "")
+    .replace(/\s*\[RepeatOf:[^\]]+\]\s*/gi, "\n")
+    .replace(/\s*\[Repeat\]\s*/gi, "\n")
+    .trim();
 }
 
 type AdminGeneration = {
@@ -545,7 +550,9 @@ export function AdminGenerationsClient({
                     Удалить
                   </button>
                 </div>
-                <p className="text-sm font-medium text-white">{g.modelName}</p>
+                <p className="text-sm font-medium text-white">
+                  {repeatSourceId ? `🔁 Перегенерация · ${g.modelName}` : g.modelName}
+                </p>
                 {(() => {
                   const runwayDuration = runwayDurationSecFromPrompt(g.prompt);
                   const veoRes = veoResolutionFromPrompt(g.prompt ?? "");
@@ -556,9 +563,7 @@ export function AdminGenerationsClient({
                   const expanded = Boolean(promptExpanded[g.id]);
                   return (
                     <div className="space-y-2">
-                      {repeatSourceId ? (
-                        <p className="text-xs text-amber-300/90">{`Повтор генерации #${repeatSourceId.slice(0, 8)}`}</p>
-                      ) : null}
+                      {repeatSourceId ? <p className="text-xs text-amber-300/90">Это перегенерация</p> : null}
                       {typeof runwayDuration === "number" ? (
                         <p className="text-xs text-zinc-500">{`Runway Gen-4: ${runwayDuration} сек`}</p>
                       ) : null}
