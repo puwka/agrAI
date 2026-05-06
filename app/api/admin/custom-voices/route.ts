@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { db } from "../../../../lib/db";
 import { getApiSessionUser } from "../../../../lib/auth/api-session";
+import { readCustomVoicesFile, upsertCustomVoiceFile } from "../../../../lib/custom-voices-file";
 import { inferUploadExtAndMime } from "../../../../lib/upload-media-infer";
 import {
   supabaseStorageBucket,
@@ -40,7 +41,11 @@ export async function GET() {
   if (!sessionUser?.id || sessionUser.role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const items = await db.customVoice.list();
+  const [dbItems, fileItems] = await Promise.all([db.customVoice.list(), readCustomVoicesFile()]);
+  const mergedById = new Map<string, (typeof dbItems)[number]>();
+  for (const item of fileItems) mergedById.set(item.voiceId, item);
+  for (const item of dbItems) mergedById.set(item.voiceId, item);
+  const items = [...mergedById.values()];
   return NextResponse.json({ items });
 }
 
@@ -126,15 +131,24 @@ export async function POST(request: Request) {
   try {
     const uploadedUrl = await uploadPreviewAudioIfPresent(voiceId, previewFile);
     const finalPreviewUrl = (uploadedUrl ?? previewUrl).trim();
-
-    const row = await db.customVoice.insert({
+    const payload = {
       voiceId,
       name,
       gender,
       locale,
       previewUrl: finalPreviewUrl,
       tagsJson,
-    });
+    };
+
+    let row: Awaited<ReturnType<typeof db.customVoice.insert>> | null = null;
+    let dbError = "";
+    try {
+      row = await db.customVoice.insert(payload);
+    } catch (error) {
+      dbError = error instanceof Error ? error.message : String(error ?? "");
+    }
+
+    await upsertCustomVoiceFile(payload);
 
     if (uploadedUrl) {
       try {
@@ -144,7 +158,13 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json(row);
+    if (row) return NextResponse.json(row);
+    return NextResponse.json({
+      ...payload,
+      warning: dbError
+        ? `Сохранено в файл voices/custom-voices.json. БД недоступна: ${dbError}`
+        : undefined,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (/duplicate|unique|violates/i.test(msg)) {

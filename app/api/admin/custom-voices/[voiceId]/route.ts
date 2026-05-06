@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { db } from "../../../../../lib/db";
 import { getApiSessionUser } from "../../../../../lib/auth/api-session";
+import { deleteCustomVoiceFile } from "../../../../../lib/custom-voices-file";
 
 export async function DELETE(_request: Request, context: { params: Promise<{ voiceId: string }> }) {
   const sessionUser = await getApiSessionUser();
@@ -16,8 +17,17 @@ export async function DELETE(_request: Request, context: { params: Promise<{ voi
   }
 
   try {
-    await db.customVoice.delete(voiceId);
-    await db.voicePreviewOverride.deleteByVoiceId(voiceId);
+    try {
+      await db.customVoice.delete(voiceId);
+    } catch {
+      // Может не существовать в БД на конкретном окружении.
+    }
+    try {
+      await db.voicePreviewOverride.deleteByVoiceId(voiceId);
+    } catch {
+      // ignore
+    }
+    await deleteCustomVoiceFile(voiceId);
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

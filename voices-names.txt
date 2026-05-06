@@ -1,0 +1,99 @@
+Adam - Brooding, Dark, Tough American
+Adam
+Brian
+Dmitry D
+Alexandr Vlasov - Professional Voiceover
+Bill
+Dan Dan
+Jon - Warm & Grounded Storyteller
+Nathaniel C – Deep Midnight Storyteller RJ Voice
+George
+Prince Nuri
+Jessica
+Chris
+Michael C. Vincent
+Nicolas - Narration
+Benjamin - Criovozia
+Will
+Matilda
+Charlie
+Sarah
+Mark - ConvoAI
+Artem Lebedev - Captivating and Engaging
+Brian Nguyen
+Liam
+Lily
+Alice
+Ryan
+Grandpa
+Leonid Drapei - Wise, Calm Teacher
+Jon - Conversational Voice
+Daniel
+Emily
+Clyde
+Charlotte
+Serena
+Benedict - Smooth British Narrator
+Kanika
+Eric
+Georgy - Clear, Engaging and Confident
+Nathaniel
+Harry
+Bill Oxley - Documentary Commentator
+Laura
+Eva Dorado
+Tomasz Zborek
+Brian - Deep & Funny
+Nikolay Ivanov - Warm, Joyful, and Rich
+Dave
+Mimi
+Elderbark – Rooted and Deep
+Eve - Narrative & Audiobooks
+Helmut - News & Anchorman
+David - Epic Trailer
+Ranger3D.pro
+Jerry
+Reel – Conversational Voice for Short Content
+Jessie
+Susi
+Loardar
+Juliet - Customer Care: Professional, Empathic, Warm
+Artspace - Engaging, Warm and Pleasant
+Gigi
+Alexander - Smooth, Deep and Round
+Brian S. - Viral Social Media Narration
+River
+Vincent (Library)
+Aria
+Flavio Francisco - Narrative - Brazilian Portuguese
+Nathaniel C - Dramatic Suspense-Driven British
+Grandfather Joe - Gentle, warm & wise
+Manuel - Profound, Deep and Strong
+Radislav Sietov - Calm and Relaxing
+Valory - Mysterious, Calm and Natural
+lairjose - Smooth Brazilian male voice
+Gaëlle - Audiobooks & Story-telling
+Hinata
+Brian - Clean, Professional and Balanced
+Martin Alvarez - Soothing and Hopeful
+Elariel - Light, Ethereal and Gentle
+David Gaspar - Velvety, Clear and Warm
+Ron - Older American Story Teller
+Thomas
+Sam
+Blondie - Intense Woman
+ScheilaSMTy
+Jacquie - Friendly, Clear and British
+Rafael
+Clint - Old, Raspy and Experienced
+Kaori – Relatable & Friendly Japanese Voice
+Peter
+Christian - Serious TV Host
+Alberto Rodríguez - Serious, Narrative
+Archer - Meditative, Relaxing and Calm
+Harwood - Clear, Expressive, Engaging
+Carmelo - Mature, Mysterious and Clear
+Viking
+Storyteller Romantic
+Bill Oxley
+]*>(.*?)

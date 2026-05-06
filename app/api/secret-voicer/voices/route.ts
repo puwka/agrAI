@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { db } from "../../../../lib/db";
+import { readCustomVoicesFile } from "../../../../lib/custom-voices-file";
 import premadeCatalog from "../../../../lib/elevenlabs-premade-voices.json";
+import secretVoicerOrderCatalog from "../../../../lib/secret-voicer-order.json";
 
 const VOICES_URL = "https://secretvoicer.com/api/public/showcase-voices-filtered/";
 const SHOWCASE_FETCH_URLS = [
@@ -144,6 +146,13 @@ async function getVoicesPayload(includeHidden: boolean) {
       upstreamOrderById.set(id, idx);
       idx += 1;
     }
+    const staticOrder = secretVoicerOrderCatalog as { voiceIds?: string[] };
+    for (const rawId of staticOrder.voiceIds ?? []) {
+      const id = String(rawId ?? "").trim();
+      if (!id || upstreamOrderById.has(id)) continue;
+      upstreamOrderById.set(id, idx);
+      idx += 1;
+    }
   }
 
   const byId = new Map<string, NormalizedVoice>();
@@ -173,7 +182,11 @@ async function getVoicesPayload(includeHidden: boolean) {
     });
   }
 
-  const customRows = await db.customVoice.list();
+  const [dbCustomRows, fileCustomRows] = await Promise.all([db.customVoice.list(), readCustomVoicesFile()]);
+  const customRowsById = new Map<string, (typeof dbCustomRows)[number]>();
+  for (const row of fileCustomRows) customRowsById.set(row.voiceId, row);
+  for (const row of dbCustomRows) customRowsById.set(row.voiceId, row);
+  const customRows = [...customRowsById.values()];
   const customVoiceIds = new Set(customRows.map((c: { voiceId: string }) => c.voiceId));
   for (const c of customRows) {
     let tags: string[] = [];
