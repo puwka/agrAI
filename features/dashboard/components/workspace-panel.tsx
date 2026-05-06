@@ -205,6 +205,10 @@ export function WorkspacePanel({
   const isTranscriptionMode = selectedModel?.id === "transcription";
   const isVideoEnhanceMode = selectedModel?.id === "video-enhance";
   const isMotionTransferMode = selectedModel?.id === "motion-transfer";
+  const runwayAspectOptionsForCurrentMode =
+    isVideoMode && videoModelVariant === "runway-gen-4" && mediaInputMode === "TEXT"
+      ? runwayVideoAspectOptions.filter((o) => o.value !== "9:16")
+      : runwayVideoAspectOptions;
   const textFromLabel = isPhotoMode ? "Из текста в фото" : "Из текста в видео";
   const imageFromLabel = isPhotoMode ? "Из фото в фото" : "Из фото в видео";
   const [voiceModalOpen, setVoiceModalOpen] = useState(false);
@@ -846,7 +850,7 @@ export function WorkspacePanel({
                       ) : (
                       <div className="inline-flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">
                         {(videoModelVariant === "runway-gen-4"
-                          ? runwayVideoAspectOptions.map((o) => ({ value: o.value, label: o.title }))
+                          ? runwayAspectOptionsForCurrentMode.map((o) => ({ value: o.value, label: o.title }))
                           : defaultAspectOptions
                         ).map((option) => {
                           const checked = aspectRatio === option.value;
@@ -867,7 +871,9 @@ export function WorkspacePanel({
                           );
                         })}
                       </div>
-                      )
+                      {videoModelVariant === "runway-gen-4" && mediaInputMode === "TEXT" ? (
+                        <p className="text-xs text-zinc-500">Для Runway в режиме «из текста» формат 9:16 недоступен.</p>
+                      ) : null}
                     ) : null}
                   </div>
                 ) : null}

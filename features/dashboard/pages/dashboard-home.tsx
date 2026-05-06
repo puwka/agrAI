@@ -510,6 +510,15 @@ export function DashboardHomePage({
         setGenerationSubmitError(`Для Runway Gen-4 максимум ${MAX_RUNWAY_PROMPT_LEN} символов в промпте.`);
         return;
       }
+      if (
+        selectedModel.id === "video" &&
+        videoModelVariant === "runway-gen-4" &&
+        mediaInputMode === "TEXT" &&
+        aspectRatio === "9:16"
+      ) {
+        setGenerationSubmitError("Для Runway Gen-4 генерация из текста в формате 9:16 недоступна. Выберите другой формат или режим «из фото в видео».");
+        return;
+      }
       if (mediaInputMode === "TEXT" && !prompt.trim()) {
         setGenerationSubmitError("Введите описание для режима «из текста».");
         return;
@@ -882,6 +891,9 @@ export function DashboardHomePage({
           if (mode === "TEXT") {
             setReferenceImageUrls([]);
             setReferenceUploadError(null);
+            if (selectedModel?.id === "video" && videoModelVariant === "runway-gen-4" && aspectRatio === "9:16") {
+              setAspectRatio("16:9");
+            }
           }
         }}
         referenceImageUrls={referenceImageUrls}
@@ -974,6 +986,9 @@ export function DashboardHomePage({
               aspectRatio !== "9:16"
             ) {
               setAspectRatio("1:1");
+            }
+            if (mediaInputMode === "TEXT" && aspectRatio === "9:16") {
+              setAspectRatio("16:9");
             }
           } else if (aspectRatio === "21:9") {
             setAspectRatio("16:9");

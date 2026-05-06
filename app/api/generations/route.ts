@@ -479,6 +479,17 @@ export async function POST(request: Request) {
         ? Math.round(body.runwayDurationSec)
         : null;
     if (runwayDurationRaw === 5 || runwayDurationRaw === 10) {
+      if (inputMode === "TEXT" && aspectRatio === "9:16") {
+        return NextResponse.json(
+          {
+            error:
+              "Для Runway Gen-4 генерация из текста в формате 9:16 недоступна. Выберите другой формат или режим «из фото в видео».",
+          },
+          { status: 400 },
+        );
+      }
+    }
+    if (runwayDurationRaw === 5 || runwayDurationRaw === 10) {
       promptToStore = `${promptToStore}\n[RunwayDurationSec:${runwayDurationRaw}]`;
     } else {
       const vrRaw = typeof body.veoResolution === "string" ? body.veoResolution.trim().toLowerCase() : "";
