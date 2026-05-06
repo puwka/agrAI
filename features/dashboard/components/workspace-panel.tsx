@@ -848,32 +848,35 @@ export function WorkspacePanel({
                         })}
                       </div>
                       ) : (
-                      <div className="inline-flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">
-                        {(videoModelVariant === "runway-gen-4"
-                          ? runwayAspectOptionsForCurrentMode.map((o) => ({ value: o.value, label: o.title }))
-                          : defaultAspectOptions
-                        ).map((option) => {
-                          const checked = aspectRatio === option.value;
-                          return (
-                            <button
-                              key={option.value}
-                              type="button"
-                              onClick={() => onAspectRatioChange(option.value)}
-                              className={[
-                                "rounded-xl border px-3 py-2 text-xs font-semibold transition-all duration-300",
-                                checked
-                                  ? "border-white/20 bg-white/10 text-white shadow-[0_0_18px_rgba(220,223,224,0.12)]"
-                                  : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/25 hover:bg-white/10",
-                              ].join(" ")}
-                            >
-                              {option.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {videoModelVariant === "runway-gen-4" && mediaInputMode === "TEXT" ? (
-                        <p className="text-xs text-zinc-500">Для Runway в режиме «из текста» формат 9:16 недоступен.</p>
-                      ) : null}
+                        <>
+                          <div className="inline-flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">
+                            {(videoModelVariant === "runway-gen-4"
+                              ? runwayAspectOptionsForCurrentMode.map((o) => ({ value: o.value, label: o.title }))
+                              : defaultAspectOptions
+                            ).map((option) => {
+                              const checked = aspectRatio === option.value;
+                              return (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  onClick={() => onAspectRatioChange(option.value)}
+                                  className={[
+                                    "rounded-xl border px-3 py-2 text-xs font-semibold transition-all duration-300",
+                                    checked
+                                      ? "border-white/20 bg-white/10 text-white shadow-[0_0_18px_rgba(220,223,224,0.12)]"
+                                      : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/25 hover:bg-white/10",
+                                  ].join(" ")}
+                                >
+                                  {option.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {videoModelVariant === "runway-gen-4" && mediaInputMode === "TEXT" ? (
+                            <p className="text-xs text-zinc-500">Для Runway в режиме «из текста» формат 9:16 недоступен.</p>
+                          ) : null}
+                        </>
+                      )
                     ) : null}
                   </div>
                 ) : null}
