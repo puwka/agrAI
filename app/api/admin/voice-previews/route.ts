@@ -34,7 +34,7 @@ async function saveVoicePreviewLocally(input: { voiceId: string; ext: string; bu
   const absDir = path.join(process.cwd(), "public", relDir);
   await mkdir(absDir, { recursive: true });
   await writeFile(path.join(absDir, fileName), input.buffer);
-  return `/${relDir.replaceAll("\\", "/")}/${fileName}`;
+  return `/api/voice-previews/${fileName}`;
 }
 
 export async function POST(request: Request) {
