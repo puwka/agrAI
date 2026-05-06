@@ -16,6 +16,7 @@ import { MAX_ACT_TWO_VIDEO_UPLOAD_LABEL, MAX_TOPAZ_UPLOAD_LABEL } from "../../..
 
 type GenerationRow = {
   id: string;
+  modelId?: string;
   modelName: string;
   prompt: string;
   aspectRatio: string;
@@ -731,7 +732,39 @@ export function DashboardHomePage({
           }
           return;
         }
-        const created = raw as GenerationRow;
+        const created = raw as GenerationRow & {
+          sourcePrompt?: string;
+          sourceAspectRatio?: string;
+          sourceInputMode?: string;
+          sourceReferenceImageUrl?: string | null;
+        };
+        const modelId = (created.modelId ?? "").trim();
+        if (modelId) {
+          setSelectedModelId(modelId);
+          const sourcePrompt = typeof created.sourcePrompt === "string" ? created.sourcePrompt : "";
+          setPromptsByModel((prev) => ({ ...prev, [modelId]: sourcePrompt || (prev[modelId] ?? "") }));
+        }
+        const sourceAspect = (created.sourceAspectRatio ?? "").trim();
+        if (
+          sourceAspect === "21:9" ||
+          sourceAspect === "16:9" ||
+          sourceAspect === "4:3" ||
+          sourceAspect === "3:2" ||
+          sourceAspect === "1:1" ||
+          sourceAspect === "2:3" ||
+          sourceAspect === "3:4" ||
+          sourceAspect === "9:16"
+        ) {
+          setAspectRatio(sourceAspect);
+        }
+        const sourceMode = (created.sourceInputMode ?? "").toUpperCase();
+        if (sourceMode === "IMAGE_REF") {
+          setMediaInputMode("IMAGE_REF");
+          const sourceRef = (created.sourceReferenceImageUrl ?? "").trim();
+          setReferenceImageUrls(sourceRef ? [sourceRef] : []);
+        } else {
+          setMediaInputMode("TEXT");
+        }
         setLastSubmittedId(created.id);
         setDeliveryPending(true);
         setResultUrl("");

@@ -5,13 +5,6 @@ import { getApiSessionUser } from "../../../../../lib/auth/api-session";
 import { getMaintenanceState } from "../../../../../lib/maintenance";
 import { hasActiveSubscription } from "../../../../../lib/subscription";
 
-function withRepeatLabel(modelName: string): string {
-  const base = modelName.trim();
-  if (!base) return "Повтор";
-  if (base.toLowerCase().includes("повтор")) return base;
-  return `${base} • Повтор`;
-}
-
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const sessionUser = await getApiSessionUser();
   if (!sessionUser?.id) {
@@ -82,7 +75,9 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   const repeated = await db.generation.create({
     data: {
       modelId: source.modelId,
-      modelName: withRepeatLabel(source.modelName ?? ""),
+      // Важно: оставляем modelName без модификаций, потому что воркер
+      // определяет маршрут обработки по оригинальному имени модели.
+      modelName: source.modelName ?? "",
       inputMode: source.inputMode ?? "TEXT",
       referenceImageUrl: source.referenceImageUrl ?? null,
       prompt: source.prompt ?? "",
@@ -95,5 +90,12 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     },
   });
 
-  return NextResponse.json(repeated);
+  return NextResponse.json({
+    ...repeated,
+    repeatedFromId: source.id,
+    sourcePrompt: source.prompt ?? "",
+    sourceAspectRatio: source.aspectRatio,
+    sourceInputMode: source.inputMode ?? "TEXT",
+    sourceReferenceImageUrl: source.referenceImageUrl ?? null,
+  });
 }
