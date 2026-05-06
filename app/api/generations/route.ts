@@ -152,6 +152,7 @@ export async function GET(request: Request) {
   const q = (searchParams.get("q") ?? "").trim();
   const brief = searchParams.get("brief") === "1";
   const includeTotal = searchParams.get("includeTotal") === "1";
+  const fresh = searchParams.get("fresh") === "1";
   const cacheKey = [
     sessionUser.id,
     limit,
@@ -163,7 +164,7 @@ export async function GET(request: Request) {
   ].join("|");
   const now = Date.now();
   const cached = generationsListCache.get(cacheKey);
-  if (cached && cached.expiresAt > now) {
+  if (!fresh && cached && cached.expiresAt > now) {
     return NextResponse.json(cached.payload, {
       headers: { "Cache-Control": "private, max-age=3, stale-while-revalidate=8" },
     });

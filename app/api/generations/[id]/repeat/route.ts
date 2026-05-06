@@ -1,0 +1,99 @@
+import { NextResponse } from "next/server";
+
+import { db } from "../../../../../lib/db";
+import { getApiSessionUser } from "../../../../../lib/auth/api-session";
+import { getMaintenanceState } from "../../../../../lib/maintenance";
+import { hasActiveSubscription } from "../../../../../lib/subscription";
+
+function withRepeatLabel(modelName: string): string {
+  const base = modelName.trim();
+  if (!base) return "Повтор";
+  if (base.toLowerCase().includes("повтор")) return base;
+  return `${base} • Повтор`;
+}
+
+export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const sessionUser = await getApiSessionUser();
+  if (!sessionUser?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id: rawId } = await context.params;
+  const sourceGenerationId = rawId?.trim();
+  if (!sourceGenerationId) {
+    return NextResponse.json({ error: "Некорректный id генерации" }, { status: 400 });
+  }
+
+  if (sessionUser.role !== "ADMIN") {
+    const maintenance = await getMaintenanceState();
+    if (maintenance.enabled) {
+      return NextResponse.json(
+        { error: "Технические работы", maintenanceMessage: maintenance.message },
+        { status: 503 },
+      );
+    }
+
+    const restriction = await db.user.findUnique({
+      where: { id: sessionUser.id },
+      select: { restrictedUntil: true, restrictedReason: true, subscriptionUntil: true },
+    });
+    const now = new Date();
+    if (restriction?.restrictedUntil && restriction.restrictedUntil.getTime() > now.getTime()) {
+      return NextResponse.json(
+        {
+          error: restriction.restrictedReason?.trim() || "Злоупотребление генерациями.",
+          restrictedUntil: restriction.restrictedUntil,
+        },
+        { status: 403 },
+      );
+    }
+    if (!hasActiveSubscription(sessionUser.role, restriction?.subscriptionUntil ?? null)) {
+      return NextResponse.json(
+        {
+          error: "Подписка закончилась. Обратитесь к администратору для продления.",
+          subscriptionExpired: true,
+          subscriptionUntil: restriction?.subscriptionUntil ?? null,
+        },
+        { status: 403 },
+      );
+    }
+    const unfinished = await db.generation.findFirst({
+      where: { userId: sessionUser.id, status: { in: ["PENDING", "QUEUED"] } },
+      select: { id: true },
+    });
+    if (unfinished) {
+      return NextResponse.json(
+        { error: "У вас уже есть заявка в работе. Дождитесь результата и попробуйте снова." },
+        { status: 409 },
+      );
+    }
+  }
+
+  const source = await db.generation.findFirst({
+    where: {
+      id: sourceGenerationId,
+      ...(sessionUser.role === "ADMIN" ? {} : { userId: sessionUser.id }),
+    },
+  });
+  if (!source) {
+    return NextResponse.json({ error: "Исходная генерация не найдена" }, { status: 404 });
+  }
+
+  const repeated = await db.generation.create({
+    data: {
+      modelId: source.modelId,
+      modelName: withRepeatLabel(source.modelName ?? ""),
+      inputMode: source.inputMode ?? "TEXT",
+      referenceImageUrl: source.referenceImageUrl ?? null,
+      prompt: source.prompt ?? "",
+      aspectRatio: source.aspectRatio,
+      status: "PENDING",
+      resultUrl: null,
+      resultMessage: null,
+      errorMessage: null,
+      user: { connect: { id: source.userId } },
+    },
+  });
+
+  return NextResponse.json(repeated);
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, Search, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 import {
@@ -43,6 +43,7 @@ export function LogsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [listLoading, setListLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedSearch(searchQuery.trim()), 400);
@@ -62,6 +63,7 @@ export function LogsPage() {
         offset: String(page * PAGE_SIZE),
         status: activeFilter,
         includeTotal: "1",
+        fresh: "1",
       });
       if (debouncedSearch) {
         params.set("q", debouncedSearch);
@@ -102,6 +104,30 @@ export function LogsPage() {
     if (total === 0) return "—";
     return `${page + 1} / ${totalPages}`;
   }, [page, total, totalPages]);
+
+  const handleDeleteGeneration = useCallback(
+    async (id: string) => {
+      if (!id.trim()) return;
+      const approved = window.confirm("Удалить эту генерацию? Она исчезнет из логов и панели.");
+      if (!approved) return;
+      setDeletingId(id);
+      setError(null);
+      try {
+        const response = await fetch(`/api/generations/${encodeURIComponent(id)}`, { method: "DELETE" });
+        if (!response.ok) {
+          const data = (await response.json().catch(() => null)) as { error?: string } | null;
+          setError(data?.error ?? "Не удалось удалить генерацию");
+          return;
+        }
+        setItems((prev) => prev.filter((item) => item.id !== id));
+        setTotal((prev) => Math.max(0, prev - 1));
+        void load();
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [load],
+  );
 
   return (
     <>
@@ -243,9 +269,9 @@ export function LogsPage() {
                         </div>
 
                         <div className="flex max-w-xl flex-col gap-3">
-                      <div className="rounded-2xl border border-white/10 bg-zinc-950/70 px-4 py-3 text-sm leading-6 text-zinc-300">
-                        {formatPromptForLogsDisplay(log.prompt)}
-                      </div>
+                          <div className="rounded-2xl border border-white/10 bg-zinc-950/70 px-4 py-3 text-sm leading-6 text-zinc-300">
+                            {formatPromptForLogsDisplay(log.prompt)}
+                          </div>
                           {logStatus === "error" && errorText ? (
                             <div className="rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm leading-6 text-red-200">
                               {errorText}
@@ -264,6 +290,17 @@ export function LogsPage() {
                               Скачать файл
                             </a>
                           ) : null}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleDeleteGeneration(log.id);
+                            }}
+                            disabled={Boolean(deletingId)}
+                            className="inline-flex items-center gap-2 self-start rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {deletingId === log.id ? "Удаление…" : "Удалить"}
+                          </button>
                         </div>
                       </div>
                     </motion.div>
