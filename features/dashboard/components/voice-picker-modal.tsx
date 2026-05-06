@@ -83,7 +83,9 @@ export function VoicePickerModal({
     setLoading(true);
     setLoadError(null);
     try {
-      const response = await fetch("/api/secret-voicer/voices");
+      const response = await fetch("/api/secret-voicer/voices?fresh=1", {
+        cache: "no-store",
+      });
       if (!response.ok) {
         const data = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(data?.error ?? "Не удалось загрузить голоса");
