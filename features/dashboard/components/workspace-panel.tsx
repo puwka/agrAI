@@ -39,7 +39,7 @@ type WorkspacePanelProps = {
   mediaInputMode: MediaInputMode;
   onMediaInputModeChange: (mode: MediaInputMode) => void;
   referenceImageUrls: string[];
-  maxReferenceImages: 1 | 3;
+  maxReferenceImages: 1 | 2 | 3;
   referenceUploading: boolean;
   referenceUploadError: string | null;
   onReferenceFileSelected: (file: File) => void;

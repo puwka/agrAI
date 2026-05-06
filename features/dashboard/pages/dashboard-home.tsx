@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, Trash2 } from "lucide-react";
 
 import { models } from "../config";
 import { detectResultMediaKind } from "../lib";
@@ -84,6 +84,7 @@ export function DashboardHomePage({
   const [generations, setGenerations] = useState<GenerationRow[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [repeatLoadingId, setRepeatLoadingId] = useState<string | null>(null);
+  const [deletingGenerationId, setDeletingGenerationId] = useState<string | null>(null);
   const [selectedVoice, setSelectedVoice] = useState<VoiceOption | null>(null);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [generationSubmitError, setGenerationSubmitError] = useState<string | null>(null);
@@ -120,7 +121,11 @@ export function DashboardHomePage({
   const selectedModel = models.find((model) => model.id === selectedModelId) ?? null;
   const activeModelsCount = models.filter((m) => !m.disabled).length;
   const maxReferenceImages =
-    selectedModelId === "video" && videoModelVariant === "runway-gen-4" ? 1 : 3;
+    selectedModelId === "video"
+      ? videoModelVariant === "runway-gen-4"
+        ? 1
+        : 2
+      : 3;
 
   const prompt = selectedModelId ? promptsByModel[selectedModelId] ?? "" : "";
 
@@ -148,7 +153,9 @@ export function DashboardHomePage({
       setReferenceUploadError(
         maxReferenceImages === 1
           ? "Для Runway Gen-4 можно загрузить только 1 фото."
-          : "Можно загрузить не более 3 фото.",
+          : maxReferenceImages === 2
+            ? "Для Veo 3.1 можно загрузить не более 2 фото."
+            : "Можно загрузить не более 3 фото.",
       );
       return;
     }
@@ -535,7 +542,9 @@ export function DashboardHomePage({
           setGenerationSubmitError(
             maxReferenceImages === 1
               ? "Для Runway Gen-4 можно загрузить только 1 фото."
-              : "Можно загрузить не более 3 фото.",
+              : maxReferenceImages === 2
+                ? "Для Veo 3.1 можно загрузить не более 2 фото."
+                : "Можно загрузить не более 3 фото.",
           );
           return;
         }
@@ -793,6 +802,45 @@ export function DashboardHomePage({
       }
     },
     [loadGenerations, refreshMaintenance],
+  );
+
+  const handleDeleteGeneration = useCallback(
+    async (generationId: string) => {
+      if (!generationId.trim() || deletingGenerationId) return;
+      const ok = window.confirm("Удалить эту генерацию из списка?");
+      if (!ok) return;
+      setGenerationSubmitError(null);
+      setDeletingGenerationId(generationId);
+      try {
+        const response = await fetch(`/api/generations/${encodeURIComponent(generationId)}`, {
+          method: "DELETE",
+        });
+        const raw = (await response.json().catch(() => null)) as
+          | { error?: unknown; detail?: unknown; details?: unknown; message?: unknown }
+          | null;
+        if (!response.ok) {
+          const errorText =
+            normalizeApiErrorText(raw?.detail) ||
+            normalizeApiErrorText(raw?.details) ||
+            normalizeApiErrorText(raw?.error) ||
+            normalizeApiErrorText(raw?.message);
+          setGenerationSubmitError(errorText || "Не удалось удалить генерацию.");
+          return;
+        }
+        if (lastSubmittedId === generationId) {
+          setLastSubmittedId(null);
+          setDeliveryPending(false);
+          setResultUrl("");
+          setResultMessage("");
+        }
+        void loadGenerations();
+      } catch {
+        setGenerationSubmitError("Ошибка сети при удалении генерации.");
+      } finally {
+        setDeletingGenerationId(null);
+      }
+    },
+    [deletingGenerationId, lastSubmittedId, loadGenerations],
   );
 
   const previewDownloadGenerationId =
@@ -1098,14 +1146,16 @@ export function DashboardHomePage({
                   <div className="space-y-2 p-3">
                     <p className="text-sm font-medium text-white">{item.modelName}</p>
                     <p className="line-clamp-2 text-xs text-zinc-400">{item.prompt || "—"}</p>
-                    {ready && (
-                      <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3">
+                      {ready ? (
                         <a
                           href={`/api/generations/${item.id}/download`}
                           className="inline-flex text-xs font-semibold text-violet-300 hover:text-violet-200"
                         >
                           {item.resultUrl ? "Скачать файл" : "Скачать ответ (.txt)"}
                         </a>
+                      ) : null}
+                      {ready ? (
                         <button
                           type="button"
                           disabled={
@@ -1120,8 +1170,19 @@ export function DashboardHomePage({
                         >
                           {repeatLoadingId === item.id ? "Повтор…" : "Повторить генерацию"}
                         </button>
-                      </div>
-                    )}
+                      ) : null}
+                      <button
+                        type="button"
+                        disabled={Boolean(deletingGenerationId) || Boolean(repeatLoadingId)}
+                        onClick={() => {
+                          void handleDeleteGeneration(item.id);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-red-400/30 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        {deletingGenerationId === item.id ? "Удаление…" : "Удалить"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

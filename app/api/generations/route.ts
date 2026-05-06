@@ -430,7 +430,12 @@ export async function POST(request: Request) {
       modelId === "video" && typeof body.runwayDurationSec === "number" && Number.isFinite(body.runwayDurationSec)
         ? Math.round(body.runwayDurationSec)
         : null;
-    const maxRefsAllowed = modelId === "video" && (requestedRunwayDuration === 5 || requestedRunwayDuration === 10) ? 1 : 3;
+    const maxRefsAllowed =
+      modelId === "video"
+        ? requestedRunwayDuration === 5 || requestedRunwayDuration === 10
+          ? 1
+          : 2
+        : 3;
 
     if (inputMode === "IMAGE_REF") {
       const refs = refsNormalized.length > 0 ? refsNormalized : ref ? [ref] : [];
@@ -446,6 +451,8 @@ export async function POST(request: Request) {
             error:
               maxRefsAllowed === 1
                 ? "Для Runway Gen-4 можно загрузить только 1 фото."
+                : maxRefsAllowed === 2
+                  ? "Для Veo 3.1 можно загрузить не более 2 фото."
                 : "Можно загрузить не более 3 фото.",
           },
           { status: 400 },
