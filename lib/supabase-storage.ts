@@ -4,6 +4,76 @@ import type { Readable } from "node:stream";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 let admin: SupabaseClient | undefined;
+const SUPABASE_FETCH_TIMEOUT_MS = 30000;
+const SUPABASE_FETCH_WRITE_TIMEOUT_MS = 45000;
+const SUPABASE_FETCH_RETRIES = 4;
+let ensuredBucketName: string | null = null;
+
+function isTransientNetworkError(error: unknown) {
+  const msg = String(
+    (error as { message?: unknown })?.message ??
+      (error as { details?: unknown })?.details ??
+      error ??
+      "",
+  ).toLowerCase();
+  return (
+    msg.includes("etimedout") ||
+    msg.includes("econnreset") ||
+    msg.includes("terminated") ||
+    msg.includes("fetch failed") ||
+    msg.includes("aborted") ||
+    msg.includes("socket hang up") ||
+    msg.includes("supabase_timeout")
+  );
+}
+
+async function delay(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function extractErrorText(error: unknown): string {
+  if (!error) return "";
+  if (typeof error === "string") return error.trim();
+  if (error instanceof Error) return error.message.trim();
+  if (typeof error === "object") {
+    const obj = error as Record<string, unknown>;
+    const parts = [obj.error, obj.message, obj.details, obj.detail, obj.hint, obj.code]
+      .map((x) => (typeof x === "string" ? x.trim() : ""))
+      .filter(Boolean);
+    if (parts.length > 0) return parts.join(" | ");
+  }
+  return String(error).trim();
+}
+
+async function supabaseFetchWithRetry(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  let lastError: unknown = null;
+  const method = String(init?.method ?? "GET").toUpperCase();
+  const timeoutMs =
+    method === "GET" || method === "HEAD" ? SUPABASE_FETCH_TIMEOUT_MS : SUPABASE_FETCH_WRITE_TIMEOUT_MS;
+  for (let attempt = 1; attempt <= SUPABASE_FETCH_RETRIES; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(new Error("SUPABASE_TIMEOUT")), timeoutMs);
+    try {
+      const response = await fetch(input, {
+        ...init,
+        signal: init?.signal ?? controller.signal,
+      });
+      clearTimeout(timeout);
+      return response;
+    } catch (error) {
+      clearTimeout(timeout);
+      lastError = error;
+      if (attempt < SUPABASE_FETCH_RETRIES && isTransientNetworkError(error)) {
+        const jitter = Math.floor(Math.random() * 200);
+        await delay(350 * 2 ** (attempt - 1) + jitter);
+        continue;
+      }
+      break;
+    }
+  }
+  const detail = extractErrorText(lastError) || "Supabase fetch failed";
+  throw new Error(`SUPABASE_FETCH_ERROR: ${detail}`);
+}
 
 function getAdmin(): SupabaseClient {
   if (!admin) {
@@ -14,9 +84,32 @@ function getAdmin(): SupabaseClient {
     }
     admin = createClient(url, key, {
       auth: { autoRefreshToken: false, persistSession: false },
+      global: { fetch: supabaseFetchWithRetry },
     });
   }
   return admin;
+}
+
+async function ensureBucketExists() {
+  const bucket = supabaseStorageBucket();
+  if (ensuredBucketName === bucket) return;
+  const supabase = getAdmin();
+  const { data, error } = await supabase.storage.getBucket(bucket);
+  if (!error && data) {
+    ensuredBucketName = bucket;
+    return;
+  }
+  const missing =
+    error &&
+    /not found|does not exist|bucket.*not/i.test(
+      `${(error as { message?: string })?.message ?? ""} ${(error as { error?: string })?.error ?? ""}`,
+    );
+  if (!missing) return;
+  const { error: createError } = await supabase.storage.createBucket(bucket, { public: true });
+  if (createError) {
+    throw new Error(createError.message);
+  }
+  ensuredBucketName = bucket;
 }
 
 export function supabaseUploadsEnabled() {
@@ -72,6 +165,7 @@ export async function uploadUserReferenceImage(input: {
   ext: string;
 }) {
   const bucket = supabaseStorageBucket();
+  await ensureBucketExists();
   const safeBase = `${input.userId}-${Date.now()}-${randomBytes(6).toString("hex")}${input.ext}`;
   const objectPath = `references/${safeBase}`;
   const supabase = getAdmin();
@@ -94,6 +188,7 @@ export async function uploadUserReferenceImageStream(input: {
   ext: string;
 }) {
   const bucket = supabaseStorageBucket();
+  await ensureBucketExists();
   const safeBase = `${input.userId}-${Date.now()}-${randomBytes(6).toString("hex")}${input.ext}`;
   const objectPath = `references/${safeBase}`;
   const supabase = getAdmin();
@@ -136,6 +231,7 @@ export async function uploadVoicePreviewFile(input: {
   ext: string;
 }) {
   const bucket = supabaseStorageBucket();
+  await ensureBucketExists();
   const safeId = sanitizeStorageVoiceId(input.voiceId);
   const objectPath = `voice-previews/${safeId}${input.ext}`;
   const supabase = getAdmin();
@@ -161,6 +257,7 @@ export async function uploadGenerationResultFile(input: {
   ext: string;
 }) {
   const bucket = supabaseStorageBucket();
+  await ensureBucketExists();
   const objectPath = `generations/${input.generationId}${input.ext}`;
   const supabase = getAdmin();
   const rawMime = input.mime?.trim() || "";

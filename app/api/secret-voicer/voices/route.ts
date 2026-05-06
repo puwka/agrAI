@@ -37,6 +37,9 @@ type NormalizedVoice = {
 function toAbsoluteMediaUrl(url: string) {
   const trimmed = url.trim();
   if (!trimmed) return "";
+  if (trimmed.startsWith("/")) {
+    return trimmed;
+  }
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
     // На HTTPS-сайте блокируется mixed content, поэтому форсируем HTTPS для превью.
     try {
@@ -82,11 +85,13 @@ function mergeVoicePreferSv(existing: NormalizedVoice, incoming: NormalizedVoice
 }
 
 export async function GET(request: Request) {
-  const includeHidden = new URL(request.url).searchParams.get("includeHidden") === "1";
+  const searchParams = new URL(request.url).searchParams;
+  const includeHidden = searchParams.get("includeHidden") === "1";
+  const fresh = searchParams.get("fresh") === "1";
   const cacheKey = includeHidden ? "with-hidden" : "visible-only";
   const now = Date.now();
   const cached = voicesCache.get(cacheKey);
-  if (cached && cached.expiresAt > now) {
+  if (!fresh && cached && cached.expiresAt > now) {
     return NextResponse.json(cached.payload, {
       headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },
     });

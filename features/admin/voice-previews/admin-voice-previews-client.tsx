@@ -21,7 +21,9 @@ export function AdminVoicePreviewsClient() {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/secret-voicer/voices?includeHidden=1");
+      const res = await fetch("/api/secret-voicer/voices?includeHidden=1&fresh=1", {
+        cache: "no-store",
+      });
       const data = (await res.json().catch(() => null)) as { voices?: VoiceRow[]; error?: string } | null;
       if (!res.ok) {
         setError(data?.error ?? "Не удалось загрузить голоса");
