@@ -29,6 +29,10 @@ type GenerationRow = {
   createdAt: string;
 };
 
+function stripRepeatMarker(prompt: string): string {
+  return (prompt ?? "").replace(/\s*\[RepeatOf:[^\]]+\]\s*/g, "\n").trim();
+}
+
 const MAX_RUNWAY_PROMPT_LEN = 1000;
 
 function normalizeApiErrorText(value: unknown): string {
@@ -741,7 +745,7 @@ export function DashboardHomePage({
         const modelId = (created.modelId ?? "").trim();
         if (modelId) {
           setSelectedModelId(modelId);
-          const sourcePrompt = typeof created.sourcePrompt === "string" ? created.sourcePrompt : "";
+          const sourcePrompt = stripRepeatMarker(typeof created.sourcePrompt === "string" ? created.sourcePrompt : "");
           setPromptsByModel((prev) => ({ ...prev, [modelId]: sourcePrompt || (prev[modelId] ?? "") }));
         }
         const sourceAspect = (created.sourceAspectRatio ?? "").trim();
@@ -778,6 +782,11 @@ export function DashboardHomePage({
     },
     [loadGenerations, refreshMaintenance],
   );
+
+  const previewDownloadGenerationId =
+    lastSubmittedId && !deliveryPending && (resultUrl.trim() || resultMessage.trim())
+      ? lastSubmittedId
+      : null;
 
   return (
     <>
@@ -893,11 +902,15 @@ export function DashboardHomePage({
           setVoiceError(null);
         }}
         onGenerate={handleGenerate}
-        previewDownloadGenerationId={
-          lastSubmittedId && !deliveryPending && (resultUrl.trim() || resultMessage.trim())
-            ? lastSubmittedId
-            : null
+        onRepeatGeneration={
+          previewDownloadGenerationId
+            ? () => {
+                void handleRepeatGeneration(previewDownloadGenerationId);
+              }
+            : undefined
         }
+        repeatGenerationLoading={Boolean(repeatLoadingId)}
+        previewDownloadGenerationId={previewDownloadGenerationId}
         transcriptionFileUrl={transcriptionFileUrl}
         transcriptionUploading={transcriptionUploading}
         transcriptionUploadError={transcriptionUploadError}

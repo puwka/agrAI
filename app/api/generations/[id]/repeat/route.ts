@@ -80,7 +80,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       modelName: source.modelName ?? "",
       inputMode: source.inputMode ?? "TEXT",
       referenceImageUrl: source.referenceImageUrl ?? null,
-      prompt: source.prompt ?? "",
+      prompt: `${source.prompt ?? ""}\n[RepeatOf:${source.id}]`,
       aspectRatio: source.aspectRatio,
       status: "PENDING",
       resultUrl: null,

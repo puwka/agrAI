@@ -24,6 +24,7 @@ export function formatPromptForLogsDisplay(prompt: string): string {
     .replace(/\s*\[RefImage:.+?\]\s*/g, "\n")
     .replace(/\s*\[RunwayDurationSec:\d+\]\s*/g, "\n")
     .replace(/\s*\[VeoResolution:(720p|1080p)\]\s*/g, "\n")
+    .replace(/\s*\[RepeatOf:[^\]]+\]\s*/g, "\n")
     .trim();
 }
 

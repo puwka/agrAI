@@ -49,6 +49,8 @@ type WorkspacePanelProps = {
   onAspectRatioChange: (value: AspectRatio) => void;
   onVoiceChange: (voice: VoiceOption | null) => void;
   onGenerate: () => void;
+  onRepeatGeneration?: () => void;
+  repeatGenerationLoading?: boolean;
   /** Для кнопки «Скачать» в превью (после готовности текущей заявки) */
   previewDownloadGenerationId: string | null;
   /** Транскрибация: загруженный источник (URL в storage / локально) */
@@ -155,6 +157,8 @@ export function WorkspacePanel({
   onAspectRatioChange,
   onVoiceChange,
   onGenerate,
+  onRepeatGeneration,
+  repeatGenerationLoading = false,
   previewDownloadGenerationId,
   transcriptionFileUrl,
   transcriptionUploading,
@@ -906,14 +910,26 @@ export function WorkspacePanel({
               </div>
             </div>
 
-            <ResultPreview
-              aspectRatio={aspectRatio}
-              isLoading={isLoading}
-              deliveryPending={deliveryPending}
-              resultUrl={resultUrl}
-              resultMessage={resultMessage}
-              downloadGenerationId={previewDownloadGenerationId}
-            />
+            <div className="space-y-3">
+              <ResultPreview
+                aspectRatio={aspectRatio}
+                isLoading={isLoading}
+                deliveryPending={deliveryPending}
+                resultUrl={resultUrl}
+                resultMessage={resultMessage}
+                downloadGenerationId={previewDownloadGenerationId}
+              />
+              {previewDownloadGenerationId && onRepeatGeneration ? (
+                <button
+                  type="button"
+                  onClick={onRepeatGeneration}
+                  disabled={repeatGenerationLoading || queueBlocked || deliveryPending || isLoading}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {repeatGenerationLoading ? "Повтор…" : "Повторить генерацию"}
+                </button>
+              ) : null}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

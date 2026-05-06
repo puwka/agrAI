@@ -49,6 +49,16 @@ function stripExtraRefImages(prompt: string): string {
   return (prompt ?? "").replace(/\s*\[RefImage:.+?\]\s*/g, "\n").trim();
 }
 
+function repeatSourceIdFromPrompt(prompt: string): string | null {
+  const m = /\[RepeatOf:([^\]]+)\]/i.exec(prompt ?? "");
+  const id = (m?.[1] ?? "").trim();
+  return id || null;
+}
+
+function stripRepeatMarker(prompt: string): string {
+  return (prompt ?? "").replace(/\s*\[RepeatOf:[^\]]+\]\s*/gi, "\n").trim();
+}
+
 type AdminGeneration = {
   id: string;
   userId: string;
@@ -474,6 +484,7 @@ export function AdminGenerationsClient({
           const motionVideoUrl = g.modelId === "motion-transfer" ? motionVideoUrlFromPrompt(g.prompt) : null;
           const extraRefImages = extractExtraRefImages(g.prompt ?? "");
           const referenceImages = [g.referenceImageUrl, ...extraRefImages].filter((x): x is string => Boolean(x));
+          const repeatSourceId = repeatSourceIdFromPrompt(g.prompt ?? "");
           const userName = g.user?.name?.trim() || `Пользователь ${g.userId.slice(0, 8)}`;
           const userEmail = g.user?.email?.trim() || "—";
 
@@ -512,6 +523,11 @@ export function AdminGenerationsClient({
                     <span className="rounded-full border border-red-400/35 bg-red-500/15 px-3 py-1 text-red-200">
                       {g.aspectRatio}
                     </span>
+                    {repeatSourceId ? (
+                      <span className="rounded-full border border-violet-400/35 bg-violet-500/15 px-3 py-1 text-violet-200">
+                        Повтор
+                      </span>
+                    ) : null}
                   </div>
                   <button
                     type="button"
@@ -533,11 +549,16 @@ export function AdminGenerationsClient({
                 {(() => {
                   const runwayDuration = runwayDurationSecFromPrompt(g.prompt);
                   const veoRes = veoResolutionFromPrompt(g.prompt ?? "");
-                  const text = stripExtraRefImages(stripVeoResolutionMarker(stripRunwayDurationMarker(g.prompt ?? "")));
+                  const text = stripRepeatMarker(
+                    stripExtraRefImages(stripVeoResolutionMarker(stripRunwayDurationMarker(g.prompt ?? ""))),
+                  );
                   const needsToggle = text.length > PROMPT_TOGGLE_MIN_LEN;
                   const expanded = Boolean(promptExpanded[g.id]);
                   return (
                     <div className="space-y-2">
+                      {repeatSourceId ? (
+                        <p className="text-xs text-amber-300/90">{`Повтор генерации #${repeatSourceId.slice(0, 8)}`}</p>
+                      ) : null}
                       {typeof runwayDuration === "number" ? (
                         <p className="text-xs text-zinc-500">{`Runway Gen-4: ${runwayDuration} сек`}</p>
                       ) : null}
