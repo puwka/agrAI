@@ -201,7 +201,6 @@ export function WorkspacePanel({
   const isTranscriptionMode = selectedModel?.id === "transcription";
   const isVideoEnhanceMode = selectedModel?.id === "video-enhance";
   const isMotionTransferMode = selectedModel?.id === "motion-transfer";
-  const voiceMaxChars = 4000;
   const textFromLabel = isPhotoMode ? "Из текста в фото" : "Из текста в видео";
   const imageFromLabel = isPhotoMode ? "Из фото в фото" : "Из фото в видео";
   const [voiceModalOpen, setVoiceModalOpen] = useState(false);
@@ -790,11 +789,9 @@ export function WorkspacePanel({
                       value={prompt}
                       onChange={(event) => onPromptChange(event.target.value)}
                       maxLength={
-                        isVoiceMode
-                          ? voiceMaxChars
-                          : isVideoMode && videoModelVariant === "runway-gen-4"
+                        isVideoMode && videoModelVariant === "runway-gen-4"
                             ? 1000
-                            : undefined
+                          : undefined
                       }
                       placeholder={
                         showMediaInputModes && mediaInputMode === "IMAGE_REF"
@@ -803,9 +800,7 @@ export function WorkspacePanel({
                       }
                       className="min-h-[220px] w-full resize-none rounded-[24px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-white outline-none backdrop-blur-xl transition-all duration-300 placeholder:text-zinc-500 focus:border-white/30 focus:bg-white/8 focus:shadow-[0_0_0_1px_rgba(220,223,224,0.2),0_0_24px_rgba(220,223,224,0.1)]"
                     />
-                    {isVoiceMode ? (
-                      <p className="text-xs text-zinc-500">{`Символов: ${prompt.length}/${voiceMaxChars}`}</p>
-                    ) : null}
+                    {isVoiceMode ? <p className="text-xs text-zinc-500">{`Символов: ${prompt.length}`}</p> : null}
                     {isVideoMode && videoModelVariant === "runway-gen-4" ? (
                       <p className="text-xs text-zinc-500">{`Символов: ${prompt.length}/1000`}</p>
                     ) : null}

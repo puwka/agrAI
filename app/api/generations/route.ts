@@ -9,7 +9,6 @@ import type { AspectRatio } from "../../../features/dashboard/types";
 
 const GENERATIONS_CACHE_TTL_MS = 8000;
 const generationsListCache = new Map<string, { expiresAt: number; payload: unknown }>();
-const MAX_VOICE_PROMPT_CHARS = 4000;
 
 function extractErrorText(error: unknown): string {
   const chunks: string[] = [];
@@ -496,13 +495,6 @@ export async function POST(request: Request) {
           ? "—"
           : promptToStore
         : promptToStore;
-
-  if (modelId === "voice" && typeof storedPrompt === "string" && storedPrompt.length > MAX_VOICE_PROMPT_CHARS) {
-    return NextResponse.json(
-      { error: `Текст для озвучки не длиннее ${MAX_VOICE_PROMPT_CHARS} символов.` },
-      { status: 400 },
-    );
-  }
 
   let generation;
   let lastWriteError: unknown = null;

@@ -130,6 +130,16 @@ async function getVoicesPayload(includeHidden: boolean) {
 
   const secretVoicerHint =
     typeof firstOk.value.total_count === "number" ? firstOk.value.total_count : undefined;
+  const upstreamOrderById = new Map<string, number>();
+  {
+    let idx = 0;
+    for (const raw of firstOk.value.voices ?? []) {
+      const id = String(raw.voice_id ?? raw.id ?? "").trim();
+      if (!id || upstreamOrderById.has(id)) continue;
+      upstreamOrderById.set(id, idx);
+      idx += 1;
+    }
+  }
 
   const byId = new Map<string, NormalizedVoice>();
 
@@ -180,6 +190,18 @@ async function getVoicesPayload(includeHidden: boolean) {
   }
 
   const voices = [...byId.values()].sort((a, b) => {
+    const aUpstreamPos = upstreamOrderById.get(a.id);
+    const bUpstreamPos = upstreamOrderById.get(b.id);
+    const aHasUpstream = typeof aUpstreamPos === "number";
+    const bHasUpstream = typeof bUpstreamPos === "number";
+    if (aHasUpstream && bHasUpstream) {
+      return (aUpstreamPos as number) - (bUpstreamPos as number);
+    }
+    if (aHasUpstream !== bHasUpstream) {
+      return aHasUpstream ? -1 : 1;
+    }
+
+    // Для голосов, которых нет в публичной витрине, оставляем старый предсказуемый fallback.
     const ac = customVoiceIds.has(a.id) ? 1 : 0;
     const bc = customVoiceIds.has(b.id) ? 1 : 0;
     if (ac !== bc) return bc - ac;

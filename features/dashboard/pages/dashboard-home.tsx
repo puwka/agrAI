@@ -29,7 +29,6 @@ type GenerationRow = {
 };
 
 const MAX_RUNWAY_PROMPT_LEN = 1000;
-const MAX_VOICE_PROMPT_LEN = 4000;
 
 function normalizeApiErrorText(value: unknown): string {
   if (!value) return "";
@@ -122,9 +121,7 @@ export function DashboardHomePage({
       const nextValue =
         selectedModelId === "video" && videoModelVariant === "runway-gen-4"
           ? value.slice(0, MAX_RUNWAY_PROMPT_LEN)
-          : selectedModelId === "voice"
-            ? value.slice(0, MAX_VOICE_PROMPT_LEN)
-            : value;
+          : value;
       setPromptsByModel((prev) => ({ ...prev, [selectedModelId]: nextValue }));
     },
     [selectedModelId, videoModelVariant],
@@ -525,11 +522,6 @@ export function DashboardHomePage({
           return;
         }
       }
-    }
-
-    if (selectedModel.id === "voice" && prompt.length > MAX_VOICE_PROMPT_LEN) {
-      setGenerationSubmitError(`Текст для озвучки не длиннее ${MAX_VOICE_PROMPT_LEN} символов.`);
-      return;
     }
 
     if (selectedModel.id === "transcription") {
