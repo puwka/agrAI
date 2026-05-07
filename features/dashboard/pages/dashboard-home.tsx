@@ -788,9 +788,6 @@ export function DashboardHomePage({
       setDeliveryPending(true);
       setResultUrl("");
       setResultMessage("");
-      setMediaInputMode("TEXT");
-      setReferenceImageUrls([]);
-      setReferenceUploadError(null);
       setTranscriptionFileUrl(null);
       setTranscriptionUploadError(null);
       setTranscriptionUploadProgress(null);
