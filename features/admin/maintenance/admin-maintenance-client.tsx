@@ -20,7 +20,12 @@ type ModelLockRow = {
 
 const MODEL_LOCK_ITEMS: Array<{ id: string; title: string }> = [
   { id: "photo", title: "Генерация фото" },
+  { id: "photo:nana2", title: "Фото → Nana Banana 2" },
+  { id: "photo:nana-pro", title: "Фото → Nana Banana Pro" },
+  { id: "photo:sora-image", title: "Фото → Sora image" },
   { id: "video", title: "Генерация видео" },
+  { id: "video:veo-3.1-relax", title: "Видео → Veo 3.1 Relax" },
+  { id: "video:runway-gen-4", title: "Видео → Runway Gen-4" },
   { id: "voice", title: "Генерация голоса" },
   { id: "transcription", title: "Транскрибация" },
   { id: "video-enhance", title: "Улучшение качества" },

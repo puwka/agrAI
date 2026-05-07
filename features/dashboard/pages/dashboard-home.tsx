@@ -120,6 +120,15 @@ export function DashboardHomePage({
 
   const selectedModel = models.find((model) => model.id === selectedModelId) ?? null;
   const activeModelsCount = models.filter((m) => !m.disabled).length;
+  const photoVariantLocks: Record<"nana2" | "nana-pro" | "sora-image", { enabled: boolean; message: string }> = {
+    nana2: modelLocks["photo:nana2"] ?? { enabled: false, message: "" },
+    "nana-pro": modelLocks["photo:nana-pro"] ?? { enabled: false, message: "" },
+    "sora-image": modelLocks["photo:sora-image"] ?? { enabled: false, message: "" },
+  };
+  const videoVariantLocks: Record<"veo-3.1-relax" | "runway-gen-4", { enabled: boolean; message: string }> = {
+    "veo-3.1-relax": modelLocks["video:veo-3.1-relax"] ?? { enabled: false, message: "" },
+    "runway-gen-4": modelLocks["video:runway-gen-4"] ?? { enabled: false, message: "" },
+  };
   const maxReferenceImages =
     selectedModelId === "video"
       ? videoModelVariant === "runway-gen-4"
@@ -419,6 +428,63 @@ export function DashboardHomePage({
   }, [loadModelLocks]);
 
   useEffect(() => {
+    if (selectedModelId !== "video") return;
+    if (!videoVariantLocks[videoModelVariant].enabled) return;
+    const fallback = (["veo-3.1-relax", "runway-gen-4"] as const).find((id) => !videoVariantLocks[id].enabled);
+    if (fallback) {
+      setVideoModelVariant(fallback);
+      setGenerationSubmitError(
+        videoVariantLocks[videoModelVariant].message || "Выбранная модель видео временно недоступна (тех. работы).",
+      );
+    }
+  }, [selectedModelId, videoModelVariant, videoVariantLocks]);
+
+  useEffect(() => {
+    if (selectedModelId !== "photo") return;
+    if (!photoVariantLocks[photoModelVariant].enabled) return;
+    const fallback = (["nana2", "nana-pro", "sora-image"] as const).find((id) => !photoVariantLocks[id].enabled);
+    if (fallback) {
+      setPhotoModelVariant(fallback);
+      setGenerationSubmitError(
+        photoVariantLocks[photoModelVariant].message || "Выбранная модель фото временно недоступна (тех. работы).",
+      );
+    }
+  }, [selectedModelId, photoModelVariant, photoVariantLocks]);
+
+  useEffect(() => {
+    if (!generationSubmitError) return;
+    if (selectedModelId === "video" && !videoVariantLocks[videoModelVariant].enabled) {
+      const knownLockMessages = Object.values(videoVariantLocks)
+        .map((x) => x.message.trim())
+        .filter(Boolean);
+      if (
+        generationSubmitError.includes("временно недоступна") ||
+        knownLockMessages.includes(generationSubmitError.trim())
+      ) {
+        setGenerationSubmitError(null);
+      }
+    }
+    if (selectedModelId === "photo" && !photoVariantLocks[photoModelVariant].enabled) {
+      const knownLockMessages = Object.values(photoVariantLocks)
+        .map((x) => x.message.trim())
+        .filter(Boolean);
+      if (
+        generationSubmitError.includes("временно недоступна") ||
+        knownLockMessages.includes(generationSubmitError.trim())
+      ) {
+        setGenerationSubmitError(null);
+      }
+    }
+  }, [
+    generationSubmitError,
+    selectedModelId,
+    videoModelVariant,
+    videoVariantLocks,
+    photoModelVariant,
+    photoVariantLocks,
+  ]);
+
+  useEffect(() => {
     if (!maintenanceOn) {
       setGenerationSubmitError(null);
     }
@@ -513,6 +579,18 @@ export function DashboardHomePage({
       return;
     }
     if (selectedModel.id === "photo" || selectedModel.id === "video") {
+      if (selectedModel.id === "photo" && photoVariantLocks[photoModelVariant].enabled) {
+        setGenerationSubmitError(
+          photoVariantLocks[photoModelVariant].message || "Выбранная модель фото временно недоступна (тех. работы).",
+        );
+        return;
+      }
+      if (selectedModel.id === "video" && videoVariantLocks[videoModelVariant].enabled) {
+        setGenerationSubmitError(
+          videoVariantLocks[videoModelVariant].message || "Выбранная модель видео временно недоступна (тех. работы).",
+        );
+        return;
+      }
       if (selectedModel.id === "video" && videoModelVariant === "runway-gen-4" && prompt.length > MAX_RUNWAY_PROMPT_LEN) {
         setGenerationSubmitError(`Для Runway Gen-4 максимум ${MAX_RUNWAY_PROMPT_LEN} символов в промпте.`);
         return;
@@ -648,6 +726,8 @@ export function DashboardHomePage({
           ...(selectedModel.id === "voice" && selectedVoice
             ? { voiceId: selectedVoice.id, voiceName: selectedVoice.name }
             : {}),
+          ...(selectedModel.id === "photo" ? { photoModelVariant } : {}),
+          ...(selectedModel.id === "video" ? { videoModelVariant } : {}),
           ...((selectedModel.id === "photo" || selectedModel.id === "video") && {
             inputMode: mediaInputMode,
             referenceImageUrl: mediaInputMode === "IMAGE_REF" ? (referenceImageUrls[0] ?? null) : null,
@@ -1005,6 +1085,13 @@ export function DashboardHomePage({
         onEnhanceFpsChange={setEnhanceFps}
         photoModelVariant={photoModelVariant}
         onPhotoModelVariantChange={(v) => {
+          if (photoVariantLocks[v].enabled) {
+            setGenerationSubmitError(
+              photoVariantLocks[v].message || "Эта модель фото временно недоступна (тех. работы).",
+            );
+            return;
+          }
+          setGenerationSubmitError(null);
           setPhotoModelVariant(v);
           if (v === "sora-image") {
             if (aspectRatio !== "3:2" && aspectRatio !== "1:1" && aspectRatio !== "2:3") {
@@ -1014,8 +1101,16 @@ export function DashboardHomePage({
             setAspectRatio("16:9");
           }
         }}
+        photoVariantLocks={photoVariantLocks}
         videoModelVariant={videoModelVariant}
         onVideoModelVariantChange={(v) => {
+          if (videoVariantLocks[v].enabled) {
+            setGenerationSubmitError(
+              videoVariantLocks[v].message || "Эта модель видео временно недоступна (тех. работы).",
+            );
+            return;
+          }
+          setGenerationSubmitError(null);
           setVideoModelVariant(v);
           if (v === "runway-gen-4") {
             setReferenceImageUrls((prev) => prev.slice(0, 1));
@@ -1042,6 +1137,7 @@ export function DashboardHomePage({
             setAspectRatio("16:9");
           }
         }}
+        videoVariantLocks={videoVariantLocks}
         runwayDurationSec={runwayDurationSec}
         onRunwayDurationChange={setRunwayDurationSec}
         veoResolution={veoResolution}

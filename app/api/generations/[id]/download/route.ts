@@ -40,6 +40,23 @@ function attachmentFilename(id: string, ext: string) {
   return `generation-${id}.${safe}`;
 }
 
+function extFromContentType(contentType: string): string | null {
+  const ct = (contentType ?? "").toLowerCase();
+  if (ct.includes("audio/mpeg") || ct.includes("audio/mp3")) return "mp3";
+  if (ct.includes("audio/wav") || ct.includes("audio/x-wav")) return "wav";
+  if (ct.includes("audio/ogg")) return "ogg";
+  if (ct.includes("audio/mp4") || ct.includes("audio/aac")) return "m4a";
+  if (ct.includes("audio/flac")) return "flac";
+  if (ct.includes("audio/webm")) return "webm";
+  if (ct.includes("video/mp4")) return "mp4";
+  if (ct.includes("video/webm")) return "webm";
+  if (ct.includes("image/png")) return "png";
+  if (ct.includes("image/jpeg")) return "jpg";
+  if (ct.includes("image/webp")) return "webp";
+  if (ct.includes("image/gif")) return "gif";
+  return null;
+}
+
 function isTransientNetworkError(error: unknown) {
   const msg = error instanceof Error ? error.message : String(error ?? "");
   return (
@@ -170,15 +187,30 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         return NextResponse.json({ error: "Не удалось получить файл" }, { status: 502 });
       }
       const ct = upstream.headers.get("content-type") ?? "application/octet-stream";
+      const extByPath = extFromPath(resultUrl);
+      const extByCt = extFromContentType(ct);
+      const resolvedExt =
+        extByPath !== "bin"
+          ? extByPath
+          : extByCt
+            ? extByCt
+            : gen.modelId === "voice"
+              ? "mp3"
+              : "bin";
+      const contentTypeResolved =
+        ct === "application/octet-stream" && gen.modelId === "voice" ? "audio/mpeg" : ct;
+      const remoteFilename = attachmentFilename(gen.id, resolvedExt);
       // Read the remote body fully before responding to avoid "failed to pipe response"
       // when upstream closes the stream with ETIMEDOUT/terminated mid-transfer.
       const buf = Buffer.from(await upstream.arrayBuffer());
       return new NextResponse(buf, {
         status: 200,
         headers: {
-          "Content-Type": ct,
+          "Content-Type": contentTypeResolved,
           "Content-Length": String(buf.byteLength),
-          "Content-Disposition": inline ? `inline; filename="${filename}"` : `attachment; filename="${filename}"`,
+          "Content-Disposition": inline
+            ? `inline; filename="${remoteFilename}"`
+            : `attachment; filename="${remoteFilename}"`,
           "Cache-Control": "private, no-store",
         },
       });

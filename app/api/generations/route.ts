@@ -315,6 +315,8 @@ export async function POST(request: Request) {
     motionVideoDurationSec?: number;
     runwayDurationSec?: number;
     veoResolution?: string;
+    photoModelVariant?: string;
+    videoModelVariant?: string;
   };
 
   try {
@@ -329,6 +331,26 @@ export async function POST(request: Request) {
   const voiceId = typeof body.voiceId === "string" ? body.voiceId.trim() : "";
   const voiceName = typeof body.voiceName === "string" ? body.voiceName.trim() : "";
   const prompt = typeof body.prompt === "string" ? body.prompt : "";
+  const photoModelVariantRaw = typeof body.photoModelVariant === "string" ? body.photoModelVariant.trim() : "";
+  const videoModelVariantRaw = typeof body.videoModelVariant === "string" ? body.videoModelVariant.trim() : "";
+  const runwayDurationRawForVariant =
+    typeof body.runwayDurationSec === "number" && Number.isFinite(body.runwayDurationSec)
+      ? Math.round(body.runwayDurationSec)
+      : null;
+  const inferredVideoVariant =
+    videoModelVariantRaw === "runway-gen-4" || videoModelVariantRaw === "veo-3.1-relax"
+      ? videoModelVariantRaw
+      : runwayDurationRawForVariant === 5 || runwayDurationRawForVariant === 10
+        ? "runway-gen-4"
+        : "veo-3.1-relax";
+  const inferredPhotoVariant =
+    photoModelVariantRaw === "nana2" || photoModelVariantRaw === "nana-pro" || photoModelVariantRaw === "sora-image"
+      ? photoModelVariantRaw
+      : (modelName?.toLowerCase().includes("sora image")
+          ? "sora-image"
+          : modelName?.toLowerCase().includes("nana banana pro")
+            ? "nana-pro"
+            : "nana2");
   let aspectRatio: AspectRatio | null =
     body.aspectRatio === "21:9" ||
     body.aspectRatio === "16:9" ||
@@ -362,6 +384,21 @@ export async function POST(request: Request) {
         { error: lock.message || "Модель временно недоступна. Попробуйте позже." },
         { status: 403 },
       );
+    }
+    const variantKey =
+      modelId === "video"
+        ? `video:${inferredVideoVariant}`
+        : modelId === "photo"
+          ? `photo:${inferredPhotoVariant}`
+          : "";
+    if (variantKey) {
+      const variantLock = lockMap[variantKey];
+      if (variantLock?.enabled) {
+        return NextResponse.json(
+          { error: variantLock.message || "Эта модель временно недоступна (тех. работы)." },
+          { status: 403 },
+        );
+      }
     }
   }
 

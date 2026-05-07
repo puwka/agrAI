@@ -72,8 +72,10 @@ type WorkspacePanelProps = {
   onEnhanceQualityChange: (v: "original" | "2x" | "4x") => void;
   onEnhanceFpsChange: (v: "24" | "25" | "30" | "45" | "50" | "60") => void;
   photoModelVariant: "nana2" | "nana-pro" | "sora-image";
+  photoVariantLocks: Record<"nana2" | "nana-pro" | "sora-image", { enabled: boolean; message: string }>;
   onPhotoModelVariantChange: (v: "nana2" | "nana-pro" | "sora-image") => void;
   videoModelVariant: "veo-3.1-relax" | "runway-gen-4";
+  videoVariantLocks: Record<"veo-3.1-relax" | "runway-gen-4", { enabled: boolean; message: string }>;
   onVideoModelVariantChange: (v: "veo-3.1-relax" | "runway-gen-4") => void;
   runwayDurationSec: 5 | 10;
   onRunwayDurationChange: (v: 5 | 10) => void;
@@ -178,8 +180,10 @@ export function WorkspacePanel({
   onEnhanceQualityChange,
   onEnhanceFpsChange,
   photoModelVariant,
+  photoVariantLocks,
   onPhotoModelVariantChange,
   videoModelVariant,
+  videoVariantLocks,
   onVideoModelVariantChange,
   runwayDurationSec,
   onRunwayDurationChange,
@@ -349,13 +353,24 @@ export function WorkspacePanel({
                         }
                         className="w-full appearance-none rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 pr-11 text-sm text-white outline-none transition focus:border-white/30"
                       >
-                        <option value="nana2">Nana Banana 2</option>
-                        <option value="nana-pro">Nana Banana Pro</option>
-                        <option value="sora-image">Sora image</option>
+                        <option value="nana2" disabled={photoVariantLocks.nana2.enabled}>
+                          {`Nana Banana 2${photoVariantLocks.nana2.enabled ? " (тех. работы)" : ""}`}
+                        </option>
+                        <option value="nana-pro" disabled={photoVariantLocks["nana-pro"].enabled}>
+                          {`Nana Banana Pro${photoVariantLocks["nana-pro"].enabled ? " (тех. работы)" : ""}`}
+                        </option>
+                        <option value="sora-image" disabled={photoVariantLocks["sora-image"].enabled}>
+                          {`Sora image${photoVariantLocks["sora-image"].enabled ? " (тех. работы)" : ""}`}
+                        </option>
                       </select>
                       <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                     </div>
                   </div>
+                ) : null}
+                {isPhotoMode && photoVariantLocks[photoModelVariant].enabled ? (
+                  <p className="text-sm text-amber-300">
+                    {photoVariantLocks[photoModelVariant].message || "Выбранная модель фото временно недоступна (тех. работы)."}
+                  </p>
                 ) : null}
                 {isVideoMode ? (
                   <div className="space-y-2">
@@ -371,12 +386,21 @@ export function WorkspacePanel({
                         }
                         className="w-full appearance-none rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 pr-11 text-sm text-white outline-none transition focus:border-white/30"
                       >
-                        <option value="veo-3.1-relax">Veo 3.1 Relax</option>
-                        <option value="runway-gen-4">Runway Gen-4</option>
+                        <option value="veo-3.1-relax" disabled={videoVariantLocks["veo-3.1-relax"].enabled}>
+                          {`Veo 3.1 Relax${videoVariantLocks["veo-3.1-relax"].enabled ? " (тех. работы)" : ""}`}
+                        </option>
+                        <option value="runway-gen-4" disabled={videoVariantLocks["runway-gen-4"].enabled}>
+                          {`Runway Gen-4${videoVariantLocks["runway-gen-4"].enabled ? " (тех. работы)" : ""}`}
+                        </option>
                       </select>
                       <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                     </div>
                   </div>
+                ) : null}
+                {isVideoMode && videoVariantLocks[videoModelVariant].enabled ? (
+                  <p className="text-sm text-amber-300">
+                    {videoVariantLocks[videoModelVariant].message || "Выбранная модель видео временно недоступна (тех. работы)."}
+                  </p>
                 ) : null}
                 {isVideoMode && videoModelVariant === "veo-3.1-relax" ? (
                   <div className="space-y-2">
