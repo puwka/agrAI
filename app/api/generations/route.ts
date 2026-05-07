@@ -5,6 +5,7 @@ import { getApiSessionUser } from "../../../lib/auth/api-session";
 import { isValidUserReferenceImageUrl } from "../../../lib/generation-reference";
 import { getMaintenanceState } from "../../../lib/maintenance";
 import { hasActiveSubscription } from "../../../lib/subscription";
+import { resolveVoicePromptLocal, saveVoicePromptLocal } from "../../../lib/voice-prompt-local";
 import type { AspectRatio } from "../../../features/dashboard/types";
 
 const GENERATIONS_CACHE_TTL_MS = 8000;
@@ -199,8 +200,16 @@ export async function GET(request: Request) {
       })
     : undefined;
 
+  const itemsWithResolvedVoicePrompt = await Promise.all(
+    (itemsRaw as Array<{ modelId?: string; prompt?: string }>).map(async (item) => {
+      if (item?.modelId !== "voice" || typeof item.prompt !== "string") return item;
+      const resolvedPrompt = await resolveVoicePromptLocal(item.prompt);
+      return { ...item, prompt: resolvedPrompt };
+    }),
+  );
+
   const items = brief
-    ? (itemsRaw as Array<{ prompt?: string; resultMessage?: string; errorMessage?: string }>).map((item) => {
+    ? (itemsWithResolvedVoicePrompt as Array<{ prompt?: string; resultMessage?: string; errorMessage?: string }>).map((item) => {
         const prompt = typeof item.prompt === "string" ? item.prompt : "";
         const resultMessage = typeof item.resultMessage === "string" ? item.resultMessage : "";
         const errorMessage = typeof item.errorMessage === "string" ? item.errorMessage : "";
@@ -211,7 +220,7 @@ export async function GET(request: Request) {
           errorMessage: errorMessage.length > 500 ? `${errorMessage.slice(0, 500)}…` : errorMessage,
         };
       })
-    : itemsRaw;
+    : itemsWithResolvedVoicePrompt;
 
   const payload = {
     items,
@@ -506,7 +515,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const storedPrompt =
+  let storedPrompt =
     modelId === "voice"
       ? mergeVoicePrompt(prompt, voiceName)
       : modelId === "photo" || modelId === "video"
@@ -514,6 +523,10 @@ export async function POST(request: Request) {
           ? "—"
           : promptToStore
         : promptToStore;
+
+  if (modelId === "voice") {
+    storedPrompt = await saveVoicePromptLocal(storedPrompt);
+  }
 
   let generation;
   let lastWriteError: unknown = null;

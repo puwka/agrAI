@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { db } from "../../../../lib/db";
 import { getApiSessionUser } from "../../../../lib/auth/api-session";
+import { resolveVoicePromptLocal } from "../../../../lib/voice-prompt-local";
 
 const ADMIN_GENERATIONS_CACHE_TTL_MS = 8000;
 const adminGenerationsCache = new Map<string, { expiresAt: number; payload: unknown }>();
@@ -67,8 +68,15 @@ export async function GET(request: Request) {
           },
         });
         const total = includeTotal ? await db.generation.countWhere({ where }) : undefined;
+        const itemsWithResolvedVoicePrompt = await Promise.all(
+          (items as Array<{ modelId?: string; prompt?: string }>).map(async (item) => {
+            if (item?.modelId !== "voice" || typeof item.prompt !== "string") return item;
+            const resolvedPrompt = await resolveVoicePromptLocal(item.prompt);
+            return { ...item, prompt: resolvedPrompt };
+          }),
+        );
         const normalized = brief
-          ? (items as Array<{ prompt?: string; resultMessage?: string }>).map((item) => {
+          ? (itemsWithResolvedVoicePrompt as Array<{ prompt?: string; resultMessage?: string }>).map((item) => {
               const resultMessage = typeof item.resultMessage === "string" ? item.resultMessage : "";
               return {
                 ...item,
@@ -76,7 +84,7 @@ export async function GET(request: Request) {
                 resultMessage: resultMessage.length > 600 ? `${resultMessage.slice(0, 600)}…` : resultMessage,
               };
             })
-          : items;
+          : itemsWithResolvedVoicePrompt;
         const payload = {
           items: normalized,
           ...(typeof total === "number" ? { total } : {}),

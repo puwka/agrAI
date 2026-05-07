@@ -4,6 +4,7 @@ import { db } from "../../../../../lib/db";
 import { getApiSessionUser } from "../../../../../lib/auth/api-session";
 import { getMaintenanceState } from "../../../../../lib/maintenance";
 import { hasActiveSubscription } from "../../../../../lib/subscription";
+import { resolveVoicePromptLocal } from "../../../../../lib/voice-prompt-local";
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const sessionUser = await getApiSessionUser();
@@ -90,10 +91,15 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     },
   });
 
+  const sourcePromptResolved =
+    source.modelId === "voice"
+      ? await resolveVoicePromptLocal(source.prompt ?? "")
+      : source.prompt ?? "";
+
   return NextResponse.json({
     ...repeated,
     repeatedFromId: source.id,
-    sourcePrompt: source.prompt ?? "",
+    sourcePrompt: sourcePromptResolved,
     sourceAspectRatio: source.aspectRatio,
     sourceInputMode: source.inputMode ?? "TEXT",
     sourceReferenceImageUrl: source.referenceImageUrl ?? null,
