@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Eye, EyeOff, Loader2, Upload } from "lucide-react";
+import { fetchWithRetry } from "../../shared/network";
 
 type VoiceRow = {
   id: string;
@@ -21,9 +22,7 @@ export function AdminVoicePreviewsClient() {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/secret-voicer/voices?includeHidden=1&fresh=1", {
-        cache: "no-store",
-      });
+      const res = await fetchWithRetry("/api/secret-voicer/voices?includeHidden=1&fresh=1");
       const data = (await res.json().catch(() => null)) as { voices?: VoiceRow[]; error?: string } | null;
       if (!res.ok) {
         setError(data?.error ?? "Не удалось загрузить голоса");
@@ -31,6 +30,9 @@ export function AdminVoicePreviewsClient() {
         return;
       }
       setVoices(data?.voices ?? []);
+    } catch {
+      setError("Не удалось загрузить голоса (сеть/таймаут)");
+      setVoices([]);
     } finally {
       setLoading(false);
     }

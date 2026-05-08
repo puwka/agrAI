@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Construction, Loader2, Save } from "lucide-react";
+import { fetchWithRetry } from "../../shared/network";
 
 type MaintenanceState = {
   enabled: boolean;
@@ -46,7 +47,7 @@ export function AdminMaintenanceClient() {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/maintenance-state");
+      const res = await fetchWithRetry("/api/admin/maintenance-state");
       const data = (await res.json().catch(() => null)) as
         | {
             maintenance?: { enabled?: boolean; message?: string };
@@ -72,6 +73,8 @@ export function AdminMaintenanceClient() {
         };
       }
       setModelLocks(nextLocks);
+    } catch {
+      setError("Не удалось загрузить настройки (сеть/таймаут)");
     } finally {
       setLoading(false);
     }

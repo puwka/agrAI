@@ -13,6 +13,7 @@ import {
 } from "../lib";
 import { PageIntro } from "../components/page-intro";
 import type { LogStatus } from "../types";
+import { fetchWithRetry } from "../../shared/network";
 
 type GenerationRow = {
   id: string;
@@ -33,7 +34,6 @@ const filters: Array<{ id: "all" | LogStatus; label: string }> = [
 ];
 
 const PAGE_SIZE = 12;
-
 export function LogsPage() {
   const [items, setItems] = useState<GenerationRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -54,7 +54,7 @@ export function LogsPage() {
     setPage(0);
   }, [debouncedSearch]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { fresh?: boolean }) => {
     setError(null);
     setListLoading(true);
     try {
@@ -63,12 +63,27 @@ export function LogsPage() {
         offset: String(page * PAGE_SIZE),
         status: activeFilter,
         includeTotal: "1",
-        fresh: "1",
       });
+      if (opts?.fresh) {
+        params.set("fresh", "1");
+      }
       if (debouncedSearch) {
         params.set("q", debouncedSearch);
       }
-      const response = await fetch(`/api/generations?${params.toString()}`);
+      let response: Response | null = null;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          response = await fetchWithRetry(`/api/generations?${params.toString()}`);
+          break;
+        } catch {
+          if (attempt === 0) {
+            await new Promise((resolve) => window.setTimeout(resolve, 350));
+            continue;
+          }
+          throw new Error("LOAD_TIMEOUT");
+        }
+      }
+      if (!response) throw new Error("LOAD_TIMEOUT");
 
       if (!response.ok) {
         setError("Не удалось загрузить логи");
@@ -87,6 +102,8 @@ export function LogsPage() {
       if (page > maxPage) {
         setPage(maxPage);
       }
+    } catch {
+      setError("Не удалось загрузить логи (сеть/таймаут).");
     } finally {
       setListLoading(false);
     }
@@ -121,7 +138,7 @@ export function LogsPage() {
         }
         setItems((prev) => prev.filter((item) => item.id !== id));
         setTotal((prev) => Math.max(0, prev - 1));
-        void load();
+        void load({ fresh: true });
       } finally {
         setDeletingId(null);
       }

@@ -13,6 +13,7 @@ import { WorkspacePanel } from "../components/workspace-panel";
 import type { VoiceOption } from "../components/voice-picker-modal";
 import { useMaintenance } from "../maintenance-context";
 import { MAX_ACT_TWO_VIDEO_UPLOAD_LABEL, MAX_TOPAZ_UPLOAD_LABEL } from "../../../lib/transcription-limits";
+import { fetchWithRetry } from "../../shared/network";
 
 type GenerationRow = {
   id: string;
@@ -37,7 +38,6 @@ function stripRepeatMarker(prompt: string): string {
 }
 
 const MAX_RUNWAY_PROMPT_LEN = 1000;
-
 function normalizeApiErrorText(value: unknown): string {
   if (!value) return "";
   if (typeof value === "string") return value.trim();
@@ -389,34 +389,51 @@ export function DashboardHomePage({
     }
   }, []);
 
-  const loadGenerations = useCallback(async () => {
+  const loadGenerations = useCallback(async (opts?: { fresh?: boolean }) => {
     setLoadError(null);
-    const response = await fetch("/api/generations?limit=10&offset=0&brief=1&fresh=1");
-
-    if (!response.ok) {
-      setLoadError("Не удалось загрузить историю генераций");
-      return;
+    const freshQuery = opts?.fresh ? "&fresh=1" : "";
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const response = await fetchWithRetry(`/api/generations?limit=10&offset=0&brief=1${freshQuery}`);
+        if (!response.ok) {
+          setLoadError("Не удалось загрузить историю генераций");
+          return;
+        }
+        const data = (await response.json()) as { items?: GenerationRow[]; total?: number };
+        setGenerations(Array.isArray(data) ? (data as unknown as GenerationRow[]) : (data.items ?? []));
+        return;
+      } catch (error) {
+        lastError = error;
+        if (attempt === 0) {
+          await new Promise((resolve) => window.setTimeout(resolve, 350));
+          continue;
+        }
+      }
     }
-
-    const data = (await response.json()) as { items?: GenerationRow[]; total?: number };
-    setGenerations(Array.isArray(data) ? (data as unknown as GenerationRow[]) : (data.items ?? []));
+    setLoadError("Не удалось загрузить историю генераций (сеть/таймаут).");
+    void lastError;
   }, []);
 
   const loadModelLocks = useCallback(async () => {
-    const response = await fetch("/api/model-locks");
-    if (!response.ok) return;
-    const data = (await response.json().catch(() => null)) as
-      | { locks?: Record<string, { enabled?: boolean; message?: string }> }
-      | null;
-    const raw = data?.locks ?? {};
-    const next: Record<string, { enabled: boolean; message: string }> = {};
-    for (const [k, v] of Object.entries(raw)) {
-      next[k] = {
-        enabled: Boolean(v?.enabled),
-        message: String(v?.message ?? "").trim(),
-      };
+    try {
+      const response = await fetchWithRetry("/api/model-locks");
+      if (!response.ok) return;
+      const data = (await response.json().catch(() => null)) as
+        | { locks?: Record<string, { enabled?: boolean; message?: string }> }
+        | null;
+      const raw = data?.locks ?? {};
+      const next: Record<string, { enabled: boolean; message: string }> = {};
+      for (const [k, v] of Object.entries(raw)) {
+        next[k] = {
+          enabled: Boolean(v?.enabled),
+          message: String(v?.message ?? "").trim(),
+        };
+      }
+      setModelLocks(next);
+    } catch {
+      // Keep previously known locks on transient network issues.
     }
-    setModelLocks(next);
   }, []);
 
   useEffect(() => {
@@ -776,7 +793,7 @@ export function DashboardHomePage({
           void refreshMaintenance();
         } else if (response.status === 409) {
           setGenerationSubmitError(errorText || "Уже есть заявка в работе.");
-          void loadGenerations();
+          void loadGenerations({ fresh: true });
         } else {
           setGenerationSubmitError(errorText || "Не удалось отправить заявку. Попробуйте ещё раз.");
         }
@@ -801,7 +818,7 @@ export function DashboardHomePage({
       setMotionVideoDurationSec(null);
       setMotionVideoUploadError(null);
       setMotionVideoUploadProgress(null);
-      void loadGenerations();
+      void loadGenerations({ fresh: true });
     } catch {
       setGenerationSubmitError("Ошибка сети при отправке заявки. Попробуйте ещё раз.");
     } finally {
@@ -871,7 +888,7 @@ export function DashboardHomePage({
         setDeliveryPending(true);
         setResultUrl("");
         setResultMessage("");
-        void loadGenerations();
+        void loadGenerations({ fresh: true });
       } catch {
         setGenerationSubmitError("Ошибка сети при повторе генерации.");
       } finally {
@@ -910,7 +927,7 @@ export function DashboardHomePage({
           setResultUrl("");
           setResultMessage("");
         }
-        void loadGenerations();
+        void loadGenerations({ fresh: true });
       } catch {
         setGenerationSubmitError("Ошибка сети при удалении генерации.");
       } finally {

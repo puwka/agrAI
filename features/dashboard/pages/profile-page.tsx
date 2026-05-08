@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 
 import { subscriptionSummaryForUser } from "../../../lib/subscription";
 import { PageIntro } from "../components/page-intro";
+import { fetchWithRetry } from "../../shared/network";
 
 type ProfileDto = {
   name: string;
@@ -32,22 +33,26 @@ export function ProfilePage() {
 
   useEffect(() => {
     const load = async () => {
-      const [profileRes, genRes] = await Promise.all([
-        fetch("/api/profile"),
-        fetch("/api/generations?limit=1&offset=0&includeTotal=1"),
-      ]);
+      try {
+        const [profileRes, genRes] = await Promise.all([
+          fetchWithRetry("/api/profile"),
+          fetchWithRetry("/api/generations?limit=1&offset=0&includeTotal=1"),
+        ]);
 
-      if (!profileRes.ok) {
-        setError("Не удалось загрузить профиль");
-        return;
-      }
+        if (!profileRes.ok) {
+          setError("Не удалось загрузить профиль");
+          return;
+        }
 
-      const profileData = (await profileRes.json()) as ProfileDto;
-      setProfile(profileData);
+        const profileData = (await profileRes.json()) as ProfileDto;
+        setProfile(profileData);
 
-      if (genRes.ok) {
-        const genJson = (await genRes.json()) as { total?: number; items?: unknown[] };
-        setGenerationsCount(typeof genJson.total === "number" ? genJson.total : genJson.items?.length ?? 0);
+        if (genRes.ok) {
+          const genJson = (await genRes.json()) as { total?: number; items?: unknown[] };
+          setGenerationsCount(typeof genJson.total === "number" ? genJson.total : genJson.items?.length ?? 0);
+        }
+      } catch {
+        setError("Не удалось загрузить профиль (сеть/таймаут)");
       }
     };
 

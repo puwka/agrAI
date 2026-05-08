@@ -3,6 +3,7 @@
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Plus, Trash2, Upload } from "lucide-react";
+import { fetchWithRetry } from "../../shared/network";
 
 type CustomVoiceRow = {
   voiceId: string;
@@ -34,7 +35,7 @@ export function AdminCustomVoicesClient() {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/custom-voices");
+      const res = await fetchWithRetry("/api/admin/custom-voices");
       const data = (await res.json().catch(() => null)) as { items?: CustomVoiceRow[]; error?: string } | null;
       if (!res.ok) {
         setError(data?.error ?? "Не удалось загрузить список");
@@ -42,6 +43,9 @@ export function AdminCustomVoicesClient() {
         return;
       }
       setItems(data?.items ?? []);
+    } catch {
+      setError("Не удалось загрузить список (сеть/таймаут)");
+      setItems([]);
     } finally {
       setLoading(false);
     }

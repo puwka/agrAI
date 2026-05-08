@@ -18,10 +18,10 @@ export function Sidebar({ user }: { user: ShellUser }) {
     setMenuOpen(false);
   }, [pathname]);
   useEffect(() => {
-    router.prefetch("/dashboard");
-    if (user.role === "ADMIN") {
-      router.prefetch("/admin");
+    for (const item of navItems) {
+      router.prefetch(item.href);
     }
+    if (user.role === "ADMIN") router.prefetch("/admin");
   }, [router, user.role]);
 
   const handleLogout = async () => {

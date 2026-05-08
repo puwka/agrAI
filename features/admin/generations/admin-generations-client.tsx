@@ -6,6 +6,7 @@ import { Check, Copy, Loader2, Send, Trash2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { detectResultMediaKind } from "../../../features/dashboard/lib";
+import { fetchWithRetry } from "../../shared/network";
 
 function motionVideoUrlFromPrompt(prompt: string): string | null {
   const m = /\[MotionVideo:(.+?)\]/.exec(prompt ?? "");
@@ -132,9 +133,8 @@ export function AdminGenerationsClient({
       const offset = mode === "ready" ? (append ? readyOffsetRef.current : 0) : (page - 1) * pageSize;
       const statusQuery = mode === "ready" ? "&status=SUCCESS" : "&status=OPEN";
       const freshQuery = opts?.fresh ? "&fresh=1" : "";
-      const response = await fetch(
+      const response = await fetchWithRetry(
         `/api/admin/generations?limit=${pageSize}&offset=${offset}${statusQuery}&brief=1${freshQuery}`,
-        { cache: "no-store" },
       );
       const data = (await response.json().catch(() => null)) as
         | { items?: AdminGeneration[]; hasMore?: boolean; error?: string; detail?: string }

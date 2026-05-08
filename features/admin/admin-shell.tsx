@@ -22,6 +22,7 @@ import { useEffect, useState } from "react";
 import type { ShellUser } from "../dashboard/components/dashboard-shell";
 import { useBrowserNotifier } from "../shared/use-browser-notifier";
 import { ThemeToggle } from "../shared/theme-toggle";
+import { fetchWithRetry } from "../shared/network";
 
 const nav = [
   { href: "/admin", label: "Главная", icon: LayoutDashboard },
@@ -59,8 +60,10 @@ export function AdminShell({
   }, [navigatingTo]);
 
   useEffect(() => {
+    for (const item of nav) {
+      router.prefetch(item.href);
+    }
     router.prefetch("/dashboard");
-    router.prefetch("/admin");
   }, [router]);
 
   useEffect(() => {
@@ -69,7 +72,7 @@ export function AdminShell({
 
     const poll = async () => {
       try {
-        const response = await fetch("/api/admin/generations?limit=1&offset=0&status=OPEN", { cache: "no-store" });
+        const response = await fetchWithRetry("/api/admin/generations?limit=1&offset=0&status=OPEN");
         const data = (await response.json().catch(() => null)) as
           | { items?: Array<{ createdAt?: string }> }
           | null;

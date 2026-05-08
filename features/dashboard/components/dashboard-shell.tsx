@@ -10,6 +10,7 @@ import { MaintenanceModal } from "./maintenance-modal";
 import { Sidebar } from "./sidebar";
 import { getActiveNavItem } from "../lib";
 import { useBrowserNotifier } from "../../shared/use-browser-notifier";
+import { fetchWithRetry } from "../../shared/network";
 
 export type ShellUser = {
   name: string;
@@ -43,7 +44,7 @@ export function DashboardShell({
 
     const poll = async () => {
       try {
-        const response = await fetch("/api/generations?limit=10&offset=0&brief=1", { cache: "no-store" });
+        const response = await fetchWithRetry("/api/generations?limit=10&offset=0&brief=1");
         const data = (await response.json().catch(() => null)) as
           | { items?: Array<{ id: string; status: string; resultUrl?: string | null; resultMessage?: string | null }> }
           | null;

@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { fetchWithRetry } from "../shared/network";
 
 type MaintenanceValue = {
   enabled: boolean;
@@ -35,7 +36,7 @@ export function MaintenanceProvider({
       return;
     }
     try {
-      const response = await fetch("/api/maintenance", { cache: "no-store" });
+      const response = await fetchWithRetry("/api/maintenance");
       if (!response.ok) return;
       const data = (await response.json()) as { enabled?: boolean; message?: string };
       setEnabled(Boolean(data.enabled));
