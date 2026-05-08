@@ -496,7 +496,7 @@ export function AdminGenerationsClient({
           return (
             <article
               key={g.id}
-              className="grid gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]"
+              className="admin-generation-card grid gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]"
             >
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
@@ -651,7 +651,7 @@ export function AdminGenerationsClient({
                 </p>
 
                 {pending && (
-                  <div className="space-y-3 rounded-2xl border border-amber-400/20 bg-amber-500/5 p-4">
+                  <div className="admin-generation-pending space-y-3 rounded-2xl border border-amber-400/20 bg-amber-500/5 p-4">
                     <div className="space-y-2">
                       <p className="text-xs font-medium uppercase tracking-wide text-amber-200/90">
                         Файл с компьютера
@@ -690,7 +690,7 @@ export function AdminGenerationsClient({
                           onChange={(e) => {
                             if (e.currentTarget.value) e.currentTarget.value = "";
                           }}
-                          className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-amber-400/40"
+                          className="admin-generation-input w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-amber-400/40"
                         />
                         <p className="text-[11px] leading-relaxed text-zinc-500">
                           Вставка файла запускает загрузку, вставка ссылки отправляет результат пользователю.
@@ -705,7 +705,7 @@ export function AdminGenerationsClient({
                           onChange={(e) => setUrlDraft(g.id, e.target.value)}
                           rows={3}
                           placeholder="https://… или data:image/png;base64,…"
-                          className="w-full resize-y rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-amber-400/40"
+                          className="admin-generation-input w-full resize-y rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-amber-400/40"
                         />
                         <button
                           type="button"
@@ -730,7 +730,7 @@ export function AdminGenerationsClient({
                           onChange={(e) => setMessageDraft(g.id, e.target.value)}
                           rows={4}
                           placeholder="Например: не удалось сгенерировать; запрос нарушает авторские права…"
-                          className="w-full resize-y rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-amber-400/40"
+                          className="admin-generation-input w-full resize-y rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-amber-400/40"
                         />
                         <button
                           type="button"

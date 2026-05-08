@@ -109,7 +109,7 @@ export function AdminCustomVoicesClient() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="admin-custom-voices-page space-y-8">
       <div>
         <h2 className="text-xl font-semibold text-white">Добавить голос</h2>
         <p className="mt-2 max-w-2xl text-sm text-zinc-400">
@@ -125,7 +125,7 @@ export function AdminCustomVoicesClient() {
 
       <form
         onSubmit={submit}
-        className="grid gap-4 rounded-2xl border border-[#303030] bg-[#141414] p-5 sm:grid-cols-2"
+        className="admin-custom-voices-form grid gap-4 rounded-2xl border border-[#303030] bg-[#141414] p-5 sm:grid-cols-2"
       >
         <label className="space-y-2 sm:col-span-2">
           <span className="text-xs font-medium text-zinc-400">voiceId *</span>
@@ -134,7 +134,7 @@ export function AdminCustomVoicesClient() {
             onChange={(e) => setVoiceId(e.target.value)}
             required
             placeholder="например pNInz6obpgDQGcFmaJgB"
-            className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 font-mono text-sm text-white outline-none focus:border-violet-400/40"
+            className="admin-custom-voices-input w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 font-mono text-sm text-white outline-none focus:border-violet-400/40"
           />
         </label>
         <label className="space-y-2 sm:col-span-2">
@@ -144,7 +144,7 @@ export function AdminCustomVoicesClient() {
             onChange={(e) => setName(e.target.value)}
             required
             placeholder="Как показывать в каталоге"
-            className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-400/40"
+            className="admin-custom-voices-input w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-400/40"
           />
         </label>
         <label className="space-y-2">
@@ -153,7 +153,7 @@ export function AdminCustomVoicesClient() {
             value={gender}
             onChange={(e) => setGender(e.target.value)}
             placeholder="MALE / FEMALE"
-            className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-400/40"
+            className="admin-custom-voices-input w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-400/40"
           />
         </label>
         <label className="space-y-2">
@@ -162,7 +162,7 @@ export function AdminCustomVoicesClient() {
             value={locale}
             onChange={(e) => setLocale(e.target.value)}
             placeholder="ru-RU"
-            className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-400/40"
+            className="admin-custom-voices-input w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-400/40"
           />
         </label>
         <label className="space-y-2 sm:col-span-2">
@@ -172,12 +172,12 @@ export function AdminCustomVoicesClient() {
             onChange={(e) => setPreviewUrl(e.target.value)}
             disabled={Boolean(previewFile)}
             placeholder="https://…"
-            className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-400/40 disabled:cursor-not-allowed disabled:opacity-50"
+            className="admin-custom-voices-input w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-400/40 disabled:cursor-not-allowed disabled:opacity-50"
           />
         </label>
         <div className="space-y-2 sm:col-span-2">
           <span className="text-xs font-medium text-zinc-400">Или файл превью (опционально)</span>
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-white/15 bg-black/25 px-4 py-3">
+          <div className="admin-custom-voices-dropzone flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-white/15 bg-black/25 px-4 py-3">
             <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
               <Upload className="h-4 w-4 shrink-0 text-zinc-400" />
               <span className="min-w-0 text-sm text-zinc-300">
@@ -219,7 +219,7 @@ export function AdminCustomVoicesClient() {
             value={tagsLine}
             onChange={(e) => setTagsLine(e.target.value)}
             placeholder="narration, conversational"
-            className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-400/40"
+            className="admin-custom-voices-input w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-400/40"
           />
         </label>
         <div className="sm:col-span-2">
@@ -243,7 +243,7 @@ export function AdminCustomVoicesClient() {
         ) : items.length === 0 ? (
           <p className="mt-4 text-sm text-zinc-500">Пока нет записей — добавьте голос формой выше.</p>
         ) : (
-          <div className="mt-4 overflow-x-auto rounded-2xl border border-[#303030] bg-[#141414]">
+          <div className="admin-custom-voices-table mt-4 overflow-x-auto rounded-2xl border border-[#303030] bg-[#141414]">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="border-b border-[#303030] bg-[#1a1a1a] text-xs uppercase tracking-wide text-zinc-500">
                 <tr>

@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 
 import { navItems } from "../config";
 import type { ShellUser } from "./dashboard-shell";
+import { ThemeToggle } from "../../shared/theme-toggle";
 
 export function Sidebar({ user }: { user: ShellUser }) {
   const pathname = usePathname();
@@ -109,6 +110,10 @@ export function Sidebar({ user }: { user: ShellUser }) {
               {user.subscriptionSummary}
             </p>
           ) : null}
+        </div>
+        <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+          <p className="text-xs text-zinc-400">Тема</p>
+          <ThemeToggle />
         </div>
         <button
           type="button"
@@ -213,6 +218,10 @@ export function Sidebar({ user }: { user: ShellUser }) {
               <LogOut className="h-4 w-4" />
               Выход
             </button>
+            <div className="mt-3 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <p className="text-xs text-zinc-400">Тема</p>
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       ) : null}

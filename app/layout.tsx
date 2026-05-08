@@ -15,7 +15,24 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="ru">
+    <html lang="ru" suppressHydrationWarning>
+      <head>
+        <script
+          // Sets theme before first paint to avoid dark flash.
+          dangerouslySetInnerHTML={{
+            __html: `(function () {
+  try {
+    var key = 'theme-preference';
+    var saved = localStorage.getItem(key);
+    var theme = (saved === 'light' || saved === 'dark')
+      ? saved
+      : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    document.documentElement.setAttribute('data-theme', theme);
+  } catch (e) {}
+})();`,
+          }}
+        />
+      </head>
       <body>
         <Providers>{children}</Providers>
       </body>

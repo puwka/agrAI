@@ -21,6 +21,7 @@ import { useEffect, useState } from "react";
 
 import type { ShellUser } from "../dashboard/components/dashboard-shell";
 import { useBrowserNotifier } from "../shared/use-browser-notifier";
+import { ThemeToggle } from "../shared/theme-toggle";
 
 const nav = [
   { href: "/admin", label: "Главная", icon: LayoutDashboard },
@@ -154,6 +155,10 @@ export function AdminShell({
           </nav>
 
           <div className="px-4 pb-4 md:px-6 md:pb-6">
+            <div className="mb-3 flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+              <p className="text-xs text-zinc-400">Тема</p>
+              <ThemeToggle />
+            </div>
             <button
               type="button"
               onClick={handleLogout}
@@ -253,6 +258,10 @@ export function AdminShell({
                 <LogOut className="h-4 w-4" />
                 Выход
               </button>
+              <div className="mt-3 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <p className="text-xs text-zinc-400">Тема</p>
+                <ThemeToggle />
+              </div>
             </div>
           </div>
         ) : null}

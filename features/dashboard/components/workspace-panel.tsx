@@ -351,7 +351,7 @@ export function WorkspacePanel({
                         onChange={(e) =>
                           onPhotoModelVariantChange(e.target.value as "nana2" | "nana-pro" | "sora-image")
                         }
-                        className="w-full appearance-none rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 pr-11 text-sm text-white outline-none transition focus:border-white/30"
+                        className="ui-select w-full appearance-none rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 pr-11 text-sm text-white outline-none transition focus:border-white/30"
                       >
                         <option value="nana2" disabled={photoVariantLocks.nana2.enabled}>
                           {`Nana Banana 2${photoVariantLocks.nana2.enabled ? " (тех. работы)" : ""}`}
@@ -384,7 +384,7 @@ export function WorkspacePanel({
                         onChange={(e) =>
                           onVideoModelVariantChange(e.target.value as "veo-3.1-relax" | "runway-gen-4")
                         }
-                        className="w-full appearance-none rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 pr-11 text-sm text-white outline-none transition focus:border-white/30"
+                        className="ui-select w-full appearance-none rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 pr-11 text-sm text-white outline-none transition focus:border-white/30"
                       >
                         <option value="veo-3.1-relax" disabled={videoVariantLocks["veo-3.1-relax"].enabled}>
                           {`Veo 3.1 Relax${videoVariantLocks["veo-3.1-relax"].enabled ? " (тех. работы)" : ""}`}
@@ -414,7 +414,7 @@ export function WorkspacePanel({
                         onChange={(e) =>
                           onVeoResolutionChange(e.target.value as "720p" | "1080p")
                         }
-                        className="w-full appearance-none rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 pr-11 text-sm text-white outline-none transition focus:border-white/30"
+                        className="ui-select w-full appearance-none rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 pr-11 text-sm text-white outline-none transition focus:border-white/30"
                       >
                         <option value="720p">720p</option>
                         <option value="1080p">1080p</option>
@@ -433,7 +433,7 @@ export function WorkspacePanel({
                         id="runway-duration"
                         value={String(runwayDurationSec)}
                         onChange={(e) => onRunwayDurationChange(e.target.value === "10" ? 10 : 5)}
-                        className="w-full appearance-none rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 pr-11 text-sm text-white outline-none transition focus:border-white/30"
+                        className="ui-select w-full appearance-none rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 pr-11 text-sm text-white outline-none transition focus:border-white/30"
                       >
                         <option value="5">5 секунд</option>
                         <option value="10">10 секунд</option>
@@ -655,7 +655,7 @@ export function WorkspacePanel({
                         <select
                           value={enhanceQuality}
                           onChange={(e) => onEnhanceQualityChange(e.target.value as "original" | "2x" | "4x")}
-                          className="w-full rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
+                          className="ui-select w-full rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
                         >
                           <option value="original">Оригинальное</option>
                           <option value="2x">2x</option>
@@ -669,7 +669,7 @@ export function WorkspacePanel({
                           onChange={(e) =>
                             onEnhanceFpsChange(e.target.value as "24" | "25" | "30" | "45" | "50" | "60")
                           }
-                          className="w-full rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
+                          className="ui-select w-full rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
                         >
                           <option value="24">24</option>
                           <option value="25">25</option>
@@ -799,7 +799,7 @@ export function WorkspacePanel({
                         id="motion-aspect"
                         value={aspectRatio}
                         onChange={(e) => onAspectRatioChange(e.target.value as AspectRatio)}
-                        className="w-full rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
+                        className="ui-select w-full rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
                       >
                         {motionAspectOptions.map((o) => (
                           <option key={o.value} value={o.value}>
@@ -935,7 +935,7 @@ export function WorkspacePanel({
                     (isVideoEnhanceMode && !enhanceFileUrl?.trim()) ||
                     (isMotionTransferMode && (!motionCharacterUrl?.trim() || !motionVideoUrl?.trim()))
                   }
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/25 bg-[#27272a] px-5 py-4 text-sm font-semibold text-white shadow-[0_0_24px_rgba(220,223,224,0.16)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#303030] hover:shadow-[0_0_30px_rgba(220,223,224,0.18)] focus:outline-none focus:ring-2 focus:ring-white/30 disabled:pointer-events-none disabled:opacity-45"
+                  className="ui-primary-btn inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/25 bg-[#27272a] px-5 py-4 text-sm font-semibold text-white shadow-[0_0_24px_rgba(220,223,224,0.16)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#303030] hover:shadow-[0_0_30px_rgba(220,223,224,0.18)] focus:outline-none focus:ring-2 focus:ring-white/30 disabled:pointer-events-none disabled:opacity-45"
                 >
                   <Sparkles className="h-4 w-4" />
                   Сгенерировать

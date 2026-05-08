@@ -80,7 +80,7 @@ export function AdminVoicePreviewsClient() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="admin-voice-previews-page space-y-6">
       <div>
         <h1 className="text-3xl font-semibold text-white">Превью голосов</h1>
         <p className="mt-2 max-w-2xl text-sm text-zinc-400">
@@ -98,7 +98,7 @@ export function AdminVoicePreviewsClient() {
           <Loader2 className="h-4 w-4 animate-spin" /> Загрузка каталога…
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-[#303030] bg-[#141414]">
+        <div className="admin-voice-previews-table overflow-x-auto rounded-2xl border border-[#303030] bg-[#141414]">
           <table className="w-full min-w-[920px] text-left text-sm">
             <thead className="border-b border-[#303030] bg-[#1a1a1a] text-xs uppercase tracking-wide text-zinc-500">
               <tr>

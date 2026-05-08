@@ -26,7 +26,7 @@ export function ModelCard({ model, isSelected, onSelect, lockedMessage }: ModelC
       whileTap={isDisabled ? undefined : { scale: 0.99 }}
       onClick={isDisabled ? undefined : onSelect}
       className={[
-        "group relative w-full flex-1 h-full min-h-[210px] overflow-hidden rounded-3xl border border-[#303030] p-5 text-left transition-all duration-300",
+        "model-card group relative w-full flex-1 h-full min-h-[210px] overflow-hidden rounded-3xl border border-[#303030] p-5 text-left transition-all duration-300",
         "bg-[#1a1a1a]/95 backdrop-blur-xl",
         isDisabled ? "cursor-not-allowed opacity-70" : "",
         isSelected
@@ -36,11 +36,10 @@ export function ModelCard({ model, isSelected, onSelect, lockedMessage }: ModelC
             : "shadow-[0_12px_40px_rgba(0,0,0,0.35)] hover:border-white/20 hover:bg-[#202020]",
       ].join(" ")}
     >
-      <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${model.accent} opacity-70`} />
-      {isDisabled ? <div className="absolute inset-0 bg-black/35" /> : null}
+      {isDisabled ? <div className="model-card-disabled-overlay absolute inset-0 bg-black/35" /> : null}
       {isLockedByAdmin ? (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/45 px-4 text-center">
-          <p className="rounded-2xl border border-white/20 bg-black/50 px-4 py-3 text-sm font-semibold text-zinc-100">
+        <div className="model-card-lock-overlay pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/45 px-4 text-center">
+          <p className="model-card-lock-badge rounded-2xl border border-white/20 bg-black/50 px-4 py-3 text-sm font-semibold text-zinc-100">
             {lockText}
           </p>
         </div>

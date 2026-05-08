@@ -180,7 +180,7 @@ export function VoicePickerModal({
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center px-3 py-6 sm:px-4"
+          className="voice-modal fixed inset-0 z-50 flex items-center justify-center px-3 py-6 sm:px-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -188,7 +188,7 @@ export function VoicePickerModal({
           <button
             type="button"
             aria-label="Закрыть"
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            className="voice-modal-backdrop absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={onClose}
           />
 
@@ -200,9 +200,9 @@ export function VoicePickerModal({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="relative z-10 flex max-h-[min(400px,calc(100vh-72px))] w-[min(440px,calc(100vw-20px))] flex-col overflow-hidden rounded-2xl border border-[#303030] bg-[#1a1a1a] text-zinc-100 shadow-[0_24px_64px_rgba(0,0,0,0.55)]"
+            className="voice-modal-panel relative z-10 flex max-h-[min(400px,calc(100vh-72px))] w-[min(440px,calc(100vw-20px))] flex-col overflow-hidden rounded-2xl border border-[#303030] bg-[#1a1a1a] text-zinc-100 shadow-[0_24px_64px_rgba(0,0,0,0.55)]"
           >
-            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#303030] bg-[#141414] px-4 py-2.5">
+            <header className="voice-modal-header flex shrink-0 items-center justify-between gap-3 border-b border-[#303030] bg-[#141414] px-4 py-2.5">
               <div className="min-w-0">
                 <p
                   id="voice-picker-title"
@@ -226,7 +226,7 @@ export function VoicePickerModal({
               </button>
             </header>
 
-            <div className="min-h-0 flex-1 overflow-y-auto bg-[#121212]">
+            <div className="voice-modal-body min-h-0 flex-1 overflow-y-auto bg-[#121212]">
               {loading ? (
                 <p className="px-4 py-6 text-center text-sm text-zinc-500">Загрузка…</p>
               ) : loadError ? (
@@ -251,13 +251,13 @@ export function VoicePickerModal({
                             }
                           }}
                           className={[
-                            "flex cursor-pointer items-center gap-3 px-3 py-2 outline-none transition-colors",
+                            "voice-modal-item flex cursor-pointer items-center gap-3 px-3 py-2 outline-none transition-colors",
                             selected ? "bg-white/10" : "hover:bg-white/5",
                           ].join(" ")}
                         >
                           <div
                             className={[
-                              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-semibold",
+                              "voice-modal-avatar flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-semibold",
                               selected
                                 ? "border-white/25 bg-white/15 text-white"
                                 : "border-white/10 bg-zinc-800/80 text-zinc-400",
@@ -283,7 +283,7 @@ export function VoicePickerModal({
                             disabled={!v.preview_audio_url}
                             onClick={(e) => playPreview(v, e)}
                             className={[
-                              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition",
+                              "voice-modal-play flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition",
                               playingId === v.id
                                 ? "border-white/30 bg-white/15 text-white"
                                 : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/20 hover:bg-white/10 hover:text-white",
@@ -301,7 +301,7 @@ export function VoicePickerModal({
               )}
             </div>
 
-            <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[#303030] bg-[#141414] px-3 py-2">
+            <footer className="voice-modal-footer flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[#303030] bg-[#141414] px-3 py-2">
               <button
                 type="button"
                 onClick={onClose}
@@ -318,7 +318,7 @@ export function VoicePickerModal({
                   onConfirm(picked);
                   onClose();
                 }}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-white/25 bg-[#27272a] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#303030] disabled:cursor-not-allowed disabled:opacity-45"
+                className="ui-primary-btn inline-flex items-center gap-1.5 rounded-xl border border-white/25 bg-[#27272a] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#303030] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <Mic className="h-3.5 w-3.5 opacity-90" />
                 Выбрать

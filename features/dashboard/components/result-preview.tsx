@@ -104,7 +104,7 @@ export function ResultPreview({
                   src={previewSrc}
                   controls
                   playsInline
-                  className="h-full w-full min-h-0 flex-1 object-contain bg-black"
+                  className="result-media h-full w-full min-h-0 flex-1 object-contain bg-black"
                   onError={() => setMediaFailed(true)}
                 />
               ) : mediaKind === "audio" ? (

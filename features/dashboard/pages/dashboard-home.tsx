@@ -1194,7 +1194,7 @@ export function DashboardHomePage({
                         controls
                         playsInline
                         preload="none"
-                        className="aspect-video w-full bg-black object-contain"
+                        className="result-media aspect-video w-full bg-black object-contain"
                       />
                     ) : mediaKind === "audio" ? (
                       <div className="flex aspect-video w-full items-center justify-center bg-black/50 px-4 py-6">
