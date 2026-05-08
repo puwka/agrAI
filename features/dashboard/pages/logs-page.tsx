@@ -172,7 +172,7 @@ export function LogsPage() {
                     setPage(0);
                   }}
                   className={[
-                    "rounded-2xl border px-4 py-2.5 text-sm font-medium transition-all duration-300",
+                    "rounded-2xl border px-4 py-2.5 text-sm font-medium transition-[background-color,border-color,color,box-shadow] duration-300",
                     isActive
                       ? "border-violet-400/40 bg-violet-500/15 text-white shadow-[0_0_24px_rgba(124,58,237,0.16)]"
                       : "border-white/10 bg-white/5 text-zinc-400 hover:border-violet-400/20 hover:text-white",
@@ -190,7 +190,7 @@ export function LogsPage() {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Поиск по промпту или модели"
-              className="w-full rounded-2xl border border-white/10 bg-black/25 py-3 pl-11 pr-4 text-sm text-white outline-none transition-all duration-300 placeholder:text-zinc-500 focus:border-violet-400/40 focus:shadow-[0_0_24px_rgba(124,58,237,0.12)]"
+              className="w-full rounded-2xl border border-white/10 bg-black/25 py-3 pl-11 pr-4 text-sm text-white outline-none transition-[background-color,border-color,color,box-shadow] duration-300 placeholder:text-zinc-500 focus:border-violet-400/40 focus:shadow-[0_0_24px_rgba(124,58,237,0.12)]"
             />
           </label>
         </div>

@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import type { MouseEvent } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   CirclePlus,
   CircleCheck,
@@ -41,6 +41,7 @@ export function AdminShell({
   user: ShellUser;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
   const { notify } = useBrowserNotifier();
@@ -48,6 +49,19 @@ export function AdminShell({
     setMenuOpen(false);
     setNavigatingTo(null);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!navigatingTo) return;
+    const id = window.setTimeout(() => {
+      setNavigatingTo(null);
+    }, 4000);
+    return () => window.clearTimeout(id);
+  }, [navigatingTo]);
+
+  useEffect(() => {
+    router.prefetch("/dashboard");
+    router.prefetch("/admin");
+  }, [router]);
 
   useEffect(() => {
     let disposed = false;
@@ -83,11 +97,11 @@ export function AdminShell({
   }, [notify]);
 
   const handleNavClick = (href: string, e: MouseEvent<HTMLAnchorElement>) => {
-    if (navigatingTo) {
+    if (href === pathname) {
       e.preventDefault();
       return;
     }
-    if (href === pathname) {
+    if (href === navigatingTo) {
       e.preventDefault();
       return;
     }
@@ -123,11 +137,11 @@ export function AdminShell({
                   href={item.href}
                   onClick={(e) => handleNavClick(item.href, e)}
                   className={[
-                    "group relative flex items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all duration-300",
+                    "group relative flex items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-[background-color,border-color,color,opacity] duration-300",
                     isActive
                       ? "border-white/25 text-white bg-white/10"
                       : "border-white/8 bg-white/5 text-zinc-400 hover:border-white/25 hover:bg-white/10 hover:text-white",
-                    navigatingTo ? "pointer-events-none opacity-80" : "",
+                    navigatingTo === item.href ? "opacity-80" : "",
                   ].join(" ")}
                 >
                   {isActive && (
@@ -147,6 +161,7 @@ export function AdminShell({
 
             <Link
               href="/dashboard"
+              prefetch
               onClick={(e) => handleNavClick("/dashboard", e)}
               className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm font-medium text-zinc-400 transition hover:border-white/25 hover:text-white"
             >
@@ -240,6 +255,7 @@ export function AdminShell({
                 })}
                 <Link
                   href="/dashboard"
+                  prefetch
                   onClick={(e) => {
                     handleNavClick("/dashboard", e);
                     if (!e.defaultPrevented) setMenuOpen(false);

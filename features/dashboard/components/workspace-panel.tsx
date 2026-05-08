@@ -224,7 +224,7 @@ export function WorkspacePanel({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut", delay: 0.1 }}
       className={[
-        "rounded-[32px] border border-white/10 bg-white/5 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl transition-all duration-500 sm:p-6",
+        "rounded-[32px] border border-white/10 bg-white/5 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl transition-shadow duration-500 sm:p-6",
         selectedModel ? "shadow-[0_24px_90px_rgba(220,223,224,0.08)]" : "",
       ].join(" ")}
     >
@@ -541,7 +541,7 @@ export function WorkspacePanel({
                           <div className="h-2 overflow-hidden rounded-full bg-white/10">
                             <div
                               className={[
-                                "h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-all duration-300",
+                                "h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-[width] duration-300",
                                 typeof transcriptionUploadProgress === "number" ? "" : "animate-pulse w-1/3",
                               ].join(" ")}
                               style={
@@ -622,7 +622,7 @@ export function WorkspacePanel({
                           <div className="h-2 overflow-hidden rounded-full bg-white/10">
                             <div
                               className={[
-                                "h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-all duration-300",
+                                "h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-[width] duration-300",
                                 typeof enhanceUploadProgress === "number" ? "" : "animate-pulse w-1/3",
                               ].join(" ")}
                               style={
@@ -762,7 +762,7 @@ export function WorkspacePanel({
                           <div className="h-2 overflow-hidden rounded-full bg-white/10">
                             <div
                               className={[
-                                "h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-all duration-300",
+                                "h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-[width] duration-300",
                                 typeof motionVideoUploadProgress === "number" ? "" : "animate-pulse w-1/3",
                               ].join(" ")}
                               style={
@@ -830,7 +830,7 @@ export function WorkspacePanel({
                           ? "Например: сделать вечерний свет, добавить дождь, сменить стиль на аниме…"
                           : "Опишите желаемый результат"
                       }
-                      className="min-h-[220px] w-full resize-none rounded-[24px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-white outline-none backdrop-blur-xl transition-all duration-300 placeholder:text-zinc-500 focus:border-white/30 focus:bg-white/8 focus:shadow-[0_0_0_1px_rgba(220,223,224,0.2),0_0_24px_rgba(220,223,224,0.1)]"
+                      className="min-h-[220px] w-full resize-none rounded-[24px] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-white outline-none backdrop-blur-xl transition-[background-color,border-color,box-shadow,color] duration-300 placeholder:text-zinc-500 focus:border-white/30 focus:bg-white/8 focus:shadow-[0_0_0_1px_rgba(220,223,224,0.2),0_0_24px_rgba(220,223,224,0.1)]"
                     />
                     {isVoiceMode ? <p className="text-xs text-zinc-500">{`Символов: ${prompt.length}`}</p> : null}
                     {isVideoMode && videoModelVariant === "runway-gen-4" ? (
@@ -860,7 +860,7 @@ export function WorkspacePanel({
                               type="button"
                               onClick={() => onAspectRatioChange(option.value)}
                               className={[
-                                "rounded-xl border px-3 py-2 text-xs font-semibold transition-all duration-300",
+                                "rounded-xl border px-3 py-2 text-xs font-semibold transition-[background-color,border-color,color,box-shadow] duration-300",
                                 checked
                                   ? "border-white/20 bg-white/10 text-white shadow-[0_0_18px_rgba(220,223,224,0.12)]"
                                   : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/25 hover:bg-white/10",
@@ -885,7 +885,7 @@ export function WorkspacePanel({
                                   type="button"
                                   onClick={() => onAspectRatioChange(option.value)}
                                   className={[
-                                    "rounded-xl border px-3 py-2 text-xs font-semibold transition-all duration-300",
+                                    "rounded-xl border px-3 py-2 text-xs font-semibold transition-[background-color,border-color,color,box-shadow] duration-300",
                                     checked
                                       ? "border-white/20 bg-white/10 text-white shadow-[0_0_18px_rgba(220,223,224,0.12)]"
                                       : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/25 hover:bg-white/10",
@@ -935,7 +935,7 @@ export function WorkspacePanel({
                     (isVideoEnhanceMode && !enhanceFileUrl?.trim()) ||
                     (isMotionTransferMode && (!motionCharacterUrl?.trim() || !motionVideoUrl?.trim()))
                   }
-                  className="ui-primary-btn inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/25 bg-[#27272a] px-5 py-4 text-sm font-semibold text-white shadow-[0_0_24px_rgba(220,223,224,0.16)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#303030] hover:shadow-[0_0_30px_rgba(220,223,224,0.18)] focus:outline-none focus:ring-2 focus:ring-white/30 disabled:pointer-events-none disabled:opacity-45"
+                  className="ui-primary-btn inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/25 bg-[#27272a] px-5 py-4 text-sm font-semibold text-white shadow-[0_0_24px_rgba(220,223,224,0.16)] transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-300 hover:-translate-y-0.5 hover:bg-[#303030] hover:shadow-[0_0_30px_rgba(220,223,224,0.18)] focus:outline-none focus:ring-2 focus:ring-white/30 disabled:pointer-events-none disabled:opacity-45"
                 >
                   <Sparkles className="h-4 w-4" />
                   Сгенерировать

@@ -95,7 +95,6 @@ html[data-theme="light"] [class*="bg-zinc-950"],
 html[data-theme="light"] [class*="bg-black/"],
 html[data-theme="light"] [class*="bg-white/5"] {
   background-color: rgba(255, 255, 255, 0.78) !important;
-  backdrop-filter: blur(12px);
 }
 
 html[data-theme="light"] [class*="border-[#303030]"],
@@ -158,72 +157,6 @@ html[data-theme="light"] [class*="shadow-[0_24px_90px"] {
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08) !important;
 }
 
-@media (prefers-color-scheme: light) {
-  html:not([data-theme]) [class*="bg-[#0f0f0f]"],
-  html:not([data-theme]) [class*="bg-[#1a1a1a]"],
-  html:not([data-theme]) [class*="bg-[#161616]"],
-  html:not([data-theme]) [class*="bg-zinc-950"],
-  html:not([data-theme]) [class*="bg-black/"],
-  html:not([data-theme]) [class*="bg-white/5"] {
-    background-color: rgba(255, 255, 255, 0.78) !important;
-    backdrop-filter: blur(12px);
-  }
-
-  html:not([data-theme]) [class*="border-[#303030]"],
-  html:not([data-theme]) [class*="border-white/10"],
-  html:not([data-theme]) [class*="border-white/15"],
-  html:not([data-theme]) [class*="border-white/20"] {
-    border-color: rgba(148, 163, 184, 0.35) !important;
-  }
-
-  html:not([data-theme]) [class*="text-white"],
-  html:not([data-theme]) [class*="text-zinc-100"],
-  html:not([data-theme]) [class*="text-zinc-200"] {
-    color: #0f172a !important;
-  }
-
-  html:not([data-theme]) [class*="text-zinc-300"],
-  html:not([data-theme]) [class*="text-zinc-400"],
-  html:not([data-theme]) [class*="text-zinc-500"] {
-    color: #475569 !important;
-  }
-
-  html:not([data-theme]) [class*="text-violet-"],
-  html:not([data-theme]) [class*="text-fuchsia-"] {
-    color: #4338ca !important;
-  }
-
-  html:not([data-theme]) [class*="text-amber-"] {
-    color: #b45309 !important;
-  }
-
-  html:not([data-theme]) [class*="text-emerald-"] {
-    color: #047857 !important;
-  }
-
-  html:not([data-theme]) [class*="text-red-"] {
-    color: #b91c1c !important;
-  }
-
-  html:not([data-theme]) [class*="text-sky-"],
-  html:not([data-theme]) [class*="text-cyan-"] {
-    color: #0369a1 !important;
-  }
-
-  html:not([data-theme]) .lucide,
-  html:not([data-theme]) svg {
-    stroke: currentColor !important;
-    opacity: 0.98;
-  }
-
-  html:not([data-theme]) [class*="placeholder:text-zinc-"]::placeholder,
-  html:not([data-theme]) input::placeholder,
-  html:not([data-theme]) textarea::placeholder {
-    color: #64748b !important;
-    opacity: 1;
-  }
-}
-
 /* Light theme: modern, calmer button palette */
 html[data-theme="light"] button[class*="bg-violet-"],
 html[data-theme="light"] button[class*="bg-fuchsia-"],
@@ -249,24 +182,6 @@ html[data-theme="light"] [class*="bg-violet-500/10"][class*="text-violet-100"] {
   color: #312e81 !important;
 }
 
-@media (prefers-color-scheme: light) {
-  html:not([data-theme]) button[class*="bg-violet-"],
-  html:not([data-theme]) button[class*="bg-fuchsia-"],
-  html:not([data-theme]) a[class*="bg-violet-"],
-  html:not([data-theme]) a[class*="bg-fuchsia-"] {
-    background: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%) !important;
-    border-color: rgba(79, 70, 229, 0.45) !important;
-    color: #ffffff !important;
-    box-shadow: 0 6px 16px rgba(79, 70, 229, 0.22) !important;
-  }
-
-  html:not([data-theme]) [class*="bg-violet-500/10"][class*="text-violet-100"] {
-    background: #e9edff !important;
-    border-color: #c7d2fe !important;
-    color: #312e81 !important;
-  }
-}
-
 /* Admin generation card polish in light theme */
 html[data-theme="light"] .admin-generation-card {
   background: rgba(255, 255, 255, 0.9) !important;
@@ -287,74 +202,6 @@ html[data-theme="light"] .admin-generation-input {
 
 html[data-theme="light"] .admin-generation-input::placeholder {
   color: #64748b !important;
-}
-
-@media (prefers-color-scheme: light) {
-  html:not([data-theme]) .admin-generation-card {
-    background: rgba(255, 255, 255, 0.9) !important;
-    border-color: rgba(148, 163, 184, 0.32) !important;
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
-  }
-
-  html:not([data-theme]) .admin-generation-pending {
-    background: #fffaf0 !important;
-    border-color: #f5d28c !important;
-  }
-
-  html:not([data-theme]) .admin-generation-input {
-    background: #ffffff !important;
-    border-color: #cbd5e1 !important;
-    color: #0f172a !important;
-  }
-
-  html:not([data-theme]) .admin-generation-input::placeholder {
-    color: #64748b !important;
-  }
-
-  html:not([data-theme]) .admin-voice-previews-table,
-  html:not([data-theme]) .admin-custom-voices-form,
-  html:not([data-theme]) .admin-custom-voices-table {
-    background: rgba(255, 255, 255, 0.92) !important;
-    border-color: rgba(148, 163, 184, 0.35) !important;
-  }
-
-  html:not([data-theme]) .admin-custom-voices-dropzone {
-    background: #f8fafc !important;
-    border-color: rgba(148, 163, 184, 0.45) !important;
-  }
-
-  html:not([data-theme]) .admin-custom-voices-input {
-    background: #ffffff !important;
-    border-color: #cbd5e1 !important;
-    color: #0f172a !important;
-  }
-
-  html:not([data-theme]) .admin-custom-voices-input::placeholder {
-    color: #64748b !important;
-  }
-
-  html:not([data-theme]) .model-card {
-    background: rgba(255, 255, 255, 0.92) !important;
-    border-color: rgba(148, 163, 184, 0.34) !important;
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08) !important;
-    backdrop-filter: none !important;
-  }
-
-  html:not([data-theme]) .model-card-disabled-overlay {
-    background: rgba(15, 23, 42, 0.08) !important;
-    backdrop-filter: none !important;
-  }
-
-  html:not([data-theme]) .model-card-lock-overlay {
-    background: rgba(15, 23, 42, 0.2) !important;
-    backdrop-filter: none !important;
-  }
-
-  html:not([data-theme]) .model-card-lock-badge {
-    background: #ffffff !important;
-    border-color: rgba(244, 63, 94, 0.35) !important;
-    color: #7f1d1d !important;
-  }
 }
 
 html[data-theme="light"] .admin-voice-previews-table,
@@ -466,7 +313,7 @@ html[data-theme="light"] .voice-modal-body {
 
 html[data-theme="light"] .voice-modal-backdrop {
   background: rgba(15, 23, 42, 0.35) !important;
-  backdrop-filter: blur(2px) !important;
+  backdrop-filter: none !important;
 }
 
 html[data-theme="light"] .voice-modal-item {
@@ -503,85 +350,12 @@ html[data-theme="light"] .result-media {
   background: #e2e8f0 !important;
 }
 
-@media (prefers-color-scheme: light) {
-  html:not([data-theme]) .ui-select {
-    background: #ffffff !important;
-    border-color: rgba(148, 163, 184, 0.55) !important;
-    color: #0f172a !important;
-    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
-  }
-
-  html:not([data-theme]) .ui-select:disabled {
-    background: #f1f5f9 !important;
-    color: #64748b !important;
-    opacity: 1 !important;
-  }
-
-  html:not([data-theme]) .ui-primary-btn {
-    background: linear-gradient(180deg, #4f46e5 0%, #4338ca 100%) !important;
-    border-color: rgba(67, 56, 202, 0.55) !important;
-    color: #ffffff !important;
-    box-shadow: 0 10px 24px rgba(67, 56, 202, 0.18) !important;
-  }
-
-  html:not([data-theme]) .ui-primary-btn:disabled {
-    background: #e2e8f0 !important;
-    border-color: rgba(148, 163, 184, 0.55) !important;
-    color: #64748b !important;
-    box-shadow: none !important;
-    opacity: 1 !important;
-  }
-
-  html:not([data-theme]) .result-media {
-    background: #e2e8f0 !important;
-  }
-
-  html:not([data-theme]) .voice-modal-panel {
-    background: rgba(255, 255, 255, 0.96) !important;
-    border-color: rgba(148, 163, 184, 0.45) !important;
-    color: #0f172a !important;
-    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18) !important;
-  }
-
-  html:not([data-theme]) .voice-modal-header,
-  html:not([data-theme]) .voice-modal-footer {
-    background: #f8fafc !important;
-    border-color: rgba(148, 163, 184, 0.35) !important;
-  }
-
-  html:not([data-theme]) .voice-modal-body {
-    background: #ffffff !important;
-  }
-
-  html:not([data-theme]) .voice-modal-backdrop {
-    background: rgba(15, 23, 42, 0.35) !important;
-    backdrop-filter: blur(2px) !important;
-  }
-
-  html:not([data-theme]) .voice-modal-item:hover {
-    background: rgba(99, 102, 241, 0.06) !important;
-  }
-
-  html:not([data-theme]) .voice-modal-item[class*="bg-white/10"] {
-    background: rgba(99, 102, 241, 0.1) !important;
-  }
-
-  html:not([data-theme]) .voice-modal-avatar {
-    background: #f1f5f9 !important;
-    border-color: rgba(148, 163, 184, 0.55) !important;
-    color: #334155 !important;
-  }
-
-  html:not([data-theme]) .voice-modal-play {
-    background: #ffffff !important;
-    border-color: rgba(148, 163, 184, 0.55) !important;
-    color: #0f172a !important;
-  }
-
-  html:not([data-theme]) .voice-modal-play:hover {
-    background: rgba(99, 102, 241, 0.08) !important;
-    border-color: rgba(99, 102, 241, 0.45) !important;
-  }
+/* Keep transitions cheaper on frequently repainted controls */
+.theme-toggle-btn,
+.model-card,
+.ui-primary-btn,
+.ui-select {
+  transition-property: background-color, border-color, color, opacity, transform, box-shadow;
 }
 
 ::selection {

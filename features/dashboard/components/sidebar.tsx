@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Menu, PanelLeftClose, Shield, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
@@ -12,10 +12,17 @@ import { ThemeToggle } from "../../shared/theme-toggle";
 
 export function Sidebar({ user }: { user: ShellUser }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname]);
+  useEffect(() => {
+    router.prefetch("/dashboard");
+    if (user.role === "ADMIN") {
+      router.prefetch("/admin");
+    }
+  }, [router, user.role]);
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -49,7 +56,7 @@ export function Sidebar({ user }: { user: ShellUser }) {
               key={item.href}
               href={item.href}
               className={[
-                "group relative flex items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all duration-300",
+                "group relative flex items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-[background-color,border-color,color,opacity] duration-300",
                 isActive
                   ? "border-white/25 text-white bg-white/10"
                   : "border-white/8 bg-white/5 text-zinc-400 hover:border-white/25 hover:bg-white/10 hover:text-white",
@@ -64,7 +71,7 @@ export function Sidebar({ user }: { user: ShellUser }) {
               )}
               <span
                 className={[
-                  "relative z-10 flex h-9 w-9 items-center justify-center rounded-xl border transition-all duration-300",
+                  "relative z-10 flex h-9 w-9 items-center justify-center rounded-xl border transition-[background-color,border-color,color] duration-300",
                   isActive
                     ? "border-white/20 bg-white/10 text-white"
                     : "border-white/10 bg-black/20 text-zinc-500 group-hover:text-white",
@@ -80,8 +87,9 @@ export function Sidebar({ user }: { user: ShellUser }) {
         {user.role === "ADMIN" && (
           <Link
             href="/admin"
+            prefetch
             className={[
-              "group relative flex items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all duration-300",
+              "group relative flex items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-[background-color,border-color,color,opacity] duration-300",
               pathname.startsWith("/admin")
                 ? "border-white/25 text-white bg-white/10"
                 : "border-white/8 bg-white/5 text-zinc-400 hover:border-white/25 hover:bg-white/10 hover:text-white",
@@ -94,7 +102,7 @@ export function Sidebar({ user }: { user: ShellUser }) {
                   transition={{ type: "spring", stiffness: 280, damping: 26 }}
                 />
               )}
-            <span className="relative z-10 flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-zinc-500 transition-all duration-300 group-hover:text-white">
+            <span className="relative z-10 flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-zinc-500 transition-[background-color,border-color,color] duration-300 group-hover:text-white">
               <Shield className="h-4.5 w-4.5" />
             </span>
             <span className="relative z-10">Админка</span>
@@ -118,7 +126,7 @@ export function Sidebar({ user }: { user: ShellUser }) {
         <button
           type="button"
           onClick={handleLogout}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-zinc-300 transition-all duration-300 hover:border-red-400/20 hover:bg-red-500/10 hover:text-red-200"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-zinc-300 transition-[background-color,border-color,color,opacity] duration-300 hover:border-red-400/20 hover:bg-red-500/10 hover:text-red-200"
         >
           <LogOut className="h-4 w-4" />
           Выход
@@ -194,6 +202,7 @@ export function Sidebar({ user }: { user: ShellUser }) {
               {user.role === "ADMIN" ? (
                 <Link
                   href="/admin"
+                  prefetch
                   onClick={() => setMenuOpen(false)}
                   className={[
                     "flex items-center gap-3 rounded-2xl border px-3.5 py-3 text-sm font-medium transition",

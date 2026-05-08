@@ -45,7 +45,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       onClick={toggle}
       disabled={!ready}
       className={[
-        "theme-toggle-btn inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-zinc-100 shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-md transition hover:scale-[1.03] hover:bg-black/70 disabled:cursor-not-allowed disabled:opacity-60",
+        "theme-toggle-btn inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-zinc-100 shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition-colors hover:bg-black/70 disabled:cursor-not-allowed disabled:opacity-60",
         className,
       ].join(" ")}
       aria-label={theme === "dark" ? "Включить светлую тему" : "Включить тёмную тему"}
