@@ -10,6 +10,9 @@ import type { AspectRatio } from "../../../features/dashboard/types";
 
 const GENERATIONS_CACHE_TTL_MS = 8000;
 const generationsListCache = new Map<string, { expiresAt: number; payload: unknown }>();
+const cleanupLastRunByUser = new Map<string, number>();
+const GENERATIONS_RETENTION_DAYS = 5;
+const CLEANUP_THROTTLE_MS = 60 * 60 * 1000; // 1h
 
 function extractErrorText(error: unknown): string {
   const chunks: string[] = [];
@@ -138,6 +141,23 @@ export async function GET(request: Request) {
 
   if (!sessionUser?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Auto-cleanup old generations (retention).
+  try {
+    const nowMs = Date.now();
+    const last = cleanupLastRunByUser.get(sessionUser.id) ?? 0;
+    if (nowMs - last > CLEANUP_THROTTLE_MS) {
+      cleanupLastRunByUser.set(sessionUser.id, nowMs);
+      const cutoff = new Date(nowMs - GENERATIONS_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+      await db.generation.deleteOlderThanForUser(sessionUser.id, cutoff);
+      // Invalidate list cache for this user.
+      for (const key of generationsListCache.keys()) {
+        if (key.startsWith(`${sessionUser.id}|`)) generationsListCache.delete(key);
+      }
+    }
+  } catch {
+    // Best-effort cleanup; never block logs page.
   }
 
   const { searchParams } = new URL(request.url);

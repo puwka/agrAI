@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ClipboardEvent } from "react";
-import { Loader2, Send, Trash2, Upload } from "lucide-react";
+import { Check, Copy, Loader2, Send, Trash2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { detectResultMediaKind } from "../../../features/dashboard/lib";
@@ -101,6 +101,7 @@ export function AdminGenerationsClient({
   const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({});
   const [messageDrafts, setMessageDrafts] = useState<Record<string, string>>({});
   const [promptExpanded, setPromptExpanded] = useState<Record<string, boolean>>({});
+  const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
   const inFlightRef = useRef(false);
   const pendingFreshReloadRef = useRef(false);
   const readyOffsetRef = useRef(0);
@@ -207,6 +208,20 @@ export function AdminGenerationsClient({
       return next;
     });
   };
+
+  const copyPromptText = useCallback(async (id: string, text: string) => {
+    const value = text.trim();
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedPromptId(id);
+      setTimeout(() => {
+        setCopiedPromptId((prev) => (prev === id ? null : prev));
+      }, 1500);
+    } catch {
+      setError("Не удалось скопировать промпт");
+    }
+  }, []);
 
   const isResultUrlLike = (value: string) => {
     const v = value.trim();
@@ -578,17 +593,36 @@ export function AdminGenerationsClient({
                       >
                         {text || "—"}
                       </p>
-                      {needsToggle ? (
+                      <div className="flex flex-wrap items-center gap-3">
                         <button
                           type="button"
-                          onClick={() =>
-                            setPromptExpanded((prev) => ({ ...prev, [g.id]: !prev[g.id] }))
-                          }
-                          className="text-xs font-semibold text-violet-300 underline-offset-2 hover:text-violet-200 hover:underline"
+                          onClick={() => void copyPromptText(g.id, text)}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-300 underline-offset-2 hover:text-zinc-100 hover:underline"
                         >
-                          {expanded ? "Свернуть" : "Показать полностью"}
+                          {copiedPromptId === g.id ? (
+                            <>
+                              <Check className="h-3.5 w-3.5" />
+                              Скопировано
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3.5 w-3.5" />
+                              Копировать промпт
+                            </>
+                          )}
                         </button>
-                      ) : null}
+                        {needsToggle ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPromptExpanded((prev) => ({ ...prev, [g.id]: !prev[g.id] }))
+                            }
+                            className="text-xs font-semibold text-violet-300 underline-offset-2 hover:text-violet-200 hover:underline"
+                          >
+                            {expanded ? "Свернуть" : "Показать полностью"}
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   );
                 })()}

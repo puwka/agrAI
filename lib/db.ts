@@ -495,6 +495,18 @@ export const db: any = {
       if (error) throw error;
       return { id: val };
     },
+    async deleteOlderThanForUser(userId: string, cutoffIso: string) {
+      const id = userId.trim();
+      const cutoff = cutoffIso.trim();
+      if (!id || !cutoff) return { deleted: 0 };
+      const { error, count } = await getSupabaseAdmin()
+        .from("Generation")
+        .delete({ count: "exact" })
+        .eq("userId", id)
+        .lt("createdAt", cutoff);
+      if (error) throw error;
+      return { deleted: typeof count === "number" ? count : 0 };
+    },
     async count() {
       const { count, error } = await getSupabaseAdmin().from("Generation").select("*", { count: "exact", head: true });
       if (error) throw error;
