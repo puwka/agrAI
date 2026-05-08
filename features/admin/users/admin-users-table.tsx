@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Eye, EyeOff, Loader2, UserPlus } from "lucide-react";
+import { Eye, EyeOff, Loader2, Trash2, UserPlus } from "lucide-react";
 
 export type AdminUserRow = {
   id: string;
@@ -282,6 +282,30 @@ export function AdminUsersTable({ initialRows }: { initialRows: AdminUserRow[] }
     setPasswordByUser((prev) => ({ ...prev, [userId]: "" }));
   };
 
+  const deleteUser = async (userId: string) => {
+    const row = rows.find((u) => u.id === userId);
+    const label = row?.email?.trim() || row?.name?.trim() || "пользователь";
+    const ok = window.confirm(`Удалить пользователя ${label}? Это действие нельзя отменить.`);
+    if (!ok) return;
+
+    setBusyUserId(userId);
+    setError(null);
+
+    const response = await fetch(`/api/admin/users/${userId}`, {
+      method: "DELETE",
+    });
+
+    setBusyUserId(null);
+
+    if (!response.ok) {
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      setError(data?.error ?? "Не удалось удалить пользователя.");
+      return;
+    }
+
+    setRows((current) => current.filter((u) => u.id !== userId));
+  };
+
   return (
     <div className="space-y-3">
       {error ? (
@@ -530,6 +554,15 @@ export function AdminUsersTable({ initialRows }: { initialRows: AdminUserRow[] }
                           Сменить пароль
                         </button>
                       </div>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void deleteUser(u.id)}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 transition hover:bg-red-500/20 disabled:opacity-60"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Удалить пользователя
+                      </button>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-zinc-500">{formatDate(u.createdAt)}</td>

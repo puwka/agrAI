@@ -321,6 +321,12 @@ export const db: any = {
       }
       return project(row, args.select);
     },
+    async delete(args: { where: AnyRecord }) {
+      const [key, val] = Object.entries(args.where)[0] ?? [];
+      const { error } = await getSupabaseAdmin().from("User").delete().eq(key, val);
+      if (error) throw error;
+      return { id: val };
+    },
   },
   appSettings: {
     async findUnique(args: { where: AnyRecord }) {
@@ -507,6 +513,16 @@ export const db: any = {
       if (error) throw error;
       return { deleted: typeof count === "number" ? count : 0 };
     },
+    async deleteManyByUserId(userId: string) {
+      const id = userId.trim();
+      if (!id) return { deleted: 0 };
+      const { error, count } = await getSupabaseAdmin()
+        .from("Generation")
+        .delete({ count: "exact" })
+        .eq("userId", id);
+      if (error) throw error;
+      return { deleted: typeof count === "number" ? count : 0 };
+    },
     async count() {
       const { count, error } = await getSupabaseAdmin().from("Generation").select("*", { count: "exact", head: true });
       if (error) throw error;
@@ -560,6 +576,13 @@ export const db: any = {
       const { error } = await getSupabaseAdmin().from("ApiKey").delete().eq(key, val);
       if (error) throw error;
       return { id: val };
+    },
+    async deleteManyByUserId(userId: string) {
+      const id = userId.trim();
+      if (!id) return { deleted: 0 };
+      const { error, count } = await getSupabaseAdmin().from("ApiKey").delete({ count: "exact" }).eq("userId", id);
+      if (error) throw error;
+      return { deleted: typeof count === "number" ? count : 0 };
     },
   },
   voicePreviewOverride: {
