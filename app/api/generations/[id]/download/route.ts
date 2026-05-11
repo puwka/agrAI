@@ -137,8 +137,10 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   }
 
   let pathname = "";
+  let isExternalHttpUrl = false;
   try {
     if (resultUrl.startsWith("http://") || resultUrl.startsWith("https://")) {
+      isExternalHttpUrl = true;
       pathname = new URL(resultUrl).pathname;
     } else if (resultUrl.startsWith("/")) {
       pathname = resultUrl.split("?")[0] ?? "";
@@ -174,6 +176,12 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         "Cache-Control": "private, no-store",
       },
     });
+  }
+
+  if (isExternalHttpUrl) {
+    // Для внешних URL не проксируем тело и не навязываем расширение/attachment.
+    // Иначе HTML-страницы и CDN-ссылки без расширения часто скачиваются как .bin.
+    return NextResponse.redirect(resultUrl, 302);
   }
 
   let lastError: unknown = null;

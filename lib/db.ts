@@ -513,6 +513,19 @@ export const db: any = {
       if (error) throw error;
       return { deleted: typeof count === "number" ? count : 0 };
     },
+    async deleteOlderThanFinishedForUser(userId: string, cutoffIso: string) {
+      const id = userId.trim();
+      const cutoff = cutoffIso.trim();
+      if (!id || !cutoff) return { deleted: 0 };
+      const { error, count } = await getSupabaseAdmin()
+        .from("Generation")
+        .delete({ count: "exact" })
+        .eq("userId", id)
+        .in("status", ["SUCCESS", "ERROR"])
+        .lt("createdAt", cutoff);
+      if (error) throw error;
+      return { deleted: typeof count === "number" ? count : 0 };
+    },
     async deleteManyByUserId(userId: string) {
       const id = userId.trim();
       if (!id) return { deleted: 0 };

@@ -130,7 +130,7 @@ function generationListWhere(
     return base;
   }
   if (statusFilter === "queued") {
-    base.status = { in: ["PENDING", "QUEUED"] };
+    base.status = { in: ["PENDING", "QUEUED", "PROCESSING"] };
     return base;
   }
   return base;
@@ -150,7 +150,9 @@ export async function GET(request: Request) {
     if (nowMs - last > CLEANUP_THROTTLE_MS) {
       cleanupLastRunByUser.set(sessionUser.id, nowMs);
       const cutoff = new Date(nowMs - GENERATIONS_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
-      await db.generation.deleteOlderThanForUser(sessionUser.id, cutoff);
+      // Никогда не удаляем "живые" заявки из очереди/обработки.
+      // Авто-очистка касается только завершенных записей.
+      await db.generation.deleteOlderThanFinishedForUser(sessionUser.id, cutoff);
       // Invalidate list cache for this user.
       for (const key of generationsListCache.keys()) {
         if (key.startsWith(`${sessionUser.id}|`)) generationsListCache.delete(key);
@@ -302,7 +304,7 @@ export async function POST(request: Request) {
     const unfinished = await db.generation.findFirst({
       where: {
         userId: sessionUser.id,
-        status: { in: ["PENDING", "QUEUED"] },
+        status: { in: ["PENDING", "QUEUED", "PROCESSING"] },
       },
       select: { id: true },
     });
@@ -547,6 +549,12 @@ export async function POST(request: Request) {
   }
 
   if (modelId === "video") {
+    if (inferredVideoVariant === "veo-3.1-relax" && aspectRatio !== "16:9" && aspectRatio !== "9:16") {
+      return NextResponse.json(
+        { error: "Для Veo 3.1 Relax доступны только форматы 16:9 и 9:16." },
+        { status: 400 },
+      );
+    }
     const runwayDurationRaw =
       typeof body.runwayDurationSec === "number" && Number.isFinite(body.runwayDurationSec)
         ? Math.round(body.runwayDurationSec)

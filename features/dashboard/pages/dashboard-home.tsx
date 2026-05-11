@@ -152,7 +152,7 @@ export function DashboardHomePage({
 
   const hasActiveGenerationInQueue = useMemo(() => {
     if (isAdmin) return false;
-    return generations.some((g) => g.status === "PENDING" || g.status === "QUEUED");
+    return generations.some((g) => g.status === "PENDING" || g.status === "QUEUED" || g.status === "PROCESSING");
   }, [generations, isAdmin]);
 
   const uploadReferenceImage = useCallback(async (file: File) => {
@@ -457,6 +457,14 @@ export function DashboardHomePage({
   }, [selectedModelId, videoModelVariant, videoVariantLocks]);
 
   useEffect(() => {
+    if (selectedModelId !== "video") return;
+    if (videoModelVariant !== "veo-3.1-relax") return;
+    if (aspectRatio !== "16:9" && aspectRatio !== "9:16") {
+      setAspectRatio("16:9");
+    }
+  }, [selectedModelId, videoModelVariant, aspectRatio]);
+
+  useEffect(() => {
     if (selectedModelId !== "photo") return;
     if (!photoVariantLocks[photoModelVariant].enabled) return;
     const fallback = (["nana2", "nana-pro", "sora-image"] as const).find((id) => !photoVariantLocks[id].enabled);
@@ -521,7 +529,9 @@ export function DashboardHomePage({
     const shouldPoll =
       deliveryPending ||
       (lastSubmittedId !== null &&
-        generations.some((g) => g.id === lastSubmittedId && (g.status === "PENDING" || g.status === "QUEUED")));
+        generations.some(
+          (g) => g.id === lastSubmittedId && (g.status === "PENDING" || g.status === "QUEUED" || g.status === "PROCESSING"),
+        ));
 
     if (!shouldPoll) {
       if (pollRef.current) {

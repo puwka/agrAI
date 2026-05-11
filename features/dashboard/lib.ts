@@ -71,7 +71,7 @@ export function mapGenerationStatusToLogStatus(
   if (status === "ERROR") {
     return "error";
   }
-  if (status === "QUEUED" || status === "PENDING") {
+  if (status === "QUEUED" || status === "PENDING" || status === "PROCESSING") {
     return "queued";
   }
   return "success";
@@ -83,6 +83,8 @@ export function formatGenerationStatusLabel(status: string) {
       return "Ожидает результата";
     case "QUEUED":
       return "В очереди";
+    case "PROCESSING":
+      return "В обработке";
     case "SUCCESS":
       return "Готово";
     case "ERROR":
