@@ -4,7 +4,6 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Download, Loader2, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 
-import { PageIntro } from "../components/page-intro";
 import { fetchWithRetry } from "../../shared/network";
 
 type AutomationRequestDto = {
@@ -130,11 +129,17 @@ export function AutomationPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10 sm:px-6 lg:px-8">
-      <PageIntro
-        eyebrow="Автоматизация"
-        title="Внешние нейросети"
-        description="Заявка уходит в очередь, Python-воркер выполняет сценарий Playwright и прикрепляет результат. Обновление статуса — в реальном времени (polling)."
-      />
+      <motion.section
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-2"
+      >
+        <h1 className="text-2xl font-semibold text-white sm:text-3xl">Внешние нейросети</h1>
+        <p className="text-sm leading-6 text-zinc-400">
+          Заявка уходит в очередь, Python-воркер выполняет сценарий Playwright и прикрепляет результат. Обновление
+          статуса — в реальном времени (polling).
+        </p>
+      </motion.section>
 
       <motion.form
         onSubmit={onSubmit}
