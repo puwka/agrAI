@@ -124,13 +124,9 @@ const motionAspectOptions: Array<{ value: AspectRatio; title: string; hint: stri
   { value: "9:16", title: "9:16", hint: "Story (vertical)" },
 ];
 
+/** Runway Gen-4: только один поддерживаемый формат в продукте. */
 const runwayVideoAspectOptions: Array<{ value: AspectRatio; title: string; hint: string }> = [
-  { value: "21:9", title: "21:9", hint: "Exclusive" },
   { value: "16:9", title: "16:9", hint: "Widescreen" },
-  { value: "4:3", title: "4:3", hint: "Classic" },
-  { value: "1:1", title: "1:1", hint: "Square" },
-  { value: "3:4", title: "3:4", hint: "Vertical classic" },
-  { value: "9:16", title: "9:16", hint: "Story (vertical)" },
 ];
 
 export function WorkspacePanel({
@@ -209,10 +205,6 @@ export function WorkspacePanel({
   const isTranscriptionMode = selectedModel?.id === "transcription";
   const isVideoEnhanceMode = selectedModel?.id === "video-enhance";
   const isMotionTransferMode = selectedModel?.id === "motion-transfer";
-  const runwayAspectOptionsForCurrentMode =
-    isVideoMode && videoModelVariant === "runway-gen-4" && mediaInputMode === "TEXT"
-      ? runwayVideoAspectOptions.filter((o) => o.value !== "9:16")
-      : runwayVideoAspectOptions;
   const textFromLabel = isPhotoMode ? "Из текста в фото" : "Из текста в видео";
   const imageFromLabel = isPhotoMode ? "Из фото в фото" : "Из фото в видео";
   const [voiceModalOpen, setVoiceModalOpen] = useState(false);
@@ -875,7 +867,7 @@ export function WorkspacePanel({
                         <>
                           <div className="inline-flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">
                             {(videoModelVariant === "runway-gen-4"
-                              ? runwayAspectOptionsForCurrentMode.map((o) => ({ value: o.value, label: o.title }))
+                              ? runwayVideoAspectOptions.map((o) => ({ value: o.value, label: o.title }))
                               : defaultAspectOptions
                             ).map((option) => {
                               const checked = aspectRatio === option.value;
@@ -896,9 +888,6 @@ export function WorkspacePanel({
                               );
                             })}
                           </div>
-                          {videoModelVariant === "runway-gen-4" && mediaInputMode === "TEXT" ? (
-                            <p className="text-xs text-zinc-500">Для Runway в режиме «из текста» формат 9:16 недоступен.</p>
-                          ) : null}
                         </>
                       )
                     ) : null}

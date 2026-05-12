@@ -44,7 +44,7 @@ export async function GET(request: Request) {
     statusRaw === "SUCCESS"
       ? { status: "SUCCESS" }
       : statusRaw === "OPEN"
-        ? { status: { in: ["PENDING", "QUEUED", "ERROR"] } }
+        ? { status: { in: ["PENDING", "QUEUED", "PROCESSING", "ERROR"] } }
       : statusRaw === "PENDING"
         ? { status: { in: ["PENDING", "QUEUED"] } }
         : undefined;

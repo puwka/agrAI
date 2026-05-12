@@ -495,6 +495,14 @@ export const db: any = {
       if (!rows[0]) throw new Error("Generation not found");
       return hydrateRecord(rows[0] as AnyRecord);
     },
+    async updateWhere(args: { where: AnyRecord; data: AnyRecord }) {
+      const data = { ...args.data, updatedAt: nowIso() };
+      let q = getSupabaseAdmin().from("Generation").update(data).select("*");
+      q = applyWhere(q, args.where);
+      const { data: rows, error } = await q;
+      if (error) throw error;
+      return hydrateRows((rows ?? []) as AnyRecord[]);
+    },
     async delete(args: { where: AnyRecord }) {
       const [key, val] = Object.entries(args.where)[0] ?? [];
       const { error } = await getSupabaseAdmin().from("Generation").delete().eq(key, val);

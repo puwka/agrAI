@@ -465,6 +465,14 @@ export function DashboardHomePage({
   }, [selectedModelId, videoModelVariant, aspectRatio]);
 
   useEffect(() => {
+    if (selectedModelId !== "video") return;
+    if (videoModelVariant !== "runway-gen-4") return;
+    if (aspectRatio !== "16:9") {
+      setAspectRatio("16:9");
+    }
+  }, [selectedModelId, videoModelVariant, aspectRatio]);
+
+  useEffect(() => {
     if (selectedModelId !== "photo") return;
     if (!photoVariantLocks[photoModelVariant].enabled) return;
     const fallback = (["nana2", "nana-pro", "sora-image"] as const).find((id) => !photoVariantLocks[id].enabled);
@@ -620,15 +628,6 @@ export function DashboardHomePage({
       }
       if (selectedModel.id === "video" && videoModelVariant === "runway-gen-4" && prompt.length > MAX_RUNWAY_PROMPT_LEN) {
         setGenerationSubmitError(`Для Runway Gen-4 максимум ${MAX_RUNWAY_PROMPT_LEN} символов в промпте.`);
-        return;
-      }
-      if (
-        selectedModel.id === "video" &&
-        videoModelVariant === "runway-gen-4" &&
-        mediaInputMode === "TEXT" &&
-        aspectRatio === "9:16"
-      ) {
-        setGenerationSubmitError("Для Runway Gen-4 генерация из текста в формате 9:16 недоступна. Выберите другой формат или режим «из фото в видео».");
         return;
       }
       if (mediaInputMode === "TEXT" && !prompt.trim()) {
@@ -1043,9 +1042,6 @@ export function DashboardHomePage({
           if (mode === "TEXT") {
             setReferenceImageUrls([]);
             setReferenceUploadError(null);
-            if (selectedModel?.id === "video" && videoModelVariant === "runway-gen-4" && aspectRatio === "9:16") {
-              setAspectRatio("16:9");
-            }
           }
         }}
         referenceImageUrls={referenceImageUrls}
@@ -1144,19 +1140,7 @@ export function DashboardHomePage({
               return { ...prev, video: current.slice(0, MAX_RUNWAY_PROMPT_LEN) };
             });
             setRunwayDurationSec((prev) => (prev === 10 ? 10 : 5));
-            if (
-              aspectRatio !== "21:9" &&
-              aspectRatio !== "16:9" &&
-              aspectRatio !== "4:3" &&
-              aspectRatio !== "1:1" &&
-              aspectRatio !== "3:4" &&
-              aspectRatio !== "9:16"
-            ) {
-              setAspectRatio("1:1");
-            }
-            if (mediaInputMode === "TEXT" && aspectRatio === "9:16") {
-              setAspectRatio("16:9");
-            }
+            setAspectRatio("16:9");
           } else if (aspectRatio === "21:9") {
             setAspectRatio("16:9");
           }

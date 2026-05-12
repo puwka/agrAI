@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ClipboardEvent } from "react";
-import { Check, Copy, Loader2, Send, Trash2, Upload } from "lucide-react";
+import { Bot, Check, Copy, Loader2, Send, Trash2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { detectResultMediaKind } from "../../../features/dashboard/lib";
@@ -96,6 +96,7 @@ export function AdminGenerationsClient({
   const [notice, setNotice] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [workerStartingId, setWorkerStartingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -226,6 +227,36 @@ export function AdminGenerationsClient({
   const isResultUrlLike = (value: string) => {
     const v = value.trim();
     return v.startsWith("http://") || v.startsWith("https://") || v.startsWith("data:");
+  };
+
+  const isSyntxVeoWorkerCandidate = (item: AdminGeneration) => {
+    const modelName = item.modelName.toLowerCase();
+    return (
+      (item.modelId === "video" && modelName.includes("veo 3.1")) ||
+      (item.modelId === "photo" && modelName.includes("sora image"))
+    );
+  };
+
+  const startSyntxWorker = async (id: string) => {
+    if (workerStartingId) return;
+    setError(null);
+    setNotice(null);
+    setWorkerStartingId(id);
+    try {
+      const response = await fetch(`/api/admin/generations/${encodeURIComponent(id)}/syntx-worker`, {
+        method: "POST",
+      });
+      const data = (await response.json().catch(() => null)) as { error?: string; detail?: string } | null;
+      if (!response.ok) {
+        setError(data?.detail || data?.error || "Не удалось запустить воркер");
+        return;
+      }
+      setNotice("Заявка передана Syntx-воркеру.");
+      setItems((prev) => prev.map((item) => (item.id === id ? { ...item, status: "PROCESSING" } : item)));
+      await load({ fresh: true, silent: true, keepNotice: true });
+    } finally {
+      setWorkerStartingId(null);
+    }
   };
 
   const uploadFile = async (id: string, file: File) => {
@@ -498,6 +529,7 @@ export function AdminGenerationsClient({
       <div className="space-y-6">
         {items.map((g) => {
           const pending = g.status === "PENDING" || g.status === "QUEUED";
+          const canStartSyntxWorker = pending && isSyntxVeoWorkerCandidate(g);
           const hasResult = Boolean(
             g.status === "SUCCESS" && (g.resultUrl || g.resultMessage),
           );
@@ -686,6 +718,29 @@ export function AdminGenerationsClient({
 
                 {pending && (
                   <div className="admin-generation-pending space-y-3 rounded-2xl border border-amber-400/20 bg-amber-500/5 p-4">
+                    {canStartSyntxWorker ? (
+                      <div className="space-y-2 rounded-xl border border-violet-400/25 bg-violet-500/10 p-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-violet-200/90">
+                          Syntx automation
+                        </p>
+                        <button
+                          type="button"
+                          disabled={workerStartingId === g.id || uploadingId === g.id || savingId === g.id}
+                          onClick={() => void startSyntxWorker(g.id)}
+                          className="inline-flex items-center gap-2 rounded-xl border border-violet-300/35 bg-violet-500/20 px-4 py-2.5 text-sm font-semibold text-violet-100 transition hover:bg-violet-500/30 disabled:opacity-50"
+                        >
+                          {workerStartingId === g.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Bot className="h-4 w-4" />
+                          )}
+                          Воркер
+                        </button>
+                        <p className="text-[11px] leading-relaxed text-zinc-500">
+                          Тестовый ручной запуск: заявка отправится в локальный Syntx-воркер.
+                        </p>
+                      </div>
+                    ) : null}
                     <div className="space-y-2">
                       <p className="text-xs font-medium uppercase tracking-wide text-amber-200/90">
                         Файл с компьютера
