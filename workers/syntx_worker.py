@@ -96,7 +96,14 @@ def ui_click_interval_ms() -> int:
 
 
 HTTP = requests.Session()
-HTTP.trust_env = False
+HTTP.trust_env = os.environ.get("SYNTX_REQUESTS_TRUST_ENV", "0") == "1"
+
+
+def syntx_claim_http_timeout() -> tuple[float, float]:
+    """(connect, read) for polling jobs — read default выше, т.к. VPS/Supabase иногда отвечает медленно."""
+    conn = max(5.0, float(os.environ.get("SYNTX_HTTP_CONNECT_TIMEOUT_SEC", "20")))
+    read = max(30.0, float(os.environ.get("SYNTX_CLAIM_READ_TIMEOUT_SEC", "120")))
+    return (conn, read)
 
 
 def env_for_model(job: dict, suffix: str, default: str) -> str:
@@ -150,13 +157,23 @@ def copy_syntx_result_to_repo_runtime(job_id: str, src: Path) -> Path:
 
 
 def claim_job() -> dict | None:
-    response = HTTP.post(
-        f"{SITE_BASE_URL}/api/internal/syntx/jobs",
-        headers=api_headers(),
-        timeout=30,
-    )
-    response.raise_for_status()
-    return response.json().get("job")
+    url = f"{SITE_BASE_URL}/api/internal/syntx/jobs"
+    try:
+        response = HTTP.post(url, headers=api_headers(), timeout=syntx_claim_http_timeout())
+    except requests.exceptions.RequestException as exc:
+        print(f"Syntx: jobs poll failed {url!r}: {exc!s}; retry in {POLL_INTERVAL_SEC}s")
+        return None
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError:
+        snippet = (response.text or "")[:400]
+        print(f"Syntx: jobs poll HTTP {response.status_code} {snippet!r}; retry in {POLL_INTERVAL_SEC}s")
+        return None
+    try:
+        return response.json().get("job")
+    except ValueError as exc:
+        print(f"Syntx: jobs poll invalid JSON: {exc}; retry in {POLL_INTERVAL_SEC}s")
+        return None
 
 
 def complete_job(job_id: str, file_path: Path) -> None:

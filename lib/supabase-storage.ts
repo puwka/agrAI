@@ -125,11 +125,8 @@ export function generationResultsUseSupabaseStorage(): boolean {
   if (raw === "supabase" || raw === "storage" || raw === "remote") {
     return true;
   }
-  // next dev / tests: пишем в .runtime без Storage (часто в .env уже есть ключи, но до Supabase нет сети).
-  if (process.env.NODE_ENV !== "production") {
-    return false;
-  }
-  return supabaseUploadsEnabled();
+  // По умолчанию — диск на сервере приложения (local-generation:), без Supabase Storage.
+  return false;
 }
 
 export function supabaseStorageBucket() {

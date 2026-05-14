@@ -6,9 +6,16 @@ const globalForSupabase = globalThis as unknown as {
   supabaseAdmin: SupabaseClient | undefined;
 };
 
-const SUPABASE_FETCH_TIMEOUT_MS = 30000;
-const SUPABASE_FETCH_WRITE_TIMEOUT_MS = 45000;
-const SUPABASE_FETCH_RETRIES = 4;
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+const SUPABASE_FETCH_TIMEOUT_MS = readPositiveIntEnv("SUPABASE_FETCH_TIMEOUT_MS", 60_000);
+const SUPABASE_FETCH_WRITE_TIMEOUT_MS = readPositiveIntEnv("SUPABASE_FETCH_WRITE_TIMEOUT_MS", 120_000);
+const SUPABASE_FETCH_RETRIES = readPositiveIntEnv("SUPABASE_FETCH_RETRIES", 4);
 
 function isTransientNetworkError(error: unknown) {
   const parts: string[] = [];
