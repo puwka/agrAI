@@ -12,6 +12,9 @@ node_modules/.cache/
 public/uploads/
 public/uploads/**
 
+# Syntx / local-generation: артефакты на диске (не в git)
+.runtime/
+
 # env
 .env
 .env*.local
