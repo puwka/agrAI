@@ -77,6 +77,7 @@ type AdminGeneration = {
   referenceImageUrl: string | null;
   resultUrl: string | null;
   resultMessage: string | null;
+  errorMessage?: string | null;
   createdAt: string;
   user?: { id: string; name: string; email: string } | null;
 };
@@ -715,6 +716,11 @@ export function AdminGenerationsClient({
                     new Date(g.createdAt),
                   )}
                 </p>
+                {g.errorMessage ? (
+                  <p className="rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-xs text-red-200/95">
+                    {g.errorMessage}
+                  </p>
+                ) : null}
 
                 {pending && (
                   <div className="admin-generation-pending space-y-3 rounded-2xl border border-amber-400/20 bg-amber-500/5 p-4">
@@ -737,7 +743,21 @@ export function AdminGenerationsClient({
                           Воркер
                         </button>
                         <p className="text-[11px] leading-relaxed text-zinc-500">
-                          Тестовый ручной запуск: заявка отправится в локальный Syntx-воркер.
+                          Кнопка шлёт POST с сервера на <code className="text-zinc-400">SYNTX_WORKER_TRIGGER_URL</code> с
+                          job (в production переменная обязательна). Токен:{" "}
+                          <code className="text-zinc-400">SYNTX_WORKER_TRIGGER_TOKEN</code> или тот же, что для internal
+                          API.
+                          <br />
+                          <span className="text-zinc-400">
+                            Сайт на VPS, воркер на своём ПК: удобнее режим опроса — на ПК{" "}
+                            <code className="text-zinc-300">python workers/syntx_worker.py</code> без{" "}
+                            <code className="text-zinc-300">SYNTX_MANUAL_SERVER</code>,{" "}
+                            <code className="text-zinc-300">SITE_BASE_URL</code> = URL сайта и тот же bearer-токен; тогда
+                            заявки Syntx в очереди подхватываются сами, кнопка «Воркер» не нужна. Если кнопка нужна, на
+                            VPS укажите публичный URL туннеля (ngrok и т.п.) на ваш локальный{" "}
+                            <code className="text-zinc-300">:8765/run</code> — с VPS до{" "}
+                            <code className="text-zinc-300">127.0.0.1</code> на ПК достучаться нельзя.
+                          </span>
                         </p>
                       </div>
                     ) : null}
