@@ -18,6 +18,16 @@ async function resetToPending(id: string, errorMessage: string) {
   }
 }
 
+/** Локальный воркер по умолчанию (next dev / preview без явного URL). */
+function resolveSyntxWorkerTriggerUrl(): string {
+  const trimmed = process.env.SYNTX_WORKER_TRIGGER_URL?.trim() ?? "";
+  if (trimmed) return trimmed;
+  if (process.env.NODE_ENV !== "production") {
+    return "http://127.0.0.1:8765/run";
+  }
+  return "";
+}
+
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const sessionUser = await getApiSessionUser();
   if (!sessionUser?.id || sessionUser.role !== "ADMIN") {
@@ -58,11 +68,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   }
 
   const job = mapSyntxJob(row);
-  const triggerUrl = process.env.SYNTX_WORKER_TRIGGER_URL?.trim() ?? "";
+  const triggerUrl = resolveSyntxWorkerTriggerUrl();
   if (!triggerUrl) {
-    await resetToPending(generationId, "SYNTX_WORKER_TRIGGER_URL не настроен");
+    await resetToPending(generationId, "SYNTX_WORKER_TRIGGER_URL не настроен (в production обязателен)");
     return NextResponse.json(
-      { error: "SYNTX_WORKER_TRIGGER_URL не настроен", job },
+      { error: "SYNTX_WORKER_TRIGGER_URL не настроен (в production обязателен)", job },
       { status: 503 },
     );
   }

@@ -1,11 +1,11 @@
 import json
-import errno
 import mimetypes
 import os
 import shutil
 import tempfile
 import threading
 import time
+import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
@@ -32,7 +32,47 @@ def syntx_safe_page_wait(page, ms: int) -> None:
 
 
 SITE_BASE_URL = os.environ["SITE_BASE_URL"].rstrip("/")
-WORKER_TOKEN = os.environ["AUTOMATION_WORKER_TOKEN"]
+
+
+def worker_outbound_token() -> str:
+    """Тот же приоритет, что у Next.js requireAutomationWorker (для /complete и internal API)."""
+    return os.environ.get("SYNTX_WORKER_TOKEN", "").strip() or os.environ.get("AUTOMATION_WORKER_TOKEN", "").strip()
+
+
+def worker_inbound_bearer_tokens() -> list[str]:
+    """Токены, с которыми ручной воркер примет POST /run (кнопка в админке)."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for key in ("SYNTX_WORKER_TRIGGER_TOKEN", "SYNTX_WORKER_TOKEN", "AUTOMATION_WORKER_TOKEN"):
+        v = os.environ.get(key, "").strip()
+        if v and v not in seen:
+            seen.add(v)
+            out.append(v)
+    return out
+
+
+def bearer_matches_worker_auth(candidate: str) -> bool:
+    if not candidate:
+        return False
+    for t in worker_inbound_bearer_tokens():
+        if len(candidate) != len(t):
+            continue
+        try:
+            if hmac.compare_digest(candidate.encode("utf-8"), t.encode("utf-8")):
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def assert_worker_tokens_configured() -> None:
+    if not worker_outbound_token():
+        raise RuntimeError(
+            "Задайте SYNTX_WORKER_TOKEN или AUTOMATION_WORKER_TOKEN — тем же значением, что в .env Next.js "
+            "(requireAutomationWorker для POST /api/internal/syntx/jobs/.../complete)."
+        )
+
+
 POLL_INTERVAL_SEC = int(os.environ.get("SYNTX_POLL_INTERVAL_SEC", "5"))
 HEADLESS = os.environ.get("SYNTX_HEADLESS", "1") != "0"
 MANUAL_SERVER = os.environ.get("SYNTX_MANUAL_SERVER", "0") == "1"
@@ -65,7 +105,7 @@ def env_for_model(job: dict, suffix: str, default: str) -> str:
 
 
 def api_headers() -> dict[str, str]:
-    return {"Authorization": f"Bearer {WORKER_TOKEN}"}
+    return {"Authorization": f"Bearer {worker_outbound_token()}"}
 
 
 def resolve_reference_download_url(url: str) -> str:
@@ -1778,8 +1818,12 @@ class ManualWorkerHandler(BaseHTTPRequestHandler):
             self._send_json(404, {"error": "not_found"})
             return
 
-        expected = f"Bearer {WORKER_TOKEN}"
-        if self.headers.get("Authorization", "") != expected:
+        auth = (self.headers.get("Authorization", "") or "").strip()
+        if not auth.lower().startswith("bearer "):
+            self._send_json(403, {"error": "forbidden"})
+            return
+        bearer = auth[7:].strip() if len(auth) > 7 else ""
+        if not bearer_matches_worker_auth(bearer):
             self._send_json(403, {"error": "forbidden"})
             return
 
@@ -1802,21 +1846,14 @@ class ManualWorkerHandler(BaseHTTPRequestHandler):
 
 
 def serve_manual_worker() -> None:
-    try:
-        server = ThreadingHTTPServer((MANUAL_HOST, MANUAL_PORT), ManualWorkerHandler)
-    except OSError as exc:
-        if exc.errno == errno.EADDRINUSE:
-            print(
-                f"Syntx: порт {MANUAL_PORT} занят (уже запущен другой manual-воркер или тот же порт в systemd). "
-                f"Останови процесс: `sudo ss -tlnp | grep :{MANUAL_PORT}` или `sudo systemctl stop syntx-worker`, "
-                f"либо задай свободный порт: SYNTX_MANUAL_PORT=8777"
-            )
-        raise
+    assert_worker_tokens_configured()
+    server = ThreadingHTTPServer((MANUAL_HOST, MANUAL_PORT), ManualWorkerHandler)
     print(f"Syntx manual worker listening on http://{MANUAL_HOST}:{MANUAL_PORT}/run")
     server.serve_forever()
 
 
 def main() -> None:
+    assert_worker_tokens_configured()
     if MANUAL_SERVER:
         serve_manual_worker()
         return
