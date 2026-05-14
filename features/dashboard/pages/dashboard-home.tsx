@@ -437,7 +437,7 @@ export function DashboardHomePage({
   }, []);
 
   useEffect(() => {
-    void loadGenerations();
+    void loadGenerations({ fresh: true });
   }, [loadGenerations]);
 
   useEffect(() => {
@@ -551,8 +551,8 @@ export function DashboardHomePage({
 
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(() => {
-      void loadGenerations();
-    }, 12_000);
+      void loadGenerations({ fresh: true });
+    }, 2500);
 
     return () => {
       if (pollRef.current) {

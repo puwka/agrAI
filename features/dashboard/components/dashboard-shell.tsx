@@ -44,7 +44,7 @@ export function DashboardShell({
 
     const poll = async () => {
       try {
-        const response = await fetchWithRetry("/api/generations?limit=10&offset=0&brief=1");
+        const response = await fetchWithRetry("/api/generations?limit=10&offset=0&brief=1&fresh=1");
         const data = (await response.json().catch(() => null)) as
           | { items?: Array<{ id: string; status: string; resultUrl?: string | null; resultMessage?: string | null }> }
           | null;
@@ -83,7 +83,7 @@ export function DashboardShell({
     void poll();
     const id = setInterval(() => {
       void poll();
-    }, 12000);
+    }, 2500);
     return () => {
       disposed = true;
       clearInterval(id);

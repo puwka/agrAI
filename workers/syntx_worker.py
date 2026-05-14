@@ -73,7 +73,7 @@ def assert_worker_tokens_configured() -> None:
         )
 
 
-POLL_INTERVAL_SEC = int(os.environ.get("SYNTX_POLL_INTERVAL_SEC", "5"))
+POLL_INTERVAL_SEC = int(os.environ.get("SYNTX_POLL_INTERVAL_SEC", "2"))
 HEADLESS = os.environ.get("SYNTX_HEADLESS", "1") != "0"
 MANUAL_SERVER = os.environ.get("SYNTX_MANUAL_SERVER", "0") == "1"
 MANUAL_HOST = os.environ.get("SYNTX_MANUAL_HOST", "127.0.0.1")

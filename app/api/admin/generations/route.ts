@@ -4,9 +4,6 @@ import { db } from "../../../../lib/db";
 import { getApiSessionUser } from "../../../../lib/auth/api-session";
 import { resolveVoicePromptLocal } from "../../../../lib/voice-prompt-local";
 
-const ADMIN_GENERATIONS_CACHE_TTL_MS = 8000;
-const adminGenerationsCache = new Map<string, { expiresAt: number; payload: unknown }>();
-
 function isTransientNetworkError(error: unknown) {
   const msg = error instanceof Error ? error.message : String(error ?? "");
   return msg.includes("ECONNRESET") || msg.includes("terminated") || msg.includes("fetch failed");
@@ -30,16 +27,7 @@ export async function GET(request: Request) {
   const offsetRaw = Number(requestUrl.searchParams.get("offset") ?? 0);
   const includeTotal = requestUrl.searchParams.get("includeTotal") === "1";
   const brief = requestUrl.searchParams.get("brief") === "1";
-  const fresh = requestUrl.searchParams.get("fresh") === "1";
   const statusRaw = (requestUrl.searchParams.get("status") ?? "").trim().toUpperCase();
-  const cacheKey = [statusRaw || "ALL", limitRaw, offsetRaw, brief ? "1" : "0", includeTotal ? "1" : "0"].join("|");
-  const now = Date.now();
-  const cached = adminGenerationsCache.get(cacheKey);
-  if (!fresh && cached && cached.expiresAt > now) {
-    return NextResponse.json(cached.payload, {
-      headers: { "Cache-Control": "private, max-age=3, stale-while-revalidate=8" },
-    });
-  }
   const where =
     statusRaw === "SUCCESS"
       ? { status: "SUCCESS" }
@@ -92,12 +80,8 @@ export async function GET(request: Request) {
           offset,
           hasMore: items.length === limit,
         };
-        adminGenerationsCache.set(cacheKey, {
-          expiresAt: now + ADMIN_GENERATIONS_CACHE_TTL_MS,
-          payload,
-        });
         return NextResponse.json(payload, {
-          headers: { "Cache-Control": "private, max-age=3, stale-while-revalidate=8" },
+          headers: { "Cache-Control": "private, no-store, must-revalidate" },
         });
       } catch (e) {
         lastError = e;

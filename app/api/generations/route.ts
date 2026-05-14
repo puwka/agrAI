@@ -8,8 +8,6 @@ import { hasActiveSubscription } from "../../../lib/subscription";
 import { resolveVoicePromptLocal, saveVoicePromptLocal } from "../../../lib/voice-prompt-local";
 import type { AspectRatio } from "../../../features/dashboard/types";
 
-const GENERATIONS_CACHE_TTL_MS = 8000;
-const generationsListCache = new Map<string, { expiresAt: number; payload: unknown }>();
 const cleanupLastRunByUser = new Map<string, number>();
 const GENERATIONS_RETENTION_DAYS = 5;
 const CLEANUP_THROTTLE_MS = 60 * 60 * 1000; // 1h
@@ -153,10 +151,6 @@ export async function GET(request: Request) {
       // Никогда не удаляем "живые" заявки из очереди/обработки.
       // Авто-очистка касается только завершенных записей.
       await db.generation.deleteOlderThanFinishedForUser(sessionUser.id, cutoff);
-      // Invalidate list cache for this user.
-      for (const key of generationsListCache.keys()) {
-        if (key.startsWith(`${sessionUser.id}|`)) generationsListCache.delete(key);
-      }
     }
   } catch {
     // Best-effort cleanup; never block logs page.
@@ -175,23 +169,6 @@ export async function GET(request: Request) {
   const q = (searchParams.get("q") ?? "").trim();
   const brief = searchParams.get("brief") === "1";
   const includeTotal = searchParams.get("includeTotal") === "1";
-  const fresh = searchParams.get("fresh") === "1";
-  const cacheKey = [
-    sessionUser.id,
-    limit,
-    offset,
-    statusFilter,
-    q,
-    brief ? "1" : "0",
-    includeTotal ? "1" : "0",
-  ].join("|");
-  const now = Date.now();
-  const cached = generationsListCache.get(cacheKey);
-  if (!fresh && cached && cached.expiresAt > now) {
-    return NextResponse.json(cached.payload, {
-      headers: { "Cache-Control": "private, max-age=3, stale-while-revalidate=8" },
-    });
-  }
 
   const where = generationListWhere(sessionUser.id, statusFilter);
 
@@ -249,9 +226,8 @@ export async function GET(request: Request) {
     ...(typeof total === "number" ? { total } : {}),
     hasMore: itemsRaw.length === limit,
   };
-  generationsListCache.set(cacheKey, { expiresAt: now + GENERATIONS_CACHE_TTL_MS, payload });
   return NextResponse.json(payload, {
-    headers: { "Cache-Control": "private, max-age=3, stale-while-revalidate=8" },
+    headers: { "Cache-Control": "private, no-store, must-revalidate" },
   });
 }
 
@@ -651,13 +627,6 @@ export async function POST(request: Request) {
   if (!generation) {
     const detail = extractErrorText(lastWriteError) || "unknown_error";
     return NextResponse.json({ error: "Не удалось сохранить заявку", detail }, { status: 503 });
-  }
-
-  // Invalidate list cache for fresh user/admin listings after new request.
-  for (const key of generationsListCache.keys()) {
-    if (key.startsWith(`${sessionUser.id}|`)) {
-      generationsListCache.delete(key);
-    }
   }
 
   return NextResponse.json(generation);
