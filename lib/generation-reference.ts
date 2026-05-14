@@ -23,7 +23,7 @@ export async function isValidUserReferenceImageUrl(url: string | null | undefine
     const base = referenceUrlBasename(pathname);
     if (!base || base.includes("..") || base.includes("/") || base.includes("\\")) return false;
     if (!base.startsWith(`${userId}-`)) return false;
-    const abs = path.join(process.cwd(), "public", "uploads", "generations", "references", base);
+    const abs = path.join(REFERENCES_DIR, base);
     const normalized = path.normalize(abs);
     const root = path.normalize(REFERENCES_DIR);
     if (normalized !== root && !normalized.startsWith(root + path.sep)) return false;
@@ -40,7 +40,7 @@ export async function isValidUserReferenceImageUrl(url: string | null | undefine
   if (!base || base.includes("..") || base.includes("/") || base.includes("\\")) return false;
   if (!base.startsWith(`${userId}-`)) return false;
 
-  const abs = path.join(process.cwd(), "public", "uploads", "generations", "references", base);
+  const abs = path.join(REFERENCES_DIR, base);
   const normalized = path.normalize(abs);
   const root = path.normalize(REFERENCES_DIR);
   if (normalized !== root && !normalized.startsWith(root + path.sep)) return false;

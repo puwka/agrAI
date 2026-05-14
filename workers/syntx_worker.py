@@ -1,4 +1,5 @@
 import json
+import errno
 import mimetypes
 import os
 import shutil
@@ -1801,7 +1802,16 @@ class ManualWorkerHandler(BaseHTTPRequestHandler):
 
 
 def serve_manual_worker() -> None:
-    server = ThreadingHTTPServer((MANUAL_HOST, MANUAL_PORT), ManualWorkerHandler)
+    try:
+        server = ThreadingHTTPServer((MANUAL_HOST, MANUAL_PORT), ManualWorkerHandler)
+    except OSError as exc:
+        if exc.errno == errno.EADDRINUSE:
+            print(
+                f"Syntx: порт {MANUAL_PORT} занят (уже запущен другой manual-воркер или тот же порт в systemd). "
+                f"Останови процесс: `sudo ss -tlnp | grep :{MANUAL_PORT}` или `sudo systemctl stop syntx-worker`, "
+                f"либо задай свободный порт: SYNTX_MANUAL_PORT=8777"
+            )
+        raise
     print(f"Syntx manual worker listening on http://{MANUAL_HOST}:{MANUAL_PORT}/run")
     server.serve_forever()
 
