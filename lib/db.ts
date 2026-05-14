@@ -457,7 +457,8 @@ export const db: any = {
       return count ?? 0;
     },
     async findFirst(args: { where?: AnyRecord; select?: AnyRecord }) {
-      let q = getSupabaseAdmin().from("Generation").select("*");
+      const columns = columnsFromSelect(args.select);
+      let q = getSupabaseAdmin().from("Generation").select(columns);
       q = applyWhere(q, args.where);
       const { data, error } = await q.order("createdAt", { ascending: false }).limit(1);
       if (error) throw error;

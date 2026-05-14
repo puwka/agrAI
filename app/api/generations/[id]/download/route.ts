@@ -61,6 +61,14 @@ function extFromContentType(contentType: string): string | null {
   return null;
 }
 
+/** Кэш браузера для inline-превью с диска: повторные открытия без полного ре-фетча. */
+const INLINE_DISK_CACHE_CONTROL =
+  "private, max-age=86400, stale-while-revalidate=604800";
+
+function etagFromStat(stat: { mtimeMs: number; size: number }) {
+  return `W/"${stat.mtimeMs}-${stat.size}"`;
+}
+
 function isTransientNetworkError(error: unknown) {
   const msg = error instanceof Error ? error.message : String(error ?? "");
   return (
@@ -93,6 +101,13 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     where: {
       id: generationId,
       ...(sessionUser.role === "ADMIN" ? {} : { userId: sessionUser.id }),
+    },
+    select: {
+      id: true,
+      status: true,
+      resultUrl: true,
+      resultMessage: true,
+      modelId: true,
     },
   });
 
@@ -149,10 +164,20 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       return NextResponse.json({ error: "Файл не найден на сервере" }, { status: 404 });
     }
     const stat = await fs.stat(abs);
-    const nodeStream = createReadStream(abs);
-    const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream;
     const dotExt = `.${extFromPath(abs)}`;
     const mime = mimeFromExtension(dotExt);
+    const etag = etagFromStat(stat);
+    if (inline && request.headers.get("if-none-match") === etag) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: {
+          ETag: etag,
+          "Cache-Control": INLINE_DISK_CACHE_CONTROL,
+        },
+      });
+    }
+    const nodeStream = createReadStream(abs);
+    const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream;
 
     return new NextResponse(webStream, {
       status: 200,
@@ -160,7 +185,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         "Content-Type": mime,
         "Content-Length": String(stat.size),
         "Content-Disposition": inline ? `inline; filename="${filename}"` : `attachment; filename="${filename}"`,
-        "Cache-Control": "private, no-store",
+        "Cache-Control": inline ? INLINE_DISK_CACHE_CONTROL : "private, no-store",
+        ...(inline ? { ETag: etag } : {}),
       },
     });
   }
@@ -191,10 +217,20 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       return NextResponse.json({ error: "Файл не найден на сервере" }, { status: 404 });
     }
     const stat = await fs.stat(abs);
-    const nodeStream = createReadStream(abs);
-    const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream;
     const dotExt = `.${extFromPath(abs)}`;
     const mime = mimeFromExtension(dotExt);
+    const etag = etagFromStat(stat);
+    if (inline && request.headers.get("if-none-match") === etag) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: {
+          ETag: etag,
+          "Cache-Control": INLINE_DISK_CACHE_CONTROL,
+        },
+      });
+    }
+    const nodeStream = createReadStream(abs);
+    const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream;
 
     return new NextResponse(webStream, {
       status: 200,
@@ -202,7 +238,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         "Content-Type": mime,
         "Content-Length": String(stat.size),
         "Content-Disposition": inline ? `inline; filename="${filename}"` : `attachment; filename="${filename}"`,
-        "Cache-Control": "private, no-store",
+        "Cache-Control": inline ? INLINE_DISK_CACHE_CONTROL : "private, no-store",
+        ...(inline ? { ETag: etag } : {}),
       },
     });
   }
