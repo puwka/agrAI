@@ -9,7 +9,7 @@
     "build": "next build",
     "start": "node scripts/start-stack.mjs",
     "start:next": "next start",
-    "production": "next build && node scripts/start-stack.mjs",
+    "production": "next build --webpack && node scripts/start-stack.mjs",
     "lint": "next lint",
     "db:generate": "echo \"Using Supabase Postgres via SQL\"",
     "db:migrate": "echo \"Use Supabase SQL migrations\"",
