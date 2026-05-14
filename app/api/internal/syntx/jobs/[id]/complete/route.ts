@@ -1,13 +1,11 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-
 import { NextResponse } from "next/server";
 
 import { db } from "../../../../../../../lib/db";
 import { requireAutomationWorker, isSyntxGeneration } from "../../../../../../../lib/automation-worker";
+import { saveLocalGenerationResultFile } from "../../../../../../../lib/local-generation-result";
 import { inferUploadExtAndMime } from "../../../../../../../lib/upload-media-infer";
 import {
-  supabaseUploadsEnabled,
+  generationResultsUseSupabaseStorage,
   uploadGenerationResultFile,
 } from "../../../../../../../lib/supabase-storage";
 
@@ -17,7 +15,7 @@ async function saveResultFile(generationId: string, file: File) {
   const { ext, mime } = inferUploadExtAndMime(file);
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  if (supabaseUploadsEnabled()) {
+  if (generationResultsUseSupabaseStorage()) {
     return uploadGenerationResultFile({
       generationId,
       buffer,
@@ -26,11 +24,7 @@ async function saveResultFile(generationId: string, file: File) {
     });
   }
 
-  const safeName = `${generationId}${ext}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "generations");
-  await mkdir(uploadDir, { recursive: true });
-  await writeFile(path.join(uploadDir, safeName), buffer);
-  return `/uploads/generations/${safeName}`;
+  return saveLocalGenerationResultFile({ generationId, ext, buffer });
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -66,16 +60,22 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "Файл слишком большой (макс. 500 МБ)" }, { status: 400 });
   }
 
-  const resultUrl = await saveResultFile(generationId, file);
-  const updated = await db.generation.update({
-    where: { id: generationId },
-    data: {
-      status: "SUCCESS",
-      resultUrl,
-      resultMessage: null,
-      errorMessage: null,
-    },
-  });
+  try {
+    const resultUrl = await saveResultFile(generationId, file);
+    const updated = await db.generation.update({
+      where: { id: generationId },
+      data: {
+        status: "SUCCESS",
+        resultUrl,
+        resultMessage: null,
+        errorMessage: null,
+      },
+    });
 
-  return NextResponse.json({ ok: true, generation: updated });
+    return NextResponse.json({ ok: true, generation: updated });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[syntx/complete]", generationId, message, error);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

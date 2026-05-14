@@ -1,10 +1,8 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-
 import { NextResponse } from "next/server";
 
 import { db } from "../../../../../../lib/db";
 import { getApiSessionUser } from "../../../../../../lib/auth/api-session";
+import { saveLocalGenerationResultFile } from "../../../../../../lib/local-generation-result";
 import { inferUploadExtAndMime } from "../../../../../../lib/upload-media-infer";
 
 const MAX_BYTES = 80 * 1024 * 1024;
@@ -55,17 +53,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const buffer = Buffer.from(await file.arrayBuffer());
 
   try {
-    const safeName = `${generationId}${ext}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "generations");
-    await mkdir(uploadDir, { recursive: true });
-    const diskPath = path.join(uploadDir, safeName);
-    await writeFile(diskPath, buffer);
-
-    const publicPath = `/uploads/generations/${safeName}`;
+    const resultUrl = await saveLocalGenerationResultFile({ generationId, ext, buffer });
     const updated = await db.generation.update({
       where: { id: generationId },
       data: {
-        resultUrl: publicPath,
+        resultUrl,
         resultMessage: null,
         status: "SUCCESS",
         errorMessage: null,

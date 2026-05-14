@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 
 import { db } from "../../../../../lib/db";
 import { getApiSessionUser } from "../../../../../lib/auth/api-session";
+import { deleteLocalGenerationResultFile } from "../../../../../lib/local-generation-result";
 import {
   deleteStorageObjectByPublicUrl,
   parseSupabasePublicObjectUrl,
@@ -64,6 +65,8 @@ async function tryRemoveReferenceUpload(refUrl: string | null) {
 async function tryRemoveUploadedResultFile(resultUrl: string | null, generationId: string) {
   const raw = resultUrl?.trim();
   if (!raw) return;
+
+  await deleteLocalGenerationResultFile(raw, generationId);
 
   const parsed = parseSupabasePublicObjectUrl(raw);
   if (parsed && parsed.bucket === supabaseStorageBucket() && parsed.objectPath.startsWith("generations/")) {

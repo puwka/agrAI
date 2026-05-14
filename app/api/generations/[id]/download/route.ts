@@ -6,6 +6,10 @@ import { NextResponse } from "next/server";
 
 import { db } from "../../../../../lib/db";
 import { getApiSessionUser } from "../../../../../lib/auth/api-session";
+import {
+  localGenerationResultPath,
+  parseLocalGenerationResultUrl,
+} from "../../../../../lib/local-generation-result";
 import { mimeFromExtension } from "../../../../../lib/supabase-storage";
 
 const UPLOADS_ROOT = path.join(process.cwd(), "public", "uploads", "generations");
@@ -130,6 +134,31 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       status: 200,
       headers: {
         "Content-Type": parsed.mime,
+        "Content-Disposition": inline ? `inline; filename="${filename}"` : `attachment; filename="${filename}"`,
+        "Cache-Control": "private, no-store",
+      },
+    });
+  }
+
+  const localFileName = parseLocalGenerationResultUrl(resultUrl);
+  if (localFileName) {
+    const abs = localGenerationResultPath(localFileName);
+    try {
+      await fs.access(abs);
+    } catch {
+      return NextResponse.json({ error: "Файл не найден на сервере" }, { status: 404 });
+    }
+    const stat = await fs.stat(abs);
+    const nodeStream = createReadStream(abs);
+    const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream;
+    const dotExt = `.${extFromPath(abs)}`;
+    const mime = mimeFromExtension(dotExt);
+
+    return new NextResponse(webStream, {
+      status: 200,
+      headers: {
+        "Content-Type": mime,
+        "Content-Length": String(stat.size),
         "Content-Disposition": inline ? `inline; filename="${filename}"` : `attachment; filename="${filename}"`,
         "Cache-Control": "private, no-store",
       },

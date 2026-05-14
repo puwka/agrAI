@@ -12,9 +12,28 @@ STATE_PATH = os.environ.get("SYNTX_STORAGE_STATE", "workers/syntx_storage_state.
 COORDS_PATH = Path(os.environ.get("SYNTX_COORDS_FILE", "workers/syntx_coords.json"))
 VIEWPORT_WIDTH = int(os.environ.get("SYNTX_VIEWPORT_WIDTH", "1365"))
 VIEWPORT_HEIGHT = int(os.environ.get("SYNTX_VIEWPORT_HEIGHT", "768"))
+GENERATE_CLICK_COUNT = 10
+
+
+def wait_until_ready(label: str) -> None:
+    while True:
+        print("")
+        command = input(
+            f"Следующий шаг: {label}\n"
+            "Enter — записать клик, p — пауза, q — выйти: "
+        ).strip().lower()
+        if command == "":
+            return
+        if command == "p":
+            input("Пауза. Подготовьте браузер и нажмите Enter, чтобы продолжить...")
+            continue
+        if command == "q":
+            raise KeyboardInterrupt("Калибровка остановлена пользователем")
+        print("Неизвестная команда. Используйте Enter, p или q.")
 
 
 def wait_for_click(page, label: str, replay: bool = False) -> dict[str, float]:
+    wait_until_ready(label)
     print("")
     print(f"Кликните в браузере: {label}")
     point = page.evaluate(
@@ -60,11 +79,8 @@ def main() -> None:
             },
             "prompt": wait_for_click(page, "поле ввода промпта", replay=True),
             "generate_clicks": [
-                wait_for_click(page, "кнопка Generate/Создать — клик 1 из 5"),
-                wait_for_click(page, "кнопка Generate/Создать — клик 2 из 5"),
-                wait_for_click(page, "кнопка Generate/Создать — клик 3 из 5"),
-                wait_for_click(page, "кнопка Generate/Создать — клик 4 из 5"),
-                wait_for_click(page, "кнопка Generate/Создать — клик 5 из 5"),
+                wait_for_click(page, f"кнопка Generate/Создать — клик {index} из {GENERATE_CLICK_COUNT}")
+                for index in range(1, GENERATE_CLICK_COUNT + 1)
             ],
             "download": wait_for_click(page, "кнопка Download/скачать готовый результат"),
         }

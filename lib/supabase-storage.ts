@@ -116,6 +116,22 @@ export function supabaseUploadsEnabled() {
   return Boolean(process.env.SUPABASE_URL?.trim() && process.env.SUPABASE_SERVICE_ROLE_KEY?.trim());
 }
 
+/** Где хранить файлы результатов генераций (Syntx complete и т.п.). */
+export function generationResultsUseSupabaseStorage(): boolean {
+  const raw = process.env.GENERATION_RESULTS_STORAGE?.trim().toLowerCase() ?? "";
+  if (raw === "local" || raw === "filesystem" || raw === "disk") {
+    return false;
+  }
+  if (raw === "supabase" || raw === "storage" || raw === "remote") {
+    return true;
+  }
+  // next dev / tests: пишем в .runtime без Storage (часто в .env уже есть ключи, но до Supabase нет сети).
+  if (process.env.NODE_ENV !== "production") {
+    return false;
+  }
+  return supabaseUploadsEnabled();
+}
+
 export function supabaseStorageBucket() {
   return process.env.SUPABASE_STORAGE_BUCKET?.trim() || "agrai-uploads";
 }
