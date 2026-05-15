@@ -472,8 +472,87 @@ def is_veo_job(job: dict) -> bool:
 
 
 def veo_resolution_label(job: dict) -> str:
-    res = str(job.get("resolution") or "1080p").strip().lower()
-    return res if res in ("720p", "1080p") else "1080p"
+    """Как у Syntx в настройках Veo: без явного поля стоит 720p, не 1080p."""
+    res = str(job.get("resolution") or "720p").strip().lower()
+    return res if res in ("720p", "1080p") else "720p"
+
+
+def veo_quality_targets(wanted: str) -> list[str]:
+    """Только нужное разрешение — нельзя передавать и 720 и 1080 в одном списке (кликнет не тот)."""
+    w = wanted if wanted in ("720p", "1080p") else "720p"
+    if w == "720p":
+        return ["720p", "720P", "720 p", "720", "HD 720", "hd720"]
+    return ["1080p", "1080P", "1080 p", "1080", "Full HD", "FullHD", "FHD", "UHD"]
+
+
+def veo_read_quality_section_value(page) -> str | None:
+    """Текущее качество в открытой секции Quality: '720p' | '1080p' | None."""
+    try:
+        v = page.evaluate(
+            """() => {
+                const items = Array.from(document.querySelectorAll('.el-collapse-item'));
+                for (const item of items) {
+                    const h = item.querySelector('.el-collapse-item__header');
+                    if (!h || !/quality/i.test(h.innerText || h.textContent || '')) continue;
+                    const wrap = item.querySelector('.el-collapse-item__wrap');
+                    if (!wrap) return null;
+                    const txt = (wrap.innerText || wrap.textContent || '').replace(/\\s+/g, ' ').trim();
+
+                    const checkedLabel = wrap.querySelector('.el-radio.is-checked .el-radio__label')
+                        || wrap.querySelector('.el-radio.is-checked');
+                    if (checkedLabel) {
+                        const t = (checkedLabel.innerText || checkedLabel.textContent || '').toLowerCase();
+                        if (t.includes('1080') || t.includes('full') || t.includes('fhd')) return '1080p';
+                        if (t.includes('720')) return '720p';
+                    }
+                    const inp = wrap.querySelector('input[type="radio"]:checked');
+                    if (inp) {
+                        const id = inp.id;
+                        let lab = null;
+                        if (id) lab = document.querySelector(`label[for="${id.replace(/"/g, '')}"]`);
+                        if (!lab) lab = inp.closest('label');
+                        const t = ((lab && (lab.innerText || lab.textContent)) || inp.value || '').toLowerCase();
+                        if (t.includes('1080') || String(inp.value || '').includes('1080')) return '1080p';
+                        if (t.includes('720') || String(inp.value || '').includes('720')) return '720p';
+                    }
+                    const seg = wrap.querySelector(
+                        '.el-segmented__item.is-selected, .el-segmented__item.is-active, ' +
+                        '.el-segmented-item.is-selected, [class*="segmented"] [class*="selected"]'
+                    );
+                    if (seg) {
+                        const t = (seg.innerText || '').toLowerCase();
+                        if (t.includes('1080') || t.includes('full')) return '1080p';
+                        if (t.includes('720')) return '720p';
+                    }
+                    const segItems = Array.from(
+                        wrap.querySelectorAll('.el-segmented__item, .el-segmented-item, [class*="segmented__item"]')
+                    );
+                    const marked = segItems.some((el) =>
+                        /is-selected|is-active|selected|active/i.test(el.className || '')
+                    );
+                    if (segItems.length >= 2 && !marked) {
+                        const texts = segItems.map((el) => (el.innerText || el.textContent || '').toLowerCase());
+                        const has720 = texts.some((t) => /720/.test(t));
+                        const has1080 = texts.some((t) => /1080|full|fhd/.test(t));
+                        if (has720 && has1080 && texts[0] && /720/.test(texts[0])) return '720p';
+                    }
+                    const selTxt = wrap.querySelector('.el-select .el-select__selected-item, .el-select__placeholder');
+                    if (selTxt) {
+                        const st = (selTxt.innerText || selTxt.textContent || '').toLowerCase();
+                        if (st.includes('1080') || st.includes('full') || st.includes('fhd')) return '1080p';
+                        if (st.includes('720')) return '720p';
+                    }
+                    const low = txt.toLowerCase();
+                    if (/1080\\s*p|full\\s*hd|\\bfhd\\b|\\buhd\\b/i.test(low)) return '1080p';
+                    if (/720\\s*p/i.test(low)) return '720p';
+                    return null;
+                }
+                return null;
+            }"""
+        )
+        return v if v in ("720p", "1080p") else None
+    except Exception:
+        return None
 
 
 def veo_skip_model_picker() -> bool:
@@ -482,7 +561,7 @@ def veo_skip_model_picker() -> bool:
 
 
 def veo_resolution_optional() -> bool:
-    """Не падать, если Quality/720p/1080p не нашлись (на странице Veo часто уже 1080p)."""
+    """Не падать, если Quality/720p/1080p не нашлись (на странице Veo чаще уже 720p)."""
     return os.environ.get("SYNTX_VEO_RESOLUTION_OPTIONAL", "1") != "0"
 
 
@@ -1242,6 +1321,169 @@ def expand_syntx_veo_format_section(page) -> bool:
     return False
 
 
+def _syntx_veo_quality_scroll_js(page, extra: int, max_steps: int) -> None:
+    try:
+        page.evaluate(
+            """({ extraPx, maxSteps }) => {
+                const items = Array.from(document.querySelectorAll('.el-collapse-item'));
+                let wrap = null;
+                for (const item of items) {
+                    const h = item.querySelector('.el-collapse-item__header');
+                    if (!h || !/quality/i.test((h.innerText || h.textContent || ''))) continue;
+                    wrap = item.querySelector('.el-collapse-item__wrap');
+                    break;
+                }
+                if (!wrap) return;
+
+                const scrollableY = (el) => {
+                    if (!el || el === document.body || el === document.documentElement) return false;
+                    const st = window.getComputedStyle(el);
+                    const oy = st.overflowY;
+                    return (
+                        (oy === 'auto' || oy === 'scroll' || oy === 'overlay') &&
+                        el.scrollHeight > el.clientHeight + 4
+                    );
+                };
+
+                const resolutionish = () => {
+                    const cand = Array.from(
+                        wrap.querySelectorAll(
+                            '.el-segmented__item, .el-segmented-item, .el-radio, label, .el-select__wrapper, span, button'
+                        )
+                    );
+                    const hit = cand.find((n) => /720|1080/.test((n.innerText || n.textContent || '')));
+                    return (
+                        hit ||
+                        wrap.querySelector('.el-segmented, .el-radio, .el-select__wrapper, [role="radiogroup"]') ||
+                        wrap
+                    );
+                };
+
+                const rectInView = (inner, outer) => {
+                    const ir = inner.getBoundingClientRect();
+                    const or = outer.getBoundingClientRect();
+                    if (ir.height < 2 || or.height < 2) return false;
+                    return ir.top >= or.top - 1 && ir.bottom <= or.bottom + 1;
+                };
+
+                const collect = () => {
+                    const out = new Set();
+                    let p = wrap;
+                    for (let i = 0; i < 32 && p; i++) {
+                        if (scrollableY(p)) out.add(p);
+                        p = p.parentElement;
+                    }
+                    document.querySelectorAll(
+                        '.el-scrollbar__wrap, .el-scrollbar__view, [data-overlayscrollbars-viewport], .os-viewport'
+                    ).forEach((el) => {
+                        if (el.contains(wrap) && scrollableY(el)) out.add(el);
+                    });
+                    return Array.from(out).sort(
+                        (a, b) =>
+                            (b.clientHeight || 0) - (a.clientHeight || 0) ||
+                            (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight)
+                    );
+                };
+
+                wrap.scrollIntoView({ block: 'end', inline: 'nearest' });
+
+                for (const sc of collect()) {
+                    let stale = 0;
+                    for (let step = 0; step < maxSteps; step++) {
+                        const ce = resolutionish();
+                        ce.scrollIntoView({ block: 'center', inline: 'nearest' });
+                        if (rectInView(ce, sc)) break;
+                        const fr = ce.getBoundingClientRect();
+                        const sr = sc.getBoundingClientRect();
+                        const before = sc.scrollTop;
+                        if (fr.bottom > sr.bottom - 6) {
+                            const d = Math.min(
+                                fr.bottom - sr.bottom + extraPx,
+                                sc.scrollHeight - sc.clientHeight - sc.scrollTop
+                            );
+                            if (d > 0.5) sc.scrollTop += d;
+                        } else if (fr.top < sr.top + 6) {
+                            const d = Math.min(sr.top + 6 - fr.top + extraPx, sc.scrollTop);
+                            if (d > 0.5) sc.scrollTop -= d;
+                        }
+                        if (Math.abs(sc.scrollTop - before) < 0.5) {
+                            stale++;
+                            if (stale > 2) break;
+                        } else stale = 0;
+                    }
+                }
+
+                let p = wrap;
+                for (let i = 0; i < 32 && p; i++) {
+                    if (scrollableY(p)) {
+                        const max = Math.max(0, p.scrollHeight - p.clientHeight);
+                        p.scrollTop = Math.min(p.scrollTop + 360 + extraPx, max);
+                    }
+                    p = p.parentElement;
+                }
+                resolutionish().scrollIntoView({ block: 'center', inline: 'nearest' });
+            }""",
+            {"extraPx": max(0, extra), "maxSteps": max_steps},
+        )
+    except Exception:
+        pass
+
+
+def _syntx_veo_settings_panel_wheel(page, wheel_delta: int, wheel_steps: int) -> None:
+    custom = os.environ.get("SYNTX_VEO_SETTINGS_SCROLL_SELECTOR", "").strip()
+    selectors = [s.strip() for s in custom.split(",") if s.strip()] if custom else []
+    selectors.extend(
+        [
+            "#teleport-ai-select .el-scrollbar__wrap",
+            "#teleport-ai-select .el-scrollbar__view",
+            ".video-chat-page #teleport-ai-select .el-scrollbar__wrap",
+            ".route-video-ai #teleport-ai-select .el-scrollbar__wrap",
+            ".video-chat-page .chat-layout__workspace ~ aside .el-scrollbar__wrap",
+            ".video-chat-page aside .el-scrollbar__wrap",
+        ]
+    )
+    seen: set[str] = set()
+    for sel in selectors:
+        if sel in seen:
+            continue
+        seen.add(sel)
+        try:
+            loc = page.locator(sel).first
+            if loc.count() == 0:
+                continue
+            if not loc.is_visible(timeout=900):
+                continue
+            box = loc.bounding_box()
+            if not box or box.get("width", 0) < 40:
+                continue
+            page.mouse.move(box["x"] + box["width"] / 2, box["y"] + min(120, box["height"] / 2))
+            loc.click(force=True, timeout=2500)
+            page.wait_for_timeout(80)
+            for _ in range(max(1, wheel_steps)):
+                page.mouse.wheel(0, wheel_delta)
+                page.wait_for_timeout(42)
+            for _ in range(7):
+                page.keyboard.press("PageDown")
+                page.wait_for_timeout(35)
+            print(f"Syntx: wheel/PageDown on settings scroll ({sel})")
+            return
+        except Exception:
+            continue
+
+
+def scroll_syntx_veo_quality_into_view(page, *, use_wheel: bool = True) -> None:
+    """Правая панель Veo: Quality (720p/1080p) под внутренним скроллом Element Plus."""
+    extra = int(os.environ.get("SYNTX_VEO_QUALITY_SCROLL_EXTRA_PX", "120") or "120")
+    max_steps = int(os.environ.get("SYNTX_VEO_QUALITY_SCROLL_MAX_STEPS", "55") or "55")
+    wheel_delta = int(os.environ.get("SYNTX_VEO_QUALITY_WHEEL_DELTA", "420") or "420")
+    wheel_steps = int(os.environ.get("SYNTX_VEO_QUALITY_WHEEL_STEPS", "16") or "16")
+    max_steps = max(5, min(max_steps, 120))
+    _syntx_veo_quality_scroll_js(page, extra, max_steps)
+    print("Syntx: scrolled Quality controls (JS scrollTop / scrollIntoView)")
+    if use_wheel and os.environ.get("SYNTX_VEO_QUALITY_SCROLL_WHEEL", "1") != "0":
+        _syntx_veo_settings_panel_wheel(page, wheel_delta, wheel_steps)
+
+
 def expand_syntx_veo_quality_section(page) -> bool:
     """3rd accordion «Quality» — Open all + раскрытие, пока контент не виден."""
 
@@ -1300,6 +1542,8 @@ def expand_syntx_veo_quality_section(page) -> bool:
 
         if quality_body_visible():
             print("Syntx: Quality panel body is visible")
+            scroll_syntx_veo_quality_into_view(page, use_wheel=False)
+            syntx_safe_page_wait(page, 250)
             return True
 
         try:
@@ -1321,6 +1565,8 @@ def expand_syntx_veo_quality_section(page) -> bool:
             pass
 
         if quality_body_visible():
+            scroll_syntx_veo_quality_into_view(page, use_wheel=False)
+            syntx_safe_page_wait(page, 250)
             return True
 
     return False
@@ -1385,64 +1631,99 @@ def syntx_confirm_images_settings_modal(page, attempts: int = 18) -> bool:
     return False
 
 
-def pick_veo_quality_resolution(page, panel, labels: list[str]) -> bool:
-    """720p/1080p в секции Quality: radio или select."""
-    short = []
-    for lb in labels:
-        if "720" in lb:
-            short.extend(["720p", "720"])
-        if "1080" in lb:
-            short.extend(["1080p", "1080"])
-    targets = list(dict.fromkeys(labels + short))
+def pick_veo_quality_resolution(page, panel, targets: list[str]) -> bool:
+    """720p или 1080p в секции Quality: segmented, radio, select — targets только нужное разрешение."""
+    extra = int(os.environ.get("SYNTX_VEO_QUALITY_SCROLL_EXTRA_PX", "120") or "120")
+    max_steps = max(5, min(int(os.environ.get("SYNTX_VEO_QUALITY_SCROLL_MAX_STEPS", "55") or "55"), 120))
+    _syntx_veo_quality_scroll_js(page, max(0, extra), max_steps)
+    syntx_safe_page_wait(page, 220)
+    if not targets:
+        return False
 
-    try:
-        for lb in targets:
-            try:
-                rad = panel.locator(".el-radio").filter(has_text=re.compile(re.escape(lb), re.I)).first
-                if rad.count() > 0 and rad.is_visible(timeout=1200):
-                    rad.click(force=True, timeout=4000)
-                    syntx_safe_page_wait(page, 350)
-                    return True
-            except Exception:
-                continue
-            try:
-                lab = panel.locator("label.el-radio, label").filter(has_text=re.compile(re.escape(lb), re.I)).first
-                if lab.count() > 0 and lab.is_visible(timeout=1200):
-                    lab.click(force=True, timeout=4000)
-                    syntx_safe_page_wait(page, 350)
-                    return True
-            except Exception:
-                continue
+    def try_click(locator) -> bool:
+        try:
+            if locator.count() == 0:
+                return False
+            locator.first.click(force=True, timeout=5000)
+            syntx_safe_page_wait(page, 400)
+            return True
+        except Exception:
+            return False
 
-        wrap = panel.locator(".el-select__wrapper").first
-        if wrap.count() > 0 and wrap.is_visible(timeout=1500):
+    for lb in targets:
+        pat = re.compile(re.escape(lb), re.I)
+        for sel in (
+            ".el-segmented__item",
+            ".el-segmented-item",
+            "[class*='segmented__item']",
+            ".el-radio",
+            "label.el-radio",
+            "button",
+            "[role='radio']",
+        ):
+            if try_click(panel.locator(sel).filter(has_text=pat)):
+                return True
+
+    for lb in targets:
+        try:
+            rad = panel.locator(".el-radio").filter(has_text=re.compile(re.escape(lb), re.I)).first
+            if rad.count() > 0:
+                rad.click(force=True, timeout=5000)
+                syntx_safe_page_wait(page, 350)
+                return True
+        except Exception:
+            pass
+        try:
+            lab = panel.locator("label.el-radio, label").filter(has_text=re.compile(re.escape(lb), re.I)).first
+            if lab.count() > 0:
+                lab.click(force=True, timeout=5000)
+                syntx_safe_page_wait(page, 350)
+                return True
+        except Exception:
+            pass
+
+    wrap = panel.locator(".el-select__wrapper").first
+    if wrap.count() > 0 and wrap.is_visible(timeout=1500):
+        try:
             wrap.click(force=True, timeout=4000)
             syntx_safe_page_wait(page, 350)
             dropdown = page.locator(".el-select-dropdown:visible").last
             for lb in targets:
                 try:
-                    dropdown.locator(".el-select-dropdown__item").filter(has_text=re.compile(re.escape(lb), re.I)).first.click(
-                        force=True, timeout=4000
-                    )
+                    dropdown.locator(".el-select-dropdown__item").filter(
+                        has_text=re.compile(re.escape(lb), re.I)
+                    ).first.click(force=True, timeout=4000)
                     syntx_safe_page_wait(page, 350)
                     return True
                 except Exception:
                     continue
+        except Exception:
+            pass
 
+    try:
         ok = page.evaluate(
             """({ labels }) => {
                 const norm = (s) => String(s || '').toLowerCase().replace(/\\s+/g, '');
                 const wants = labels.map(norm).filter(Boolean);
+                const pick = (root, el) => {
+                    const t = norm(el.innerText || el.textContent || '');
+                    return wants.some((w) => w && (t.includes(w) || w.includes(t)));
+                };
                 const items = Array.from(document.querySelectorAll('.el-collapse-item'));
                 let wrap = null;
                 for (const item of items) {
                     const h = item.querySelector('.el-collapse-item__header');
-                    const ht = (h?.innerText || '').toLowerCase();
-                    if (!ht.includes('quality') && !ht.includes('качество')) continue;
+                    if (!h || !/quality/i.test((h.innerText || h.textContent || ''))) continue;
                     wrap = item.querySelector('.el-collapse-item__wrap');
                     break;
                 }
                 if (!wrap) return false;
+                for (const sel of wrap.querySelectorAll('.el-segmented__item, .el-segmented-item, button, .el-radio, label.el-radio')) {
+                    if (!pick(wrap, sel)) continue;
+                    sel.scrollIntoView({ block: 'center', inline: 'nearest' });
+                    sel.click();
+                    return true;
+                }
                 const radios = wrap.querySelectorAll('.el-radio, label.el-radio');
                 for (const r of radios) {
                     const t = norm(r.innerText || '');
@@ -1463,20 +1744,17 @@ def pick_veo_quality_resolution(page, panel, labels: list[str]) -> bool:
         )
         if ok:
             syntx_safe_page_wait(page, 450)
-            try:
-                if page.locator(".el-select-dropdown:visible").count() > 0:
-                    dropdown = page.locator(".el-select-dropdown:visible").last
-                    for lb in targets:
-                        try:
-                            dropdown.locator(".el-select-dropdown__item").filter(
-                                has_text=re.compile(re.escape(lb), re.I)
-                            ).first.click(force=True, timeout=4000)
-                            syntx_safe_page_wait(page, 350)
-                            return True
-                        except Exception:
-                            continue
-            except Exception:
-                pass
+            if page.locator(".el-select-dropdown:visible").count() > 0:
+                dropdown = page.locator(".el-select-dropdown:visible").last
+                for lb in targets:
+                    try:
+                        dropdown.locator(".el-select-dropdown__item").filter(
+                            has_text=re.compile(re.escape(lb), re.I)
+                        ).first.click(force=True, timeout=4000)
+                        syntx_safe_page_wait(page, 350)
+                        return True
+                    except Exception:
+                        continue
             return True
     except Exception:
         pass
@@ -1771,7 +2049,7 @@ def smart_select_veo_resolution(page, job: dict) -> bool:
         return True
 
     res = veo_resolution_label(job)
-    labels = [res, res.upper(), "720 p" if res == "720p" else "1080 p", "720", "1080"]
+    targets = veo_quality_targets(res)
     try:
         custom_trigger = env_for_model(job, "RESOLUTION_TRIGGER_SELECTOR", "").strip()
         if custom_trigger:
@@ -1779,7 +2057,7 @@ def smart_select_veo_resolution(page, job: dict) -> bool:
             page.wait_for_timeout(400)
             if smart_click_by_candidates(
                 page,
-                labels,
+                targets,
                 selector=".el-select-dropdown__item, [role='option'], li",
                 timeout_ms=5000,
             ):
@@ -1792,11 +2070,19 @@ def smart_select_veo_resolution(page, job: dict) -> bool:
 
         syntx_safe_page_wait(page, 450)
 
+        scroll_syntx_veo_quality_into_view(page)
+        syntx_safe_page_wait(page, 280)
+
+        current = veo_read_quality_section_value(page)
+        if current == res:
+            print(f"Syntx smart: Veo quality already {res}")
+            return True
+
         panel = syntx_veo_collapse_panel(page, ["Quality"])
         try:
             if panel.count() > 0:
                 panel.wait_for(state="visible", timeout=5000)
-                if pick_veo_quality_resolution(page, panel, labels):
+                if pick_veo_quality_resolution(page, panel, targets):
                     print(f"Syntx smart: selected Veo quality {res} (Quality section)")
                     return True
         except Exception:
@@ -1806,20 +2092,26 @@ def smart_select_veo_resolution(page, job: dict) -> bool:
             has=page.locator(".el-collapse-item__header").filter(has_text=re.compile(r"Quality|Качество", re.I))
         )
         wrap = active_item.locator(".el-collapse-item__wrap").first
-        if wrap.count() > 0 and pick_veo_quality_resolution(page, wrap, labels):
+        if wrap.count() > 0 and pick_veo_quality_resolution(page, wrap, targets):
             print(f"Syntx smart: selected Veo quality {res} (active Quality panel)")
             return True
 
         if smart_click_by_candidates(
             page,
-            labels,
+            targets,
             selector=".el-collapse-item.is-active .el-select-dropdown__item, "
             ".el-collapse-item.is-active [role='option'], "
             ".el-collapse-item.is-active .el-radio, "
-            ".el-collapse-item.is-active label.el-radio",
+            ".el-collapse-item.is-active label.el-radio, "
+            ".el-collapse-item.is-active .el-segmented__item, "
+            ".el-collapse-item.is-active .el-segmented-item",
             timeout_ms=5000,
         ):
             print(f"Syntx smart: selected Veo quality {res} (scoped)")
+            return True
+
+        if veo_read_quality_section_value(page) == res:
+            print(f"Syntx smart: Veo quality now {res} (after scoped click)")
             return True
     except Exception:
         return False

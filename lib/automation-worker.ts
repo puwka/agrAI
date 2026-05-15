@@ -64,7 +64,8 @@ export function isSyntxGeneration(row: {
 export function extractVeoResolution(prompt: string): "720p" | "1080p" {
   const m = /\[VeoResolution:(720p|1080p)\]/i.exec(prompt ?? "");
   const v = m?.[1]?.toLowerCase();
-  return v === "720p" ? "720p" : "1080p";
+  if (v === "1080p") return "1080p";
+  return "720p";
 }
 
 export function extractReferenceImages(prompt: string): string[] {

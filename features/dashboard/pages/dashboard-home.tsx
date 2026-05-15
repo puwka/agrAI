@@ -105,7 +105,7 @@ export function DashboardHomePage({
   const [photoModelVariant, setPhotoModelVariant] = useState<"nana2" | "nana-pro" | "sora-image">("nana2");
   const [videoModelVariant, setVideoModelVariant] = useState<"veo-3.1-relax" | "runway-gen-4">("veo-3.1-relax");
   const [runwayDurationSec, setRunwayDurationSec] = useState<5 | 10>(5);
-  const [veoResolution, setVeoResolution] = useState<"720p" | "1080p">("1080p");
+  const [veoResolution, setVeoResolution] = useState<"720p" | "1080p">("720p");
   const [motionCharacterUrl, setMotionCharacterUrl] = useState<string | null>(null);
   const [motionCharacterUploading, setMotionCharacterUploading] = useState(false);
   const [motionCharacterUploadError, setMotionCharacterUploadError] = useState<string | null>(null);
