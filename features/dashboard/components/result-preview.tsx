@@ -104,6 +104,7 @@ export function ResultPreview({
                   src={previewSrc}
                   controls
                   playsInline
+                  preload="auto"
                   className="result-media h-full w-full min-h-0 flex-1 object-contain bg-black"
                   onError={() => setMediaFailed(true)}
                 />

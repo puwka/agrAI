@@ -87,6 +87,24 @@ export function cleanPromptForSyntx(prompt: string) {
     .trim();
 }
 
+export function serializeSyntxJob(job: ReturnType<typeof mapSyntxJob>) {
+  return {
+    ...job,
+    createdAt:
+      job.createdAt instanceof Date
+        ? job.createdAt.toISOString()
+        : job.createdAt != null
+          ? String(job.createdAt)
+          : null,
+    updatedAt:
+      job.updatedAt instanceof Date
+        ? job.updatedAt.toISOString()
+        : job.updatedAt != null
+          ? String(job.updatedAt)
+          : null,
+  };
+}
+
 export function mapSyntxJob(row: any) {
   const prompt = String(row.prompt ?? "");
   const referenceImages = [

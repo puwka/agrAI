@@ -90,6 +90,11 @@ function extractErrorText(error: unknown): string {
   return parts.join(" | ").trim();
 }
 
+function raiseSupabaseError(context: string, error: unknown): never {
+  const detail = extractErrorText(error) || "unknown Supabase error";
+  throw new Error(`${context}: ${detail}`);
+}
+
 async function supabaseFetchWithRetry(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   let lastError: unknown = null;
   const method = String(init?.method ?? "GET").toUpperCase();
@@ -440,7 +445,7 @@ export const db: any = {
       q = q.order("createdAt", { ascending: dir === "ASC" });
       const end = skip + take - 1;
       const { data, error } = await q.range(skip, end);
-      if (error) throw error;
+      if (error) raiseSupabaseError("Generation.findMany", error);
       const rows = hydrateRows((data ?? []) as AnyRecord[]);
       const withIncluded = await withUserInclude(rows, args.include);
       if (args.select) {
@@ -453,7 +458,7 @@ export const db: any = {
       q = applyWhere(q, args.where);
       q = applyGenerationSearchOr(q, args.search);
       const { count, error } = await q;
-      if (error) throw error;
+      if (error) raiseSupabaseError("Generation.countWhere", error);
       return count ?? 0;
     },
     async findFirst(args: { where?: AnyRecord; select?: AnyRecord }) {
@@ -461,7 +466,7 @@ export const db: any = {
       let q = getSupabaseAdmin().from("Generation").select(columns);
       q = applyWhere(q, args.where);
       const { data, error } = await q.order("createdAt", { ascending: false }).limit(1);
-      if (error) throw error;
+      if (error) raiseSupabaseError("Generation.findFirst", error);
       const rows = hydrateRows((data ?? []) as AnyRecord[]);
       const row = rows[0];
       return row ? project(row, args.select) : null;
@@ -469,7 +474,7 @@ export const db: any = {
     async findUnique(args: { where: AnyRecord }) {
       const [key, val] = Object.entries(args.where)[0] ?? [];
       const { data, error } = await getSupabaseAdmin().from("Generation").select("*").eq(key, val).limit(1);
-      if (error) throw error;
+      if (error) raiseSupabaseError("Generation.findUnique", error);
       return data?.[0] ? hydrateRecord(data[0] as AnyRecord) : null;
     },
     async create(args: { data: AnyRecord }) {
@@ -486,7 +491,7 @@ export const db: any = {
         updatedAt: nowIso(),
       };
       const { data: rows, error } = await getSupabaseAdmin().from("Generation").insert(data).select("*").limit(1);
-      if (error) throw error;
+      if (error) raiseSupabaseError("Generation.create", error);
       if (!rows?.[0]) throw new Error("Generation insert failed");
       return hydrateRecord(rows[0] as AnyRecord);
     },
@@ -499,7 +504,7 @@ export const db: any = {
         .eq(key, val)
         .select("*")
         .limit(1);
-      if (error) throw error;
+      if (error) raiseSupabaseError("Generation.update", error);
       if (!rows[0]) throw new Error("Generation not found");
       return hydrateRecord(rows[0] as AnyRecord);
     },
@@ -507,8 +512,8 @@ export const db: any = {
       const data = { ...args.data, updatedAt: nowIso() };
       let q = getSupabaseAdmin().from("Generation").update(data).select("*");
       q = applyWhere(q, args.where);
-      const { data: rows, error } = await q;
-      if (error) throw error;
+      const { data: rows, error } = await q.limit(1);
+      if (error) raiseSupabaseError("Generation.updateWhere", error);
       return hydrateRows((rows ?? []) as AnyRecord[]);
     },
     async delete(args: { where: AnyRecord }) {

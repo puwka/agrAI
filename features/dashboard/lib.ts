@@ -7,6 +7,10 @@ export { buildPreviewDataUrl } from "../../lib/generation-preview";
 export function detectResultMediaKind(url: string): "image" | "video" | "audio" {
   const v = (url ?? "").trim().toLowerCase();
   if (!v) return "image";
+  const localPrefix = "local-generation:";
+  if (v.startsWith(localPrefix)) {
+    return detectResultMediaKind(v.slice(localPrefix.length));
+  }
   if (v.startsWith("data:video/")) return "video";
   if (v.startsWith("data:audio/")) return "audio";
   if (v.startsWith("data:image/")) return "image";

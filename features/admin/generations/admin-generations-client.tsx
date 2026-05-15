@@ -643,7 +643,7 @@ export function AdminGenerationsClient({
                             src={ref}
                             controls
                             playsInline
-                            preload="none"
+                            preload="metadata"
                             className="max-h-56 w-full rounded-xl bg-black object-contain"
                           />
                         ) : detectResultMediaKind(ref) === "audio" ? (
@@ -673,7 +673,7 @@ export function AdminGenerationsClient({
                       src={motionVideoUrl}
                       controls
                       playsInline
-                      preload="none"
+                      preload="metadata"
                       className="max-h-64 w-full bg-black object-contain"
                     />
                   </div>
@@ -816,7 +816,7 @@ export function AdminGenerationsClient({
                           src={`/api/generations/${g.id}/download?inline=1`}
                           controls
                           playsInline
-                          preload="none"
+                          preload="metadata"
                           className="h-full w-full max-h-72 bg-black object-contain"
                         />
                       ) : detectResultMediaKind(g.resultUrl) === "audio" ? (

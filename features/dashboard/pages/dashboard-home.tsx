@@ -1204,7 +1204,7 @@ export function DashboardHomePage({
                         src={inlineResultSrc}
                         controls
                         playsInline
-                        preload="none"
+                        preload="metadata"
                         className="result-media aspect-video w-full bg-black object-contain"
                       />
                     ) : mediaKind === "audio" ? (
