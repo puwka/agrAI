@@ -33,10 +33,6 @@ export function requireAutomationWorker(request: Request): NextResponse | null {
   return null;
 }
 
-function hasSyntxRegenerationMarker(prompt: string) {
-  return /\[Repeat\]/i.test(prompt) || /\[RepeatOf:/i.test(prompt);
-}
-
 export function isSyntxVeoGeneration(row: {
   modelId?: string | null;
   modelName?: string | null;
@@ -45,11 +41,7 @@ export function isSyntxVeoGeneration(row: {
   if (row.modelId !== "video") return false;
   const modelName = (row.modelName ?? "").toLowerCase();
   const prompt = row.prompt ?? "";
-  if (!modelName.includes("veo 3.1")) return false;
-  if (/\[VeoResolution:(720p|1080p)\]/i.test(prompt)) return true;
-  // Перегенерация: копия промпта + [Repeat]; маркер разрешения мог отсутствовать в старых заявках.
-  if (hasSyntxRegenerationMarker(prompt)) return true;
-  return false;
+  return modelName.includes("veo 3.1") && /\[VeoResolution:(720p|1080p)\]/i.test(prompt);
 }
 
 export function isSyntxSoraImageGeneration(row: {

@@ -73,13 +73,6 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     return NextResponse.json({ error: "Исходная генерация не найдена" }, { status: 404 });
   }
 
-  let repeatedPrompt = `${source.prompt ?? ""}\n[Repeat]`;
-  const isVeo31Relax =
-    source.modelId === "video" && (source.modelName ?? "").toLowerCase().includes("veo 3.1");
-  if (isVeo31Relax && !/\[VeoResolution:(720p|1080p)\]/i.test(repeatedPrompt)) {
-    repeatedPrompt = `${repeatedPrompt}\n[VeoResolution:1080p]`;
-  }
-
   const repeated = await db.generation.create({
     data: {
       modelId: source.modelId,
@@ -88,7 +81,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       modelName: source.modelName ?? "",
       inputMode: source.inputMode ?? "TEXT",
       referenceImageUrl: source.referenceImageUrl ?? null,
-      prompt: repeatedPrompt,
+      prompt: `${source.prompt ?? ""}\n[Repeat]`,
       aspectRatio: source.aspectRatio,
       status: "PENDING",
       resultUrl: null,

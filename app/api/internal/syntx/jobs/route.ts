@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       status: { in: ["PENDING", "QUEUED"] },
     },
     orderBy: { createdAt: "asc" },
-    take: 80,
+    take: 20,
   });
 
   for (const candidate of candidates) {
