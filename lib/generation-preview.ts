@@ -6,14 +6,23 @@ export function buildPreviewDataUrl(
   aspectRatio: AspectRatio,
 ) {
   const sizeByAspect: Record<AspectRatio, { width: number; height: number }> = {
+    "8:1": { width: 1600, height: 200 },
+    "4:1": { width: 1280, height: 320 },
     "21:9": { width: 1680, height: 720 },
     "16:9": { width: 1280, height: 720 },
     "4:3": { width: 1024, height: 768 },
     "3:2": { width: 1200, height: 800 },
+    "2:1": { width: 1280, height: 640 },
     "1:1": { width: 1024, height: 1024 },
+    "5:4": { width: 1000, height: 800 },
+    "4:5": { width: 800, height: 1000 },
     "2:3": { width: 800, height: 1200 },
     "3:4": { width: 768, height: 1024 },
+    "1:2": { width: 640, height: 1280 },
     "9:16": { width: 720, height: 1280 },
+    "9:21": { width: 630, height: 1470 },
+    "1:4": { width: 400, height: 1600 },
+    "1:8": { width: 320, height: 2560 },
   };
   const { width, height } = sizeByAspect[aspectRatio];
   const promptText = prompt.trim() || "Ваш промпт появится здесь";

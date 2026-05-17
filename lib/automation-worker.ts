@@ -2,6 +2,8 @@ import { timingSafeEqual } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
+import { isSyntxPhotoVariant, parsePhotoModelVariant } from "../features/dashboard/photo-models";
+
 const SYNTX_VEO_URL = "https://syntx.ai/video/veo3";
 const SYNTX_SORA_IMAGE_URL = "https://syntx.ai/image/sora-images";
 
@@ -44,13 +46,13 @@ export function isSyntxVeoGeneration(row: {
   return modelName.includes("veo 3.1") && /\[VeoResolution:(720p|1080p)\]/i.test(prompt);
 }
 
-export function isSyntxSoraImageGeneration(row: {
+export function isSyntxPhotoGeneration(row: {
   modelId?: string | null;
   modelName?: string | null;
 }) {
   if (row.modelId !== "photo") return false;
-  const modelName = (row.modelName ?? "").toLowerCase();
-  return modelName.includes("sora image");
+  const variant = parsePhotoModelVariant("", row.modelName ?? "");
+  return isSyntxPhotoVariant(variant);
 }
 
 export function isSyntxGeneration(row: {
@@ -58,7 +60,7 @@ export function isSyntxGeneration(row: {
   modelName?: string | null;
   prompt?: string | null;
 }) {
-  return isSyntxVeoGeneration(row) || isSyntxSoraImageGeneration(row);
+  return isSyntxVeoGeneration(row) || isSyntxPhotoGeneration(row);
 }
 
 export function extractVeoResolution(prompt: string): "720p" | "1080p" {
@@ -112,18 +114,19 @@ export function mapSyntxJob(row: any) {
     typeof row.referenceImageUrl === "string" ? row.referenceImageUrl.trim() : "",
     ...extractReferenceImages(prompt),
   ].filter(Boolean);
-  const isSoraImage = isSyntxSoraImageGeneration(row);
+  const photoVariant = parsePhotoModelVariant("", row.modelName ?? "");
+  const isPhoto = row.modelId === "photo" && isSyntxPhotoVariant(photoVariant);
 
   return {
     id: row.id,
     service: "syntx",
-    targetUrl: isSoraImage ? SYNTX_SORA_IMAGE_URL : SYNTX_VEO_URL,
-    model: isSoraImage ? "sora-image" : "veo-3.1-relax",
+    targetUrl: isPhoto ? SYNTX_SORA_IMAGE_URL : SYNTX_VEO_URL,
+    model: isPhoto ? photoVariant : "veo-3.1-relax",
     prompt: cleanPromptForSyntx(prompt),
     aspectRatio: row.aspectRatio,
     inputMode: row.inputMode ?? "TEXT",
     referenceImages,
-    ...(isSoraImage ? {} : { resolution: extractVeoResolution(prompt) }),
+    ...(isPhoto ? {} : { resolution: extractVeoResolution(prompt) }),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     userId: row.userId,

@@ -6,6 +6,13 @@ import { LayoutDashboard, Trash2 } from "lucide-react";
 
 import { models } from "../config";
 import { detectResultMediaKind } from "../lib";
+import {
+  PHOTO_MODEL_VARIANTS,
+  getPhotoAspectOptions,
+  isPhotoAspectValid,
+  photoModelDisplayLabel,
+  type PhotoModelVariant,
+} from "../photo-models";
 import type { AspectRatio, MediaInputMode } from "../types";
 import { ModelCard } from "../components/model-card";
 import { PageIntro } from "../components/page-intro";
@@ -102,7 +109,7 @@ export function DashboardHomePage({
   const [enhanceUploadProgress, setEnhanceUploadProgress] = useState<number | null>(null);
   const [enhanceQuality, setEnhanceQuality] = useState<"original" | "2x" | "4x">("original");
   const [enhanceFps, setEnhanceFps] = useState<"24" | "25" | "30" | "45" | "50" | "60">("60");
-  const [photoModelVariant, setPhotoModelVariant] = useState<"nana2" | "nana-pro" | "sora-image">("nana2");
+  const [photoModelVariant, setPhotoModelVariant] = useState<PhotoModelVariant>("nana2");
   const [videoModelVariant, setVideoModelVariant] = useState<"veo-3.1-relax" | "runway-gen-4">("veo-3.1-relax");
   const [runwayDurationSec, setRunwayDurationSec] = useState<5 | 10>(5);
   const [veoResolution, setVeoResolution] = useState<"720p" | "1080p">("720p");
@@ -120,11 +127,12 @@ export function DashboardHomePage({
 
   const selectedModel = models.find((model) => model.id === selectedModelId) ?? null;
   const activeModelsCount = models.filter((m) => !m.disabled).length;
-  const photoVariantLocks: Record<"nana2" | "nana-pro" | "sora-image", { enabled: boolean; message: string }> = {
-    nana2: modelLocks["photo:nana2"] ?? { enabled: false, message: "" },
-    "nana-pro": modelLocks["photo:nana-pro"] ?? { enabled: false, message: "" },
-    "sora-image": modelLocks["photo:sora-image"] ?? { enabled: false, message: "" },
-  };
+  const photoVariantLocks = Object.fromEntries(
+    PHOTO_MODEL_VARIANTS.map((id) => [
+      id,
+      modelLocks[`photo:${id}`] ?? { enabled: false, message: "" },
+    ]),
+  ) as Record<PhotoModelVariant, { enabled: boolean; message: string }>;
   const videoVariantLocks: Record<"veo-3.1-relax" | "runway-gen-4", { enabled: boolean; message: string }> = {
     "veo-3.1-relax": modelLocks["video:veo-3.1-relax"] ?? { enabled: false, message: "" },
     "runway-gen-4": modelLocks["video:runway-gen-4"] ?? { enabled: false, message: "" },
@@ -467,7 +475,7 @@ export function DashboardHomePage({
   useEffect(() => {
     if (selectedModelId !== "video") return;
     if (videoModelVariant !== "runway-gen-4") return;
-    if (aspectRatio !== "16:9") {
+    if (aspectRatio !== "16:9" && aspectRatio !== "9:16") {
       setAspectRatio("16:9");
     }
   }, [selectedModelId, videoModelVariant, aspectRatio]);
@@ -475,7 +483,7 @@ export function DashboardHomePage({
   useEffect(() => {
     if (selectedModelId !== "photo") return;
     if (!photoVariantLocks[photoModelVariant].enabled) return;
-    const fallback = (["nana2", "nana-pro", "sora-image"] as const).find((id) => !photoVariantLocks[id].enabled);
+    const fallback = PHOTO_MODEL_VARIANTS.find((id) => !photoVariantLocks[id].enabled);
     if (fallback) {
       setPhotoModelVariant(fallback);
       setGenerationSubmitError(
@@ -721,13 +729,7 @@ export function DashboardHomePage({
       selectedModel.id === "voice" && selectedVoice
         ? `${selectedModel.name} • ${selectedVoice.name}`
         : selectedModel.id === "photo"
-          ? `${selectedModel.name} • ${
-              photoModelVariant === "nana-pro"
-                ? "Nana Banana Pro"
-                : photoModelVariant === "sora-image"
-                  ? "Sora image"
-                  : "Nana Banana 2"
-            }`
+          ? `${selectedModel.name} • ${photoModelDisplayLabel(photoModelVariant)}`
           : selectedModel.id === "video"
             ? `${selectedModel.name} • ${videoModelVariant === "runway-gen-4" ? "Runway Gen-4" : "Veo 3.1 Relax"}`
         : mediaModeSuffix
@@ -1113,12 +1115,8 @@ export function DashboardHomePage({
           }
           setGenerationSubmitError(null);
           setPhotoModelVariant(v);
-          if (v === "sora-image") {
-            if (aspectRatio !== "3:2" && aspectRatio !== "1:1" && aspectRatio !== "2:3") {
-              setAspectRatio("1:1");
-            }
-          } else if (aspectRatio === "3:2" || aspectRatio === "2:3") {
-            setAspectRatio("16:9");
+          if (!isPhotoAspectValid(v, aspectRatio)) {
+            setAspectRatio(getPhotoAspectOptions(v)[0]?.value ?? "1:1");
           }
         }}
         photoVariantLocks={photoVariantLocks}
@@ -1140,7 +1138,9 @@ export function DashboardHomePage({
               return { ...prev, video: current.slice(0, MAX_RUNWAY_PROMPT_LEN) };
             });
             setRunwayDurationSec((prev) => (prev === 10 ? 10 : 5));
-            setAspectRatio("16:9");
+            if (aspectRatio !== "16:9" && aspectRatio !== "9:16") {
+              setAspectRatio("16:9");
+            }
           } else if (aspectRatio === "21:9") {
             setAspectRatio("16:9");
           }

@@ -20,14 +20,23 @@ type ResultPreviewProps = {
 };
 
 const previewAspectClass: Record<AspectRatio, string> = {
+  "8:1": "aspect-[8/1]",
+  "4:1": "aspect-[4/1]",
   "21:9": "aspect-[21/9]",
   "16:9": "aspect-video",
   "4:3": "aspect-[4/3]",
   "3:2": "aspect-[3/2]",
+  "2:1": "aspect-[2/1]",
   "1:1": "aspect-square",
+  "5:4": "aspect-[5/4]",
+  "4:5": "aspect-[4/5]",
   "2:3": "aspect-[2/3]",
   "3:4": "aspect-[3/4]",
+  "1:2": "aspect-[1/2]",
   "9:16": "aspect-[9/16]",
+  "9:21": "aspect-[9/21]",
+  "1:4": "aspect-[1/4]",
+  "1:8": "aspect-[1/8]",
 };
 
 export function ResultPreview({

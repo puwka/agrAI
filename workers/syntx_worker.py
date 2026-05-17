@@ -467,6 +467,37 @@ def is_sora_job(job: dict) -> bool:
     return job.get("model") == "sora-image"
 
 
+SYNTX_PHOTO_MODEL_LABELS: dict[str, list[str]] = {
+    "sora-image": ["GPT Image 1", "Image 1", "Sora", "sora"],
+    "gpt-image-2": ["GPT Image 2", "Image 2", "gpt image 2", "GPT 2"],
+    "flux-2-pro": ["Flux 2 Pro", "Flux 2", "Flux"],
+    "recraft-v3": ["Recraft V3", "Recraft"],
+    "ideogram-v3": ["Ideogram V3", "Ideogram"],
+    "qwen-image-2": ["Qwen Image 2", "Qwen"],
+    "seedream-v5-lite": [
+        "Seedream v5 lite",
+        "Seedream v5",
+        "Seedream",
+        "Seedrea",
+        "Bytedance",
+        "v5 lite",
+    ],
+}
+
+# Модели с панелью «Настройки» → только «Соотношение сторон» (без размера/качества).
+SYNTX_SETTINGS_ASPECT_PHOTO_MODELS = frozenset(
+    m for m in SYNTX_PHOTO_MODEL_LABELS if m != "sora-image"
+)
+
+
+def is_syntx_photo_job(job: dict) -> bool:
+    return job.get("model") in SYNTX_PHOTO_MODEL_LABELS
+
+
+def uses_syntx_settings_aspect_panel(job: dict) -> bool:
+    return job.get("model") in SYNTX_SETTINGS_ASPECT_PHOTO_MODELS
+
+
 def is_veo_job(job: dict) -> bool:
     return job.get("model") == "veo-3.1-relax"
 
@@ -1989,6 +2020,104 @@ def attach_reference_images(page, job: dict, download_dir: Path) -> None:
         ) from exc
 
 
+def smart_select_syntx_photo_model_version(page, job: dict) -> bool:
+    model = str(job.get("model") or "").strip()
+    labels = SYNTX_PHOTO_MODEL_LABELS.get(model)
+    if not labels:
+        return True
+
+    try:
+        open_syntx_chat_settings(page)
+        if not click_syntx_sora_version_dropdown(page):
+            return False
+        page.wait_for_timeout(500)
+        if smart_click_by_candidates(
+            page,
+            labels,
+            selector=".el-select-dropdown__item, [role='option'], li, button, [role='button']",
+            timeout_ms=5000,
+        ):
+            print(f"Syntx smart: selected photo model {model}")
+            return True
+        option = page.locator(".el-select-dropdown__item:not(.is-disabled), [role='option']:not([aria-disabled='true'])").first
+        option.click(timeout=5000)
+        page.wait_for_timeout(500)
+        print(f"Syntx smart: selected first visible option for photo model {model}")
+        return True
+    except Exception:
+        return False
+
+
+def open_syntx_photo_settings_panel(page) -> bool:
+    """Панель «Настройки» — соотношение сторон (Flux, Recraft, GPT Image 2, …)."""
+    for pat in (r"Настр", r"Settings", r"Настройки"):
+        try:
+            btn = page.locator("button, [role='button'], a").filter(has_text=re.compile(pat, re.I)).first
+            if btn.count() > 0 and btn.is_visible(timeout=1200):
+                btn.click(force=True, timeout=4000)
+                syntx_safe_page_wait(page, 500)
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def smart_select_syntx_photo_settings_aspect(page, job: dict) -> bool:
+    aspect = str(job.get("aspectRatio", "")).strip()
+    if not aspect or not uses_syntx_settings_aspect_panel(job):
+        return True
+
+    model = str(job.get("model") or "").strip()
+    labels = [aspect, aspect.replace(":", " : "), aspect.replace(":", "/")]
+    try:
+        open_syntx_photo_settings_panel(page)
+        if smart_click_by_candidates(
+            page,
+            labels,
+            selector="button, [role='button'], .el-segmented__item, [class*='segmented__item']",
+            timeout_ms=5000,
+        ):
+            print(f"Syntx smart: {model} aspect {aspect}")
+            return True
+
+        ok = page.evaluate(
+            """({ aspect }) => {
+                const norm = (s) => String(s || '').replace(/\\s+/g, '').toLowerCase();
+                const want = norm(aspect);
+                const roots = Array.from(
+                    document.querySelectorAll('[class*="popover"], [class*="settings"], .el-popper, dialog')
+                ).filter((el) => el.getBoundingClientRect().height > 40);
+                if (!roots.length) roots.push(document.body);
+                for (const root of roots) {
+                    const blocks = Array.from(root.querySelectorAll('section, div, form')).filter((el) => {
+                        const t = (el.innerText || el.textContent || '').toLowerCase();
+                        return /соотношение|aspect\\s*ratio/i.test(t) && t.length < 200;
+                    });
+                    const scope = blocks[0] || root;
+                    const btns = Array.from(scope.querySelectorAll('button, [role="button"]'));
+                    for (const b of btns) {
+                        const t = norm(b.innerText || b.textContent || '');
+                        if (!t || t.length > 12) continue;
+                        if (t === want || (want.length >= 3 && t.includes(want))) {
+                            b.scrollIntoView({ block: 'center', inline: 'nearest' });
+                            b.click();
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }""",
+            {"aspect": aspect},
+        )
+        if ok:
+            syntx_safe_page_wait(page, 400)
+            print(f"Syntx smart: {model} aspect {aspect} (settings panel JS)")
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def smart_select_sora_model_version(page, job: dict) -> bool:
     if not is_sora_job(job):
         return True
@@ -2000,7 +2129,7 @@ def smart_select_sora_model_version(page, job: dict) -> bool:
         page.wait_for_timeout(500)
         if smart_click_by_candidates(
             page,
-            ["GPT Image 1", "GPT Image 2", "Image 1", "Image 2", "first", "перв"],
+            ["GPT Image 1", "Image 1", "GPT Image 2", "Image 2", "first", "перв"],
             selector=".el-select-dropdown__item, [role='option'], li, button, [role='button']",
             timeout_ms=5000,
         ):
@@ -2119,8 +2248,8 @@ def smart_select_veo_resolution(page, job: dict) -> bool:
 
 
 def smart_select_model_version(page, job: dict) -> bool:
-    if is_sora_job(job):
-        return smart_select_sora_model_version(page, job)
+    if is_syntx_photo_job(job):
+        return smart_select_syntx_photo_model_version(page, job)
     if is_veo_job(job):
         return smart_select_veo_model_version(page, job)
     return True
@@ -2187,6 +2316,10 @@ def smart_select_aspect_ratio(page, job: dict) -> bool:
     aspect = str(job.get("aspectRatio", "")).strip()
     if not aspect:
         return True
+
+    if uses_syntx_settings_aspect_panel(job):
+        if smart_select_syntx_photo_settings_aspect(page, job):
+            return True
 
     if is_veo_job(job):
         if smart_select_veo_aspect_ratio(page, job):
@@ -2781,7 +2914,7 @@ def smart_download_result(page, job: dict, download_dir: Path) -> Path:
                     except Exception:
                         pass
             download = download_info.value
-            ext = ".png" if job.get("model") == "sora-image" else ".mp4"
+            ext = ".png" if is_syntx_photo_job(job) else ".mp4"
             filename = download.suggested_filename or f"{job['id']}{ext}"
             output_path = download_dir / filename
             download.save_as(output_path)
@@ -2954,7 +3087,7 @@ def run_selector_syntx_job(page, job: dict, download_dir: Path) -> Path:
             f"Debug: {artifacts}. Last error: {last_err}"
         ) from last_err
 
-    ext = ".png" if job.get("model") == "sora-image" else ".mp4"
+    ext = ".png" if is_syntx_photo_job(job) else ".mp4"
     filename = download.suggested_filename or f"{job['id']}{ext}"
     output_path = download_dir / filename
     download.save_as(output_path)

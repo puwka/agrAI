@@ -6,7 +6,12 @@ import { isValidUserReferenceImageUrl } from "../../../lib/generation-reference"
 import { getMaintenanceState } from "../../../lib/maintenance";
 import { hasActiveSubscription } from "../../../lib/subscription";
 import { resolveVoicePromptLocal, saveVoicePromptLocal } from "../../../lib/voice-prompt-local";
-import type { AspectRatio } from "../../../features/dashboard/types";
+import {
+  isPhotoAspectValid,
+  parsePhotoModelVariant,
+  type PhotoModelVariant,
+} from "../../../features/dashboard/photo-models";
+import { ASPECT_RATIOS, type AspectRatio } from "../../../features/dashboard/types";
 
 const cleanupLastRunByUser = new Map<string, number>();
 const GENERATIONS_RETENTION_DAYS = 5;
@@ -341,25 +346,14 @@ export async function POST(request: Request) {
       : runwayDurationRawForVariant === 5 || runwayDurationRawForVariant === 10
         ? "runway-gen-4"
         : "veo-3.1-relax";
-  const inferredPhotoVariant =
-    photoModelVariantRaw === "nana2" || photoModelVariantRaw === "nana-pro" || photoModelVariantRaw === "sora-image"
-      ? photoModelVariantRaw
-      : (modelName?.toLowerCase().includes("sora image")
-          ? "sora-image"
-          : modelName?.toLowerCase().includes("nana banana pro")
-            ? "nana-pro"
-            : "nana2");
-  let aspectRatio: AspectRatio | null =
-    body.aspectRatio === "21:9" ||
-    body.aspectRatio === "16:9" ||
-    body.aspectRatio === "4:3" ||
-    body.aspectRatio === "3:2" ||
-    body.aspectRatio === "1:1" ||
-    body.aspectRatio === "2:3" ||
-    body.aspectRatio === "3:4" ||
-    body.aspectRatio === "9:16"
-      ? body.aspectRatio
-      : null;
+  const inferredPhotoVariant: PhotoModelVariant = parsePhotoModelVariant(
+    photoModelVariantRaw,
+    modelName,
+  );
+  const aspectRaw = typeof body.aspectRatio === "string" ? body.aspectRatio.trim() : "";
+  let aspectRatio: AspectRatio | null = ASPECT_RATIOS.includes(aspectRaw as AspectRatio)
+    ? (aspectRaw as AspectRatio)
+    : null;
 
   if ((modelId === "transcription" || modelId === "video-enhance" || modelId === "motion-transfer") && !aspectRatio) {
     aspectRatio = "16:9";
@@ -367,6 +361,13 @@ export async function POST(request: Request) {
 
   if (!modelId || !modelName || !aspectRatio) {
     return NextResponse.json({ error: "Укажите модель и формат" }, { status: 400 });
+  }
+
+  if (modelId === "photo" && !isPhotoAspectValid(inferredPhotoVariant, aspectRatio)) {
+    return NextResponse.json(
+      { error: "Выбранное соотношение сторон недоступно для этой модели фото." },
+      { status: 400 },
+    );
   }
 
   const clientRequestId =
@@ -531,9 +532,9 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    if (inferredVideoVariant === "runway-gen-4" && aspectRatio !== "16:9") {
+    if (inferredVideoVariant === "runway-gen-4" && aspectRatio !== "16:9" && aspectRatio !== "9:16") {
       return NextResponse.json(
-        { error: "Для Runway Gen-4 доступен только формат 16:9." },
+        { error: "Для Runway Gen-4 доступны только форматы 16:9 и 9:16." },
         { status: 400 },
       );
     }

@@ -45,7 +45,7 @@ export const models: Model[] = [
     id: "photo",
     name: "Генерация фото",
     description:
-      "Два режима: из текста в фото или из вашего фото в фото (модели - Nana Banana 2, Nana Banana Pro, Sora image).",
+      "Два режима: из текста в фото или из вашего фото в фото (модели - Nana Banana 2, Nana Banana Pro, Sora image и др.).",
     accent: "from-white/8 via-zinc-500/10 to-zinc-950/55",
     icon: Image,
     category: "Фото",

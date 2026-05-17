@@ -10,6 +10,30 @@ MODEL_PRESETS = {
         "url": "https://syntx.ai/image/sora-images",
         "model_label": "Sora Images",
     },
+    "gpt-image-2": {
+        "url": "https://syntx.ai/image/sora-images",
+        "model_label": "GPT Image 2",
+    },
+    "flux-2-pro": {
+        "url": "https://syntx.ai/image/sora-images",
+        "model_label": "Flux 2 Pro",
+    },
+    "recraft-v3": {
+        "url": "https://syntx.ai/image/sora-images",
+        "model_label": "Recraft V3",
+    },
+    "ideogram-v3": {
+        "url": "https://syntx.ai/image/sora-images",
+        "model_label": "Ideogram V3",
+    },
+    "qwen-image-2": {
+        "url": "https://syntx.ai/image/sora-images",
+        "model_label": "Qwen Image 2",
+    },
+    "seedream-v5-lite": {
+        "url": "https://syntx.ai/image/sora-images",
+        "model_label": "Seedream v5 lite",
+    },
     "veo-3.1-relax": {
         "url": "https://syntx.ai/video/veo3",
         "model_label": "Veo 3.1 Relax",

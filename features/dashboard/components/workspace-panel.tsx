@@ -16,6 +16,12 @@ import {
 } from "lucide-react";
 
 import { MAX_TRANSCRIPTION_UPLOAD_LABEL } from "../../../lib/transcription-limits";
+import {
+  PHOTO_MODEL_LABELS,
+  PHOTO_MODEL_VARIANTS,
+  getPhotoAspectOptions,
+  type PhotoModelVariant,
+} from "../photo-models";
 import type { AspectRatio, MediaInputMode, Model } from "../types";
 import { useMaintenance } from "../maintenance-context";
 import { ResultPreview } from "./result-preview";
@@ -71,9 +77,9 @@ type WorkspacePanelProps = {
   onEnhanceFileClear: () => void;
   onEnhanceQualityChange: (v: "original" | "2x" | "4x") => void;
   onEnhanceFpsChange: (v: "24" | "25" | "30" | "45" | "50" | "60") => void;
-  photoModelVariant: "nana2" | "nana-pro" | "sora-image";
-  photoVariantLocks: Record<"nana2" | "nana-pro" | "sora-image", { enabled: boolean; message: string }>;
-  onPhotoModelVariantChange: (v: "nana2" | "nana-pro" | "sora-image") => void;
+  photoModelVariant: PhotoModelVariant;
+  photoVariantLocks: Record<PhotoModelVariant, { enabled: boolean; message: string }>;
+  onPhotoModelVariantChange: (v: PhotoModelVariant) => void;
   videoModelVariant: "veo-3.1-relax" | "runway-gen-4";
   videoVariantLocks: Record<"veo-3.1-relax" | "runway-gen-4", { enabled: boolean; message: string }>;
   onVideoModelVariantChange: (v: "veo-3.1-relax" | "runway-gen-4") => void;
@@ -96,20 +102,6 @@ type WorkspacePanelProps = {
   onMotionVideoClear: () => void;
 };
 
-const photoAspectOptions: Array<{ value: AspectRatio; label: string }> = [
-  { value: "16:9", label: "16:9" },
-  { value: "4:3", label: "4:3" },
-  { value: "1:1", label: "1:1" },
-  { value: "3:4", label: "3:4" },
-  { value: "9:16", label: "9:16" },
-];
-
-const soraPhotoAspectOptions: Array<{ value: AspectRatio; label: string; hint: string }> = [
-  { value: "3:2", label: "3:2", hint: "Photo (Standard)" },
-  { value: "1:1", label: "1:1", hint: "Square" },
-  { value: "2:3", label: "2:3", hint: "Portrait" },
-];
-
 const defaultAspectOptions: Array<{ value: AspectRatio; label: string }> = [
   { value: "16:9", label: "16:9" },
   { value: "9:16", label: "9:16" },
@@ -124,9 +116,10 @@ const motionAspectOptions: Array<{ value: AspectRatio; title: string; hint: stri
   { value: "9:16", title: "9:16", hint: "Story (vertical)" },
 ];
 
-/** Runway Gen-4: только один поддерживаемый формат в продукте. */
+/** Runway Gen-4: 16:9 и 9:16. */
 const runwayVideoAspectOptions: Array<{ value: AspectRatio; title: string; hint: string }> = [
   { value: "16:9", title: "16:9", hint: "Widescreen" },
+  { value: "9:16", title: "9:16", hint: "Story (vertical)" },
 ];
 
 export function WorkspacePanel({
@@ -341,19 +334,15 @@ export function WorkspacePanel({
                         id="photo-model-variant"
                         value={photoModelVariant}
                         onChange={(e) =>
-                          onPhotoModelVariantChange(e.target.value as "nana2" | "nana-pro" | "sora-image")
+                          onPhotoModelVariantChange(e.target.value as PhotoModelVariant)
                         }
                         className="ui-select w-full appearance-none rounded-2xl border border-white/10 bg-[#221f22] px-4 py-3 pr-11 text-sm text-white outline-none transition focus:border-white/30"
                       >
-                        <option value="nana2" disabled={photoVariantLocks.nana2.enabled}>
-                          {`Nana Banana 2${photoVariantLocks.nana2.enabled ? " (тех. работы)" : ""}`}
-                        </option>
-                        <option value="nana-pro" disabled={photoVariantLocks["nana-pro"].enabled}>
-                          {`Nana Banana Pro${photoVariantLocks["nana-pro"].enabled ? " (тех. работы)" : ""}`}
-                        </option>
-                        <option value="sora-image" disabled={photoVariantLocks["sora-image"].enabled}>
-                          {`Sora image${photoVariantLocks["sora-image"].enabled ? " (тех. работы)" : ""}`}
-                        </option>
+                        {PHOTO_MODEL_VARIANTS.map((id) => (
+                          <option key={id} value={id} disabled={photoVariantLocks[id].enabled}>
+                            {`${PHOTO_MODEL_LABELS[id]}${photoVariantLocks[id].enabled ? " (тех. работы)" : ""}`}
+                          </option>
+                        ))}
                       </select>
                       <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                     </div>
@@ -841,10 +830,7 @@ export function WorkspacePanel({
                     {isPhotoMode || isVideoMode ? (
                       isPhotoMode ? (
                       <div className="inline-flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">
-                        {(photoModelVariant === "sora-image"
-                          ? soraPhotoAspectOptions.map((o) => ({ value: o.value, label: `${o.label}` }))
-                          : photoAspectOptions
-                        ).map((option) => {
+                        {getPhotoAspectOptions(photoModelVariant).map((option) => {
                           const checked = aspectRatio === option.value;
                           return (
                             <button
