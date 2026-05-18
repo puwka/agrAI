@@ -14,6 +14,11 @@ type DashboardBannerState = {
   message: string;
 };
 
+type DashboardHomePromoState = {
+  enabled: boolean;
+  html: string;
+};
+
 type ModelLockRow = {
   enabled: boolean;
   message: string;
@@ -47,6 +52,8 @@ export function AdminMaintenanceClient() {
   const [message, setMessage] = useState("");
   const [bannerEnabled, setBannerEnabled] = useState(false);
   const [bannerMessage, setBannerMessage] = useState("");
+  const [homePromoEnabled, setHomePromoEnabled] = useState(false);
+  const [homePromoHtml, setHomePromoHtml] = useState("");
   const [modelLocks, setModelLocks] = useState<Record<string, ModelLockRow>>({});
 
   const load = useCallback(async () => {
@@ -58,6 +65,7 @@ export function AdminMaintenanceClient() {
         | {
             maintenance?: { enabled?: boolean; message?: string };
             banner?: { enabled?: boolean; message?: string };
+            homePromo?: { enabled?: boolean; html?: string };
             locks?: Record<string, { enabled?: boolean; message?: string }>;
             error?: string;
           }
@@ -70,6 +78,8 @@ export function AdminMaintenanceClient() {
       setMessage(typeof data?.maintenance?.message === "string" ? data.maintenance.message : "");
       setBannerEnabled(Boolean(data?.banner?.enabled));
       setBannerMessage(typeof data?.banner?.message === "string" ? data.banner.message : "");
+      setHomePromoEnabled(Boolean(data?.homePromo?.enabled));
+      setHomePromoHtml(typeof data?.homePromo?.html === "string" ? data.homePromo.html : "");
       const rawLocks = data?.locks ?? {};
       const nextLocks: Record<string, ModelLockRow> = {};
       for (const [modelId, row] of Object.entries(rawLocks)) {
@@ -106,6 +116,27 @@ export function AdminMaintenanceClient() {
       }
       setEnabled(Boolean(data.enabled));
       setMessage(typeof data.message === "string" ? data.message : "");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveHomePromo = async () => {
+    setError(null);
+    setSaving(true);
+    try {
+      const response = await fetch("/api/admin/dashboard-home-promo", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: homePromoEnabled, html: homePromoHtml }),
+      });
+      const data = (await response.json().catch(() => null)) as DashboardHomePromoState & { error?: string };
+      if (!response.ok) {
+        setError(data?.error ?? "Не удалось сохранить HTML-плашку");
+        return;
+      }
+      setHomePromoEnabled(Boolean(data.enabled));
+      setHomePromoHtml(typeof data.html === "string" ? data.html : "");
     } finally {
       setSaving(false);
     }
@@ -287,6 +318,49 @@ export function AdminMaintenanceClient() {
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Сохранить плашку
+        </button>
+      </div>
+
+      <div className="space-y-4 rounded-3xl border border-emerald-400/20 bg-emerald-500/5 p-6">
+        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 transition hover:border-emerald-400/25">
+          <input
+            type="checkbox"
+            checked={homePromoEnabled}
+            onChange={(e) => setHomePromoEnabled(e.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-white/20 bg-black/50 text-emerald-500 focus:ring-emerald-400/40"
+          />
+          <span>
+            <span className="font-medium text-white">HTML-плашка на главной</span>
+            <span className="mt-1 block text-sm text-zinc-500">
+              Между «Добро пожаловать» и «Выберите нейросеть». Скрывается при тех. работах.
+            </span>
+          </span>
+        </label>
+
+        <div className="space-y-2">
+          <label htmlFor="dashboard-home-promo-html" className="text-sm font-medium text-zinc-300">
+            HTML-код
+          </label>
+          <textarea
+            id="dashboard-home-promo-html"
+            value={homePromoHtml}
+            onChange={(e) => setHomePromoHtml(e.target.value)}
+            rows={10}
+            spellCheck={false}
+            className="w-full resize-y rounded-2xl border border-white/10 bg-black/40 px-4 py-3 font-mono text-xs leading-relaxed text-white outline-none placeholder:text-zinc-600 focus:border-emerald-400/35"
+            placeholder="<a href='https://example.com'><img src='...' alt='' /></a>"
+          />
+          <p className="text-xs text-zinc-600">До 50 000 символов. script и iframe удаляются.</p>
+        </div>
+
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => void saveHomePromo()}
+          className="inline-flex items-center gap-2 rounded-2xl border border-emerald-400/35 bg-emerald-500/20 px-5 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/30 disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          Сохранить HTML-плашку
         </button>
       </div>
 

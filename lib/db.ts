@@ -388,6 +388,52 @@ export const db: any = {
       if (error) throw error;
     },
   },
+  dashboardHomePromo: {
+    async getGlobal(): Promise<{ enabled: boolean; html: string } | null> {
+      try {
+        const { data, error } = await getSupabaseAdmin()
+          .from("DashboardHomePromo")
+          .select("enabled, html")
+          .eq("id", "global")
+          .limit(1);
+        if (error) return null;
+        const row = (data?.[0] ?? null) as { enabled?: boolean; html?: string } | null;
+        if (!row) return null;
+        return {
+          enabled: Boolean(row.enabled),
+          html: String(row.html ?? ""),
+        };
+      } catch {
+        return null;
+      }
+    },
+    async upsertGlobal(input: {
+      enabled: boolean;
+      html: string;
+    }): Promise<{ ok: true } | { ok: false; missingTable: boolean }> {
+      try {
+        const { error } = await getSupabaseAdmin().from("DashboardHomePromo").upsert(
+          { id: "global", enabled: input.enabled, html: input.html, updatedAt: nowIso() },
+          { onConflict: "id" },
+        );
+        if (error) {
+          const code = String((error as { code?: string }).code ?? "");
+          if (code === "PGRST205" || /DashboardHomePromo/i.test(String(error.message ?? ""))) {
+            return { ok: false, missingTable: true };
+          }
+          throw error;
+        }
+        return { ok: true };
+      } catch (err) {
+        const code = String((err as { code?: string })?.code ?? "");
+        const message = String((err as { message?: string })?.message ?? "");
+        if (code === "PGRST205" || /DashboardHomePromo/i.test(message)) {
+          return { ok: false, missingTable: true };
+        }
+        throw err;
+      }
+    },
+  },
   modelLock: {
     async listMap(): Promise<Record<string, { enabled: boolean; message: string }>> {
       try {

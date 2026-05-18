@@ -10,9 +10,10 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [maintenance, banner, locks] = await Promise.all([
+  const [maintenance, banner, homePromo, locks] = await Promise.all([
     getMaintenanceState(),
     db.dashboardBanner.getGlobal(),
+    db.dashboardHomePromo.getGlobal(),
     db.modelLock.listMap(),
   ]);
 
@@ -21,6 +22,10 @@ export async function GET() {
     banner: {
       enabled: Boolean(banner?.enabled),
       message: String(banner?.message ?? ""),
+    },
+    homePromo: {
+      enabled: Boolean(homePromo?.enabled),
+      html: String(homePromo?.html ?? ""),
     },
     locks,
   });

@@ -3,9 +3,12 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-
+ROOT = Path(__file__).resolve().parent.parent
 SYNTX_URL = "https://syntx.ai/video/veo3"
-STATE_PATH = Path(os.environ.get("SYNTX_STORAGE_STATE", "workers/syntx_storage_state.json"))
+_raw_state = os.environ.get("SYNTX_STORAGE_STATE", "workers/syntx_storage_state.json")
+STATE_PATH = Path(_raw_state)
+if not STATE_PATH.is_absolute():
+    STATE_PATH = ROOT / STATE_PATH
 
 
 def main() -> None:
@@ -18,12 +21,12 @@ def main() -> None:
         page.goto(SYNTX_URL, wait_until="domcontentloaded", timeout=60_000)
 
         print("")
-        print("В открывшемся окне войдите в Syntx вручную.")
-        print(f"После входа откройте/дождитесь страницы {SYNTX_URL}.")
-        input("Когда вход выполнен, нажмите Enter здесь в терминале...")
+        print("Log in to Syntx in the browser window.")
+        print(f"When done, open or wait for: {SYNTX_URL}")
+        input("Press Enter here after you are logged in...")
 
         context.storage_state(path=str(STATE_PATH))
-        print(f"Сессия Syntx сохранена: {STATE_PATH}")
+        print(f"Syntx session saved: {STATE_PATH}")
         context.close()
         browser.close()
 

@@ -20,6 +20,7 @@ import {
 } from "../photo-models";
 import type { AspectRatio, MediaInputMode } from "../types";
 import { ModelCard } from "../components/model-card";
+import { DashboardHomePromo } from "../components/dashboard-home-promo";
 import { PageIntro } from "../components/page-intro";
 import { WorkspacePanel } from "../components/workspace-panel";
 import type { VoiceOption } from "../components/voice-picker-modal";
@@ -81,9 +82,11 @@ function normalizeApiErrorText(value: unknown): string {
 export function DashboardHomePage({
   userName,
   isAdmin = false,
+  homePromo = { enabled: false, html: "" },
 }: {
   userName: string;
   isAdmin?: boolean;
+  homePromo?: { enabled: boolean; html: string };
 }) {
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   /** Промпт отдельно для каждой модели, чтобы при переключении фото/видео/голос не смешивался текст */
@@ -1023,6 +1026,8 @@ export function DashboardHomePage({
           { label: "Формат", value: aspectRatio },
         ]}
       />
+
+      <DashboardHomePromo enabled={homePromo.enabled} html={homePromo.html} />
 
       {loadError && (
         <p className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
