@@ -98,7 +98,7 @@ export function LogsPage() {
       const list = data.items ?? [];
       const t = typeof data.total === "number" ? data.total : list.length;
       if (seq !== loadSeqRef.current) return;
-      setItems(list);
+      setItems((prev) => (list.length === 0 && prev.length > 0 ? prev : list));
       setTotal(t);
 
       const maxPage = Math.max(0, Math.ceil(t / PAGE_SIZE) - 1);

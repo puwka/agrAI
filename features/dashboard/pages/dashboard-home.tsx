@@ -7,9 +7,10 @@ import { LayoutDashboard, Trash2 } from "lucide-react";
 import { models } from "../config";
 import { detectResultMediaKind } from "../lib";
 import {
-  mergeGenerationLists,
+  applyGenerationListUpdate,
   parseGenerationsApiPayload,
-  sortGenerationsNewestFirst,
+  readPersistedGenerations,
+  writePersistedGenerations,
 } from "../generation-list";
 import {
   PHOTO_MODEL_VARIANTS,
@@ -97,7 +98,7 @@ export function DashboardHomePage({
   const [resultMessage, setResultMessage] = useState("");
   const [deliveryPending, setDeliveryPending] = useState(false);
   const [lastSubmittedId, setLastSubmittedId] = useState<string | null>(null);
-  const [generations, setGenerations] = useState<GenerationRow[]>([]);
+  const [generations, setGenerations] = useState<GenerationRow[]>(() => readPersistedGenerations<GenerationRow>());
   const [loadError, setLoadError] = useState<string | null>(null);
   const [repeatLoadingId, setRepeatLoadingId] = useState<string | null>(null);
   const [deletingGenerationId, setDeletingGenerationId] = useState<string | null>(null);
@@ -135,7 +136,38 @@ export function DashboardHomePage({
   const loadSeqRef = useRef(0);
   const loadInFlightRef = useRef(false);
   const pendingReloadRef = useRef(false);
+  const loadAbortRef = useRef<AbortController | null>(null);
+  const generationsRef = useRef(generations);
+  const lastSubmittedIdRef = useRef<string | null>(null);
+  const recentCreatedIdsRef = useRef<Map<string, number>>(new Map());
   const { enabled: maintenanceOn, refresh: refreshMaintenance } = useMaintenance();
+
+  generationsRef.current = generations;
+  lastSubmittedIdRef.current = lastSubmittedId;
+
+  useEffect(() => {
+    writePersistedGenerations(generations);
+  }, [generations]);
+
+  const pinGenerationIds = useCallback((): string[] => {
+    const now = Date.now();
+    const recent: string[] = [];
+    for (const [id, at] of recentCreatedIdsRef.current.entries()) {
+      if (now - at > 15 * 60_000) {
+        recentCreatedIdsRef.current.delete(id);
+        continue;
+      }
+      recent.push(id);
+    }
+    const last = lastSubmittedIdRef.current;
+    if (last && !recent.includes(last)) recent.push(last);
+    return recent;
+  }, []);
+
+  const rememberCreatedGeneration = useCallback((id: string) => {
+    if (!id) return;
+    recentCreatedIdsRef.current.set(id, Date.now());
+  }, []);
 
   const selectedModel = models.find((model) => model.id === selectedModelId) ?? null;
   const activeModelsCount = models.filter((m) => !m.disabled).length;
@@ -415,15 +447,20 @@ export function DashboardHomePage({
       if (opts?.fresh) pendingReloadRef.current = true;
       return;
     }
+    loadAbortRef.current?.abort();
+    const abortController = new AbortController();
+    loadAbortRef.current = abortController;
     loadInFlightRef.current = true;
     setLoadError(null);
     const freshQuery = opts?.fresh ? "&fresh=1" : "";
+    const pinIds = pinGenerationIds();
     let lastError: unknown = null;
     try {
       for (let attempt = 0; attempt < 2; attempt += 1) {
         try {
           const response = await fetchWithRetry(
             `/api/generations?limit=${DASHBOARD_GENERATIONS_LIMIT}&offset=0&brief=1${freshQuery}`,
+            { signal: abortController.signal },
           );
           if (seq !== loadSeqRef.current) return;
           if (!response.ok) {
@@ -432,14 +469,17 @@ export function DashboardHomePage({
           }
           const data = (await response.json()) as unknown;
           const incoming = parseGenerationsApiPayload<GenerationRow>(data);
-          setGenerations((prev) => {
-            if (incoming.length === 0 && prev.length > 0) {
-              return prev;
-            }
-            return mergeGenerationLists(prev, incoming);
-          });
+          setGenerations((prev) =>
+            applyGenerationListUpdate(prev, incoming, {
+              maxItems: DASHBOARD_GENERATIONS_LIMIT,
+              pinIds,
+            }),
+          );
           return;
         } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") {
+            return;
+          }
           lastError = error;
           if (attempt === 0) {
             await new Promise((resolve) => window.setTimeout(resolve, 350));
@@ -452,13 +492,16 @@ export function DashboardHomePage({
       }
       void lastError;
     } finally {
+      if (loadAbortRef.current === abortController) {
+        loadAbortRef.current = null;
+      }
       loadInFlightRef.current = false;
       if (pendingReloadRef.current) {
         pendingReloadRef.current = false;
         void loadGenerations({ fresh: true });
       }
     }
-  }, []);
+  }, [pinGenerationIds]);
 
   const loadModelLocks = useCallback(async () => {
     try {
@@ -579,14 +622,25 @@ export function DashboardHomePage({
   }, [generations, lastSubmittedId]);
 
   useEffect(() => {
-    const shouldPoll =
-      deliveryPending ||
-      (lastSubmittedId !== null &&
-        generations.some(
-          (g) => g.id === lastSubmittedId && (g.status === "PENDING" || g.status === "QUEUED" || g.status === "PROCESSING"),
-        ));
+    const shouldPollNow = () => {
+      const lastId = lastSubmittedIdRef.current;
+      const gens = generationsRef.current;
+      if (deliveryPending) return true;
+      if (!lastId) return false;
+      return gens.some(
+        (g) =>
+          g.id === lastId &&
+          (g.status === "PENDING" || g.status === "QUEUED" || g.status === "PROCESSING"),
+      );
+    };
 
-    if (!shouldPoll) {
+    const tick = () => {
+      if (shouldPollNow()) {
+        void loadGenerations({ fresh: true });
+      }
+    };
+
+    if (!shouldPollNow()) {
       if (pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
@@ -594,10 +648,9 @@ export function DashboardHomePage({
       return;
     }
 
+    tick();
     if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(() => {
-      void loadGenerations({ fresh: true });
-    }, 2500);
+    pollRef.current = setInterval(tick, 2500);
 
     return () => {
       if (pollRef.current) {
@@ -605,7 +658,7 @@ export function DashboardHomePage({
         pollRef.current = null;
       }
     };
-  }, [deliveryPending, lastSubmittedId, generations, loadGenerations]);
+  }, [deliveryPending, lastSubmittedId, loadGenerations]);
 
   const handleSelectModel = (modelId: string) => {
     const found = models.find((m) => m.id === modelId);
@@ -849,11 +902,14 @@ export function DashboardHomePage({
       }
 
       const created = (await response.json()) as GenerationRow;
+      rememberCreatedGeneration(created.id);
       setLastSubmittedId(created.id);
       setGenerations((prev) =>
-        sortGenerationsNewestFirst(
-          mergeGenerationLists(prev, [created], { preserveActiveMs: 10 * 60_000 }),
-        ).slice(0, DASHBOARD_GENERATIONS_LIMIT),
+        applyGenerationListUpdate(prev, [created], {
+          maxItems: DASHBOARD_GENERATIONS_LIMIT,
+          pinIds: [created.id],
+          rejectEmptyIncoming: false,
+        }),
       );
       setDeliveryPending(true);
       setResultUrl("");
@@ -937,11 +993,14 @@ export function DashboardHomePage({
         } else {
           setMediaInputMode("TEXT");
         }
+        rememberCreatedGeneration(created.id);
         setLastSubmittedId(created.id);
         setGenerations((prev) =>
-          sortGenerationsNewestFirst(
-            mergeGenerationLists(prev, [created as GenerationRow], { preserveActiveMs: 10 * 60_000 }),
-          ).slice(0, DASHBOARD_GENERATIONS_LIMIT),
+          applyGenerationListUpdate(prev, [created as GenerationRow], {
+            maxItems: DASHBOARD_GENERATIONS_LIMIT,
+            pinIds: [created.id],
+            rejectEmptyIncoming: false,
+          }),
         );
         setDeliveryPending(true);
         setResultUrl("");
