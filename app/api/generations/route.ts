@@ -146,22 +146,24 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Auto-cleanup old generations (retention).
-  try {
-    const nowMs = Date.now();
-    const last = cleanupLastRunByUser.get(sessionUser.id) ?? 0;
-    if (nowMs - last > CLEANUP_THROTTLE_MS) {
-      cleanupLastRunByUser.set(sessionUser.id, nowMs);
-      const cutoff = new Date(nowMs - GENERATIONS_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
-      // Никогда не удаляем "живые" заявки из очереди/обработки.
-      // Авто-очистка касается только завершенных записей.
-      await db.generation.deleteOlderThanFinishedForUser(sessionUser.id, cutoff);
+  const { searchParams } = new URL(request.url);
+  const brief = searchParams.get("brief") === "1";
+
+  // Авто-очистка только на полной загрузке (страница логов), не при brief-poll дашборда.
+  if (!brief) {
+    try {
+      const nowMs = Date.now();
+      const last = cleanupLastRunByUser.get(sessionUser.id) ?? 0;
+      if (nowMs - last > CLEANUP_THROTTLE_MS) {
+        cleanupLastRunByUser.set(sessionUser.id, nowMs);
+        const cutoff = new Date(nowMs - GENERATIONS_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+        await db.generation.deleteOlderThanFinishedForUser(sessionUser.id, cutoff);
+      }
+    } catch {
+      // Best-effort cleanup; never block list loads.
     }
-  } catch {
-    // Best-effort cleanup; never block logs page.
   }
 
-  const { searchParams } = new URL(request.url);
   const limitRaw = Number.parseInt(searchParams.get("limit") ?? "100", 10);
   const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? limitRaw : 100, 1), 100);
   const offsetRaw = Number.parseInt(searchParams.get("offset") ?? "0", 10);
@@ -172,7 +174,6 @@ export async function GET(request: Request) {
       ? statusRaw
       : "all";
   const q = (searchParams.get("q") ?? "").trim();
-  const brief = searchParams.get("brief") === "1";
   const includeTotal = searchParams.get("includeTotal") === "1";
 
   const where = generationListWhere(sessionUser.id, statusFilter);

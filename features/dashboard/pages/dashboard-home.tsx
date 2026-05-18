@@ -7,6 +7,11 @@ import { LayoutDashboard, Trash2 } from "lucide-react";
 import { models } from "../config";
 import { detectResultMediaKind } from "../lib";
 import {
+  mergeGenerationLists,
+  parseGenerationsApiPayload,
+  sortGenerationsNewestFirst,
+} from "../generation-list";
+import {
   PHOTO_MODEL_VARIANTS,
   getPhotoAspectOptions,
   isPhotoAspectValid,
@@ -45,6 +50,7 @@ function stripRepeatMarker(prompt: string): string {
 }
 
 const MAX_RUNWAY_PROMPT_LEN = 1000;
+const DASHBOARD_GENERATIONS_LIMIT = 30;
 function normalizeApiErrorText(value: unknown): string {
   if (!value) return "";
   if (typeof value === "string") return value.trim();
@@ -123,6 +129,9 @@ export function DashboardHomePage({
   const [motionVideoUploadProgress, setMotionVideoUploadProgress] = useState<number | null>(null);
   const [modelLocks, setModelLocks] = useState<Record<string, { enabled: boolean; message: string }>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const loadSeqRef = useRef(0);
+  const loadInFlightRef = useRef(false);
+  const pendingReloadRef = useRef(false);
   const { enabled: maintenanceOn, refresh: refreshMaintenance } = useMaintenance();
 
   const selectedModel = models.find((model) => model.id === selectedModelId) ?? null;
@@ -398,29 +407,54 @@ export function DashboardHomePage({
   }, []);
 
   const loadGenerations = useCallback(async (opts?: { fresh?: boolean }) => {
+    const seq = ++loadSeqRef.current;
+    if (loadInFlightRef.current) {
+      if (opts?.fresh) pendingReloadRef.current = true;
+      return;
+    }
+    loadInFlightRef.current = true;
     setLoadError(null);
     const freshQuery = opts?.fresh ? "&fresh=1" : "";
     let lastError: unknown = null;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        const response = await fetchWithRetry(`/api/generations?limit=10&offset=0&brief=1${freshQuery}`);
-        if (!response.ok) {
-          setLoadError("Не удалось загрузить историю генераций");
+    try {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          const response = await fetchWithRetry(
+            `/api/generations?limit=${DASHBOARD_GENERATIONS_LIMIT}&offset=0&brief=1${freshQuery}`,
+          );
+          if (seq !== loadSeqRef.current) return;
+          if (!response.ok) {
+            setLoadError("Не удалось загрузить историю генераций");
+            return;
+          }
+          const data = (await response.json()) as unknown;
+          const incoming = parseGenerationsApiPayload<GenerationRow>(data);
+          setGenerations((prev) => {
+            if (incoming.length === 0 && prev.length > 0) {
+              return prev;
+            }
+            return mergeGenerationLists(prev, incoming);
+          });
           return;
-        }
-        const data = (await response.json()) as { items?: GenerationRow[]; total?: number };
-        setGenerations(Array.isArray(data) ? (data as unknown as GenerationRow[]) : (data.items ?? []));
-        return;
-      } catch (error) {
-        lastError = error;
-        if (attempt === 0) {
-          await new Promise((resolve) => window.setTimeout(resolve, 350));
-          continue;
+        } catch (error) {
+          lastError = error;
+          if (attempt === 0) {
+            await new Promise((resolve) => window.setTimeout(resolve, 350));
+            continue;
+          }
         }
       }
+      if (seq === loadSeqRef.current) {
+        setLoadError("Не удалось загрузить историю генераций (сеть/таймаут).");
+      }
+      void lastError;
+    } finally {
+      loadInFlightRef.current = false;
+      if (pendingReloadRef.current) {
+        pendingReloadRef.current = false;
+        void loadGenerations({ fresh: true });
+      }
     }
-    setLoadError("Не удалось загрузить историю генераций (сеть/таймаут).");
-    void lastError;
   }, []);
 
   const loadModelLocks = useCallback(async () => {
@@ -813,6 +847,11 @@ export function DashboardHomePage({
 
       const created = (await response.json()) as GenerationRow;
       setLastSubmittedId(created.id);
+      setGenerations((prev) =>
+        sortGenerationsNewestFirst(
+          mergeGenerationLists(prev, [created], { preserveActiveMs: 10 * 60_000 }),
+        ).slice(0, DASHBOARD_GENERATIONS_LIMIT),
+      );
       setDeliveryPending(true);
       setResultUrl("");
       setResultMessage("");
@@ -896,6 +935,11 @@ export function DashboardHomePage({
           setMediaInputMode("TEXT");
         }
         setLastSubmittedId(created.id);
+        setGenerations((prev) =>
+          sortGenerationsNewestFirst(
+            mergeGenerationLists(prev, [created as GenerationRow], { preserveActiveMs: 10 * 60_000 }),
+          ).slice(0, DASHBOARD_GENERATIONS_LIMIT),
+        );
         setDeliveryPending(true);
         setResultUrl("");
         setResultMessage("");

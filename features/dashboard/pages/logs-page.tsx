@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, ChevronLeft, ChevronRight, Search, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -44,6 +44,7 @@ export function LogsPage() {
   const [error, setError] = useState<string | null>(null);
   const [listLoading, setListLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const loadSeqRef = useRef(0);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedSearch(searchQuery.trim()), 400);
@@ -55,6 +56,7 @@ export function LogsPage() {
   }, [debouncedSearch]);
 
   const load = useCallback(async (opts?: { fresh?: boolean }) => {
+    const seq = ++loadSeqRef.current;
     setError(null);
     setListLoading(true);
     try {
@@ -85,16 +87,17 @@ export function LogsPage() {
       }
       if (!response) throw new Error("LOAD_TIMEOUT");
 
+      if (seq !== loadSeqRef.current) return;
+
       if (!response.ok) {
         setError("Не удалось загрузить логи");
-        setItems([]);
-        setTotal(0);
         return;
       }
 
       const data = (await response.json()) as { items?: GenerationRow[]; total?: number };
       const list = data.items ?? [];
       const t = typeof data.total === "number" ? data.total : list.length;
+      if (seq !== loadSeqRef.current) return;
       setItems(list);
       setTotal(t);
 
