@@ -235,22 +235,36 @@ export function AdminGenerationsClient({
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const response = await fetch(`/api/admin/generations/${id}/upload`, {
-        method: "POST",
-        body: fd,
-      });
-      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 30_000);
+      let response: Response;
+      try {
+        response = await fetch(`/api/admin/generations/${id}/upload`, {
+          method: "POST",
+          body: fd,
+          signal: controller.signal,
+        });
+      } finally {
+        window.clearTimeout(timeout);
+      }
+      const data = (await response.json().catch(() => null)) as
+        | { error?: string; _warning?: string }
+        | null;
       if (!response.ok) {
         setError(data?.error ?? "Не удалось загрузить файл");
         return;
       }
-      if (mode === "all") {
+      if (data?._warning) {
+        setNotice("Файл сохранён. Обновите страницу — статус подтянется.");
+      } else if (mode === "all") {
         setNotice("Заявка выполнена: результат успешно загружен и отправлен пользователю.");
       } else {
         setNotice("Файл успешно загружен.");
       }
       setItems((prev) => prev.filter((item) => item.id !== id));
       await load({ fresh: true, silent: true, keepNotice: true });
+    } catch {
+      setError("Таймаут при загрузке файла. Попробуйте ещё раз.");
     } finally {
       setUploadingId(null);
     }
