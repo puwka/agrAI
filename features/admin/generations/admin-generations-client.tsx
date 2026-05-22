@@ -160,7 +160,9 @@ export function AdminGenerationsClient({
       }
       setSelectedIds((prev) => prev.filter((id) => resolvedItems.some((item) => item.id === id)));
     } catch {
-      setError("Проблема сети при загрузке генераций. Повторите через пару секунд.");
+      if (!opts?.silent) {
+        setError("Проблема сети при загрузке генераций. Повторите через пару секунд.");
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -531,7 +533,7 @@ export function AdminGenerationsClient({
 
       <div className="space-y-6">
         {items.map((g) => {
-          const pending = g.status === "PENDING" || g.status === "QUEUED";
+          const pending = g.status !== "SUCCESS";
           const hasResult = Boolean(
             g.status === "SUCCESS" && (g.resultUrl || g.resultMessage),
           );
@@ -724,7 +726,12 @@ export function AdminGenerationsClient({
                 ) : null}
 
                 {pending && (
-                  <div className="admin-generation-pending space-y-3 rounded-2xl border border-amber-400/20 bg-amber-500/5 p-4">
+                  <div className={[
+                    "admin-generation-pending space-y-3 rounded-2xl border p-4",
+                    g.status === "ERROR" || g.status === "PROCESSING"
+                      ? "border-red-400/20 bg-red-500/5"
+                      : "border-amber-400/20 bg-amber-500/5",
+                  ].join(" ")}>
                     <div className="space-y-2">
                       <p className="text-xs font-medium uppercase tracking-wide text-amber-200/90">
                         Файл с компьютера
