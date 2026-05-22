@@ -310,6 +310,7 @@ export function LogsPage() {
                               Скачать файл
                             </a>
                           ) : null}
+                          {(log.status === "SUCCESS" || log.status === "ERROR") && (
                           <button
                             type="button"
                             onClick={() => {
@@ -321,6 +322,7 @@ export function LogsPage() {
                             <Trash2 className="h-3.5 w-3.5" />
                             {deletingId === log.id ? "Удаление…" : "Удалить"}
                           </button>
+                          )}
                         </div>
                       </div>
                     </motion.div>

@@ -1383,17 +1383,7 @@ export function DashboardHomePage({
                           {repeatLoadingId === item.id ? "Повтор…" : "Повторить генерацию"}
                         </button>
                       ) : null}
-                      <button
-                        type="button"
-                        disabled={Boolean(deletingGenerationId) || Boolean(repeatLoadingId)}
-                        onClick={() => {
-                          void handleDeleteGeneration(item.id);
-                        }}
-                        className="inline-flex items-center gap-1 rounded-lg border border-red-400/30 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        {deletingGenerationId === item.id ? "Удаление…" : "Удалить"}
-                      </button>
+
                     </div>
                   </div>
                 </div>

@@ -20,11 +20,19 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
       id: generationId,
       ...(sessionUser.role === "ADMIN" ? {} : { userId: sessionUser.id }),
     },
-    select: { id: true },
+    select: { id: true, status: true },
   });
 
   if (!existing) {
     return NextResponse.json({ error: "Генерация не найдена" }, { status: 404 });
+  }
+
+  const status = String(existing.status ?? "");
+  if (status !== "SUCCESS" && status !== "ERROR") {
+    return NextResponse.json(
+      { error: "Удалить можно только завершённые генерации (готовые или с ошибкой)." },
+      { status: 409 },
+    );
   }
 
   await db.generation.delete({ where: { id: generationId } });
