@@ -133,7 +133,17 @@ export function LogsPage() {
       setDeletingId(id);
       setError(null);
       try {
-        const response = await fetch(`/api/generations/${encodeURIComponent(id)}`, { method: "DELETE" });
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 15_000);
+        let response: Response;
+        try {
+          response = await fetch(`/api/generations/${encodeURIComponent(id)}`, {
+            method: "DELETE",
+            signal: controller.signal,
+          });
+        } finally {
+          window.clearTimeout(timeout);
+        }
         if (!response.ok) {
           const data = (await response.json().catch(() => null)) as { error?: string } | null;
           setError(data?.error ?? "Не удалось удалить генерацию");
@@ -142,6 +152,8 @@ export function LogsPage() {
         setItems((prev) => prev.filter((item) => item.id !== id));
         setTotal((prev) => Math.max(0, prev - 1));
         void load({ fresh: true });
+      } catch {
+        setError("Не удалось удалить генерацию (таймаут или ошибка сети). Попробуйте ещё раз.");
       } finally {
         setDeletingId(null);
       }
