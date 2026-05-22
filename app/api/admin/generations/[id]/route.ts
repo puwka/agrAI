@@ -142,9 +142,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     );
   }
 
-  const existing = await db.generation.findUnique({
-    where: { id: generationId },
-  });
+  let existing;
+  try {
+    existing = await db.generation.findUnique({
+      where: { id: generationId },
+    });
+  } catch {
+    return NextResponse.json({ error: "Таймаут БД при поиске генерации." }, { status: 502 });
+  }
 
   if (!existing) {
     return NextResponse.json({ error: "Генерация не найдена" }, { status: 404 });
@@ -206,15 +211,29 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     );
   }
 
-  const updated = await db.generation.update({
-    where: { id: generationId },
-    data: {
-      resultUrl: nextUrl?.trim() || null,
-      resultMessage: nextMsg?.trim() || null,
-      status: "SUCCESS",
-      errorMessage: null,
-    },
-  });
+  let updated;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      updated = await db.generation.update({
+        where: { id: generationId },
+        data: {
+          resultUrl: nextUrl?.trim() || null,
+          resultMessage: nextMsg?.trim() || null,
+          status: "SUCCESS",
+          errorMessage: null,
+        },
+      });
+      break;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn(`[admin/patch] update attempt ${attempt}/3 failed:`, msg);
+      if (attempt < 3) {
+        await new Promise((r) => setTimeout(r, 800 * attempt));
+        continue;
+      }
+      return NextResponse.json({ error: "Не удалось обновить генерацию (таймаут БД). Попробуйте ещё раз." }, { status: 502 });
+    }
+  }
 
   return NextResponse.json(updated);
 }
@@ -232,20 +251,29 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
     return NextResponse.json({ error: "Некорректный id" }, { status: 400 });
   }
 
-  const existing = await db.generation.findUnique({
-    where: { id: generationId },
-  });
+  let existing;
+  try {
+    existing = await db.generation.findUnique({
+      where: { id: generationId },
+    });
+  } catch {
+    return NextResponse.json({ error: "Таймаут БД при поиске генерации." }, { status: 502 });
+  }
 
   if (!existing) {
     return NextResponse.json({ error: "Генерация не найдена" }, { status: 404 });
   }
 
-  await tryRemoveUploadedResultFile(existing.resultUrl, generationId);
-  await tryRemoveReferenceUpload(existing.referenceImageUrl);
+  await tryRemoveUploadedResultFile(existing.resultUrl, generationId).catch(() => {});
+  await tryRemoveReferenceUpload(existing.referenceImageUrl).catch(() => {});
   for (const ref of extractExtraRefImages(existing.prompt ?? "")) {
-    await tryRemoveReferenceUpload(ref);
+    await tryRemoveReferenceUpload(ref).catch(() => {});
   }
-  await db.generation.delete({ where: { id: generationId } });
+  try {
+    await db.generation.delete({ where: { id: generationId } });
+  } catch {
+    return NextResponse.json({ error: "Не удалось удалить генерацию (таймаут БД)." }, { status: 502 });
+  }
 
   return NextResponse.json({ ok: true });
 }

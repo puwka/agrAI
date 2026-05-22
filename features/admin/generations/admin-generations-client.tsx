@@ -280,11 +280,19 @@ export function AdminGenerationsClient({
     setNotice(null);
     setSavingId(id);
     try {
-      const response = await fetch(`/api/admin/generations/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resultUrl, resultMessage: null }),
-      });
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 20_000);
+      let response: Response;
+      try {
+        response = await fetch(`/api/admin/generations/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resultUrl, resultMessage: null }),
+          signal: controller.signal,
+        });
+      } finally {
+        window.clearTimeout(timeout);
+      }
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
         setError(data?.error ?? "Не удалось сохранить");
@@ -302,6 +310,8 @@ export function AdminGenerationsClient({
       }
       setItems((prev) => prev.filter((item) => item.id !== id));
       await load({ fresh: true, silent: true, keepNotice: true });
+    } catch {
+      setError("Таймаут при отправке результата. Попробуйте ещё раз.");
     } finally {
       setSavingId(null);
     }
@@ -335,11 +345,19 @@ export function AdminGenerationsClient({
     setNotice(null);
     setSavingId(id);
     try {
-      const response = await fetch(`/api/admin/generations/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resultUrl: null, resultMessage }),
-      });
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 20_000);
+      let response: Response;
+      try {
+        response = await fetch(`/api/admin/generations/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resultUrl: null, resultMessage }),
+          signal: controller.signal,
+        });
+      } finally {
+        window.clearTimeout(timeout);
+      }
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
         setError(data?.error ?? "Не удалось сохранить");
@@ -357,6 +375,8 @@ export function AdminGenerationsClient({
       }
       setItems((prev) => prev.filter((item) => item.id !== id));
       await load({ fresh: true, silent: true, keepNotice: true });
+    } catch {
+      setError("Таймаут при отправке текста. Попробуйте ещё раз.");
     } finally {
       setSavingId(null);
     }
