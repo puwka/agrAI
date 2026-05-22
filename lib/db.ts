@@ -13,9 +13,9 @@ function readPositiveIntEnv(name: string, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-const SUPABASE_FETCH_TIMEOUT_MS = readPositiveIntEnv("SUPABASE_FETCH_TIMEOUT_MS", 60_000);
-const SUPABASE_FETCH_WRITE_TIMEOUT_MS = readPositiveIntEnv("SUPABASE_FETCH_WRITE_TIMEOUT_MS", 120_000);
-const SUPABASE_FETCH_RETRIES = readPositiveIntEnv("SUPABASE_FETCH_RETRIES", 4);
+const SUPABASE_FETCH_TIMEOUT_MS = readPositiveIntEnv("SUPABASE_FETCH_TIMEOUT_MS", 15_000);
+const SUPABASE_FETCH_WRITE_TIMEOUT_MS = readPositiveIntEnv("SUPABASE_FETCH_WRITE_TIMEOUT_MS", 15_000);
+const SUPABASE_FETCH_RETRIES = readPositiveIntEnv("SUPABASE_FETCH_RETRIES", 2);
 
 function isTransientNetworkError(error: unknown) {
   const parts: string[] = [];

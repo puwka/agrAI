@@ -832,10 +832,7 @@ export function DashboardHomePage({
         : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
     try {
-      const response = await fetch("/api/generations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const requestBody = JSON.stringify({
           clientRequestId,
           modelId: selectedModel.id,
           modelName: displayModelName,
@@ -870,8 +867,17 @@ export function DashboardHomePage({
             motionVideoUrl: motionVideoUrl || null,
             motionVideoDurationSec: motionVideoDurationSec ?? null,
           }),
-        }),
       });
+
+      const response = await fetchWithRetry(
+        "/api/generations",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: requestBody,
+        },
+        { timeoutMs: 20_000, retries: 2, retryDelayMs: 500 },
+      );
 
       if (!response.ok) {
         const raw = (await response.json().catch(() => null)) as
