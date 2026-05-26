@@ -4,26 +4,13 @@ import { db } from "../../../../../../../lib/db";
 import { requireAutomationWorker, isSyntxGeneration } from "../../../../../../../lib/automation-worker";
 import { saveLocalGenerationResultFile } from "../../../../../../../lib/local-generation-result";
 import { inferUploadExtAndMime } from "../../../../../../../lib/upload-media-infer";
-import {
-  generationResultsUseSupabaseStorage,
-  uploadGenerationResultFile,
-} from "../../../../../../../lib/supabase-storage";
 import { withTransientDbRetry } from "../../../../../../../lib/transient-db-retry";
 
 const MAX_RESULT_BYTES = 500 * 1024 * 1024;
 
 async function saveResultFile(generationId: string, file: File) {
-  const { ext, mime } = inferUploadExtAndMime(file);
+  const { ext } = inferUploadExtAndMime(file);
   const buffer = Buffer.from(await file.arrayBuffer());
-
-  if (generationResultsUseSupabaseStorage()) {
-    return uploadGenerationResultFile({
-      generationId,
-      buffer,
-      mime,
-      ext,
-    });
-  }
 
   return saveLocalGenerationResultFile({ generationId, ext, buffer });
 }

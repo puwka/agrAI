@@ -1,5 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import { generationStore } from "./generation-store";
+
 type AnyRecord = any;
 
 const globalForSupabase = globalThis as unknown as {
@@ -223,19 +225,14 @@ async function userCounts(ids: string[]) {
   for (const id of ids) m.set(id, { generations: 0, apiKeys: 0 });
   if (ids.length === 0) return m;
 
-  const supabase = getSupabaseAdmin();
-  const { data: genRows } = await supabase
-    .from("Generation")
-    .select("userId")
-    .in("userId", ids);
-  if (genRows) {
-    for (const row of genRows as Array<{ userId: string }>) {
-      const curr = m.get(row.userId) ?? { generations: 0, apiKeys: 0 };
-      curr.generations += 1;
-      m.set(row.userId, curr);
-    }
+  const genCounts = await generationStore.countByUserIds(ids);
+  for (const [userId, count] of genCounts.entries()) {
+    const curr = m.get(userId) ?? { generations: 0, apiKeys: 0 };
+    curr.generations = count;
+    m.set(userId, curr);
   }
 
+  const supabase = getSupabaseAdmin();
   const { data: keyRows } = await supabase
     .from("ApiKey")
     .select("userId")
@@ -480,19 +477,21 @@ export const db: any = {
         search?: string;
       } = {},
     ) {
-      const dir = String((args.orderBy?.createdAt as string) ?? "desc").toUpperCase() === "ASC" ? "ASC" : "DESC";
-      const take = args.take ?? 1000;
-      const skip = Math.max(0, args.skip ?? 0);
       const needUserIdForInclude = Boolean(args.include?.user);
-      const columns = columnsFromSelect(args.select, needUserIdForInclude ? ["userId"] : []);
-      let q = getSupabaseAdmin().from("Generation").select(columns);
-      q = applyWhere(q, args.where);
-      q = applyGenerationSearchOr(q, args.search);
-      q = q.order("createdAt", { ascending: dir === "ASC" });
-      const end = skip + take - 1;
-      const { data, error } = await q.range(skip, end);
-      if (error) raiseSupabaseError("Generation.findMany", error);
-      const rows = hydrateRows((data ?? []) as AnyRecord[]);
+      const selectForStore =
+        args.select && needUserIdForInclude
+          ? { ...args.select, userId: true }
+          : args.select;
+      const rows = hydrateRows(
+        (await generationStore.findMany({
+          where: args.where,
+          orderBy: args.orderBy,
+          take: args.take,
+          skip: args.skip,
+          select: selectForStore,
+          search: args.search,
+        })) as AnyRecord[],
+      );
       const withIncluded = await withUserInclude(rows, args.include);
       if (args.select) {
         return withIncluded.map((r) => project(r, args.select));
@@ -500,113 +499,42 @@ export const db: any = {
       return withIncluded;
     },
     async countWhere(args: { where?: AnyRecord; search?: string } = {}) {
-      let q = getSupabaseAdmin().from("Generation").select("*", { count: "exact", head: true });
-      q = applyWhere(q, args.where);
-      q = applyGenerationSearchOr(q, args.search);
-      const { count, error } = await q;
-      if (error) raiseSupabaseError("Generation.countWhere", error);
-      return count ?? 0;
+      return generationStore.countWhere(args);
     },
     async findFirst(args: { where?: AnyRecord; select?: AnyRecord }) {
-      const columns = columnsFromSelect(args.select);
-      let q = getSupabaseAdmin().from("Generation").select(columns);
-      q = applyWhere(q, args.where);
-      const { data, error } = await q.order("createdAt", { ascending: false }).limit(1);
-      if (error) raiseSupabaseError("Generation.findFirst", error);
-      const rows = hydrateRows((data ?? []) as AnyRecord[]);
-      const row = rows[0];
-      return row ? project(row, args.select) : null;
+      const row = await generationStore.findFirst(args);
+      return row ? hydrateRecord(row as AnyRecord) : null;
     },
     async findUnique(args: { where: AnyRecord }) {
-      const [key, val] = Object.entries(args.where)[0] ?? [];
-      const { data, error } = await getSupabaseAdmin().from("Generation").select("*").eq(key, val).limit(1);
-      if (error) raiseSupabaseError("Generation.findUnique", error);
-      return data?.[0] ? hydrateRecord(data[0] as AnyRecord) : null;
+      const row = await generationStore.findUnique(args);
+      return row ? hydrateRecord(row as AnyRecord) : null;
     },
     async create(args: { data: AnyRecord }) {
-      const d = { ...args.data } as AnyRecord;
-      const userConnect = d.user as AnyRecord | undefined;
-      if (userConnect?.connect && (userConnect.connect as AnyRecord).id) {
-        d.userId = (userConnect.connect as AnyRecord).id;
-      }
-      delete d.user;
-      const data = {
-        ...d,
-        id: (d.id as string | undefined) ?? crypto.randomUUID(),
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-      };
-      const { data: rows, error } = await getSupabaseAdmin().from("Generation").insert(data).select("*").limit(1);
-      if (error) raiseSupabaseError("Generation.create", error);
-      if (!rows?.[0]) throw new Error("Generation insert failed");
-      return hydrateRecord(rows[0] as AnyRecord);
+      const row = await generationStore.create(args);
+      return hydrateRecord(row as AnyRecord);
     },
     async update(args: { where: AnyRecord; data: AnyRecord }) {
-      const [key, val] = Object.entries(args.where)[0] ?? [];
-      const data = { ...args.data, updatedAt: nowIso() };
-      const { data: rows, error } = await getSupabaseAdmin()
-        .from("Generation")
-        .update(data)
-        .eq(key, val)
-        .select("*")
-        .limit(1);
-      if (error) raiseSupabaseError("Generation.update", error);
-      if (!rows[0]) throw new Error("Generation not found");
-      return hydrateRecord(rows[0] as AnyRecord);
+      const row = await generationStore.update(args);
+      return hydrateRecord(row as AnyRecord);
     },
     async updateWhere(args: { where: AnyRecord; data: AnyRecord }) {
-      const data = { ...args.data, updatedAt: nowIso() };
-      let q = getSupabaseAdmin().from("Generation").update(data).select("*");
-      q = applyWhere(q, args.where);
-      const { data: rows, error } = await q.limit(1);
-      if (error) raiseSupabaseError("Generation.updateWhere", error);
-      return hydrateRows((rows ?? []) as AnyRecord[]);
+      const rows = await generationStore.updateWhere(args);
+      return hydrateRows(rows as AnyRecord[]);
     },
     async delete(args: { where: AnyRecord }) {
-      const [key, val] = Object.entries(args.where)[0] ?? [];
-      const { error } = await getSupabaseAdmin().from("Generation").delete().eq(key, val);
-      if (error) throw error;
-      return { id: val };
+      return generationStore.delete(args);
     },
     async deleteOlderThanForUser(userId: string, cutoffIso: string) {
-      const id = userId.trim();
-      const cutoff = cutoffIso.trim();
-      if (!id || !cutoff) return { deleted: 0 };
-      const { error, count } = await getSupabaseAdmin()
-        .from("Generation")
-        .delete({ count: "exact" })
-        .eq("userId", id)
-        .lt("createdAt", cutoff);
-      if (error) throw error;
-      return { deleted: typeof count === "number" ? count : 0 };
+      return generationStore.deleteOlderThanForUser(userId, cutoffIso);
     },
     async deleteOlderThanFinishedForUser(userId: string, cutoffIso: string) {
-      const id = userId.trim();
-      const cutoff = cutoffIso.trim();
-      if (!id || !cutoff) return { deleted: 0 };
-      const { error, count } = await getSupabaseAdmin()
-        .from("Generation")
-        .delete({ count: "exact" })
-        .eq("userId", id)
-        .in("status", ["SUCCESS", "ERROR"])
-        .lt("createdAt", cutoff);
-      if (error) throw error;
-      return { deleted: typeof count === "number" ? count : 0 };
+      return generationStore.deleteOlderThanFinishedForUser(userId, cutoffIso);
     },
     async deleteManyByUserId(userId: string) {
-      const id = userId.trim();
-      if (!id) return { deleted: 0 };
-      const { error, count } = await getSupabaseAdmin()
-        .from("Generation")
-        .delete({ count: "exact" })
-        .eq("userId", id);
-      if (error) throw error;
-      return { deleted: typeof count === "number" ? count : 0 };
+      return generationStore.deleteManyByUserId(userId);
     },
     async count() {
-      const { count, error } = await getSupabaseAdmin().from("Generation").select("*", { count: "exact", head: true });
-      if (error) throw error;
-      return count ?? 0;
+      return generationStore.count();
     },
   },
   apiKey: {
