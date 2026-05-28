@@ -186,13 +186,18 @@ export function Sidebar({ user }: { user: ShellUser }) {
                     href={item.href}
                     onClick={() => setMenuOpen(false)}
                     className={[
-                      "flex items-center gap-3 rounded-2xl border px-3.5 py-3 text-sm font-medium transition",
+                      "flex items-center gap-3 rounded-2xl border px-3.5 py-3 text-sm font-medium transition-[background-color,border-color,color] duration-200",
                       isActive
                         ? "border-white/25 bg-white/10 text-white"
-                        : "border-white/10 bg-white/5 text-zinc-300",
+                        : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/20 hover:bg-white/10 hover:text-white",
                     ].join(" ")}
                   >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black/25">
+                    <span className={[
+                      "flex h-8 w-8 items-center justify-center rounded-lg border transition-[background-color,border-color,color] duration-200",
+                      isActive
+                        ? "border-white/20 bg-white/10 text-white"
+                        : "border-white/10 bg-black/25 text-zinc-400 group-hover:text-white",
+                    ].join(" ")}>
                       <Icon className="h-4 w-4" />
                     </span>
                     {item.label}
@@ -205,13 +210,18 @@ export function Sidebar({ user }: { user: ShellUser }) {
                   prefetch
                   onClick={() => setMenuOpen(false)}
                   className={[
-                    "flex items-center gap-3 rounded-2xl border px-3.5 py-3 text-sm font-medium transition",
+                    "flex items-center gap-3 rounded-2xl border px-3.5 py-3 text-sm font-medium transition-[background-color,border-color,color] duration-200",
                     pathname.startsWith("/admin")
                       ? "border-white/25 bg-white/10 text-white"
-                      : "border-white/10 bg-white/5 text-zinc-300",
+                      : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/20 hover:bg-white/10 hover:text-white",
                   ].join(" ")}
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black/25">
+                  <span className={[
+                    "flex h-8 w-8 items-center justify-center rounded-lg border transition-[background-color,border-color,color] duration-200",
+                    pathname.startsWith("/admin")
+                      ? "border-white/20 bg-white/10 text-white"
+                      : "border-white/10 bg-black/25 text-zinc-400",
+                  ].join(" ")}>
                     <Shield className="h-4 w-4" />
                   </span>
                   Админка
@@ -219,17 +229,19 @@ export function Sidebar({ user }: { user: ShellUser }) {
               ) : null}
             </nav>
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-200"
-            >
-              <LogOut className="h-4 w-4" />
-              Выход
-            </button>
-            <div className="mt-3 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <p className="text-xs text-zinc-400">Тема</p>
-              <ThemeToggle />
+            <div className="mt-3 space-y-2">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-200 transition-[background-color,border-color] duration-200 hover:border-red-400/40 hover:bg-red-500/20"
+              >
+                <LogOut className="h-4 w-4" />
+                Выход
+              </button>
+              <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <p className="text-xs text-zinc-400">Тема</p>
+                <ThemeToggle />
+              </div>
             </div>
           </div>
         </div>

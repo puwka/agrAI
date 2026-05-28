@@ -89,10 +89,10 @@ export function AdminGenerationsClient({
 }) {
   const router = useRouter();
   const [items, setItems] = useState<AdminGeneration[]>([]);
+  const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -106,11 +106,11 @@ export function AdminGenerationsClient({
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
   const inFlightRef = useRef(false);
   const pendingFreshReloadRef = useRef(false);
-  const readyOffsetRef = useRef(0);
   const pageSize = mode === "ready" ? 10 : 30;
+  const totalPages = mode === "ready" ? Math.max(1, Math.ceil(total / pageSize)) : null;
   const PROMPT_TOGGLE_MIN_LEN = 240;
 
-  const load = useCallback(async (opts?: { silent?: boolean; append?: boolean; fresh?: boolean; keepNotice?: boolean }) => {
+  const load = useCallback(async (opts?: { silent?: boolean; fresh?: boolean; keepNotice?: boolean }) => {
     if (inFlightRef.current) {
       if (opts?.fresh) {
         pendingFreshReloadRef.current = true;
@@ -118,27 +118,23 @@ export function AdminGenerationsClient({
       return;
     }
     inFlightRef.current = true;
-    const append = Boolean(opts?.append && mode === "ready");
     if (!opts?.silent) {
-      if (append) {
-        setLoadingMore(true);
-      } else {
-        setLoading(true);
-      }
+      setLoading(true);
     }
     if (!opts?.silent) {
       setError(null);
       if (!opts?.keepNotice) setNotice(null);
     }
     try {
-      const offset = mode === "ready" ? (append ? readyOffsetRef.current : 0) : (page - 1) * pageSize;
+      const offset = (page - 1) * pageSize;
       const statusQuery = mode === "ready" ? "&status=SUCCESS" : "&status=OPEN";
       const freshQuery = opts?.fresh ? "&fresh=1" : "";
+      const includeTotalQuery = mode === "ready" ? "&includeTotal=1" : "";
       const response = await fetchWithRetry(
-        `/api/admin/generations?limit=${pageSize}&offset=${offset}${statusQuery}&brief=1${freshQuery}`,
+        `/api/admin/generations?limit=${pageSize}&offset=${offset}${statusQuery}&brief=1${freshQuery}${includeTotalQuery}`,
       );
       const data = (await response.json().catch(() => null)) as
-        | { items?: AdminGeneration[]; hasMore?: boolean; error?: string; detail?: string }
+        | { items?: AdminGeneration[]; hasMore?: boolean; total?: number; error?: string; detail?: string }
         | null;
       if (!response.ok) {
         setError(
@@ -147,29 +143,22 @@ export function AdminGenerationsClient({
         return;
       }
       const nextItems = Array.isArray(data?.items) ? data.items : [];
-      let resolvedItems: AdminGeneration[] = nextItems;
-      setItems((prev) => {
-        if (!append) return nextItems;
-        const seen = new Set(prev.map((x) => x.id));
-        resolvedItems = [...prev, ...nextItems.filter((x) => !seen.has(x.id))];
-        return resolvedItems;
-      });
+      setItems(nextItems);
       setHasMore(Boolean(data?.hasMore));
-      if (mode === "ready") {
-        readyOffsetRef.current = append ? offset + nextItems.length : nextItems.length;
+      if (mode === "ready" && typeof data?.total === "number") {
+        setTotal(data.total);
       }
-      setSelectedIds((prev) => prev.filter((id) => resolvedItems.some((item) => item.id === id)));
+      setSelectedIds((prev) => prev.filter((id) => nextItems.some((item) => item.id === id)));
     } catch {
       if (!opts?.silent) {
         setError("Проблема сети при загрузке генераций. Повторите через пару секунд.");
       }
     } finally {
       setLoading(false);
-      setLoadingMore(false);
       inFlightRef.current = false;
       if (pendingFreshReloadRef.current) {
         pendingFreshReloadRef.current = false;
-        void load({ fresh: true, append: false, silent: true, keepNotice: true });
+        void load({ fresh: true, silent: true, keepNotice: true });
       }
     }
   }, [mode, page, pageSize]);
@@ -180,14 +169,14 @@ export function AdminGenerationsClient({
 
   useEffect(() => {
     const id = setInterval(() => {
-      void load({ silent: true, fresh: true, append: false, keepNotice: true });
+      void load({ silent: true, fresh: true, keepNotice: true });
     }, 2000);
     return () => clearInterval(id);
   }, [load]);
 
   useEffect(() => {
     if (mode !== "ready") return;
-    readyOffsetRef.current = 0;
+    // reset to page 1 when mode changes
   }, [mode]);
 
   const setUrlDraft = (id: string, value: string) => {
@@ -458,7 +447,7 @@ export function AdminGenerationsClient({
       }
       setSelectedIds([]);
       setItems((prev) => prev.filter((item) => !ids.includes(item.id)));
-      await load({ append: false, fresh: true, silent: true, keepNotice: true });
+      await load({ fresh: true, silent: true, keepNotice: true });
     } finally {
       setBulkDeleting(false);
     }
@@ -485,7 +474,9 @@ export function AdminGenerationsClient({
             : "Для заявок в ожидании: загрузите файл, вставьте URL / data:URL или отправьте текст (ошибка генерации, отказ по авторским правам и т.д.) — пользователь увидит результат в кабинете и сможет скачать файл или ответ в виде .txt."}
         </p>
         <p className="mt-1 text-xs text-zinc-500">
-          Страница {page}
+          {mode === "ready"
+            ? `Страница ${page}${totalPages ? ` из ${totalPages}` : ""} · всего ${total}`
+            : `Страница ${page}`}
         </p>
         {mode === "ready" ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -897,36 +888,27 @@ export function AdminGenerationsClient({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {mode === "ready" ? (
-          <button
-            type="button"
-            disabled={loading || loadingMore || !hasMore}
-            onClick={() => void load({ append: true, fresh: true })}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
-          >
-            {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {hasMore ? "Показать ещё" : "Больше нет"}
-          </button>
-        ) : (
-          <>
-            <button
-              type="button"
-              disabled={loading || page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
-            >
-              Назад
-            </button>
-            <button
-              type="button"
-              disabled={loading || !hasMore}
-              onClick={() => setPage((p) => p + 1)}
-              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
-            >
-              Вперёд
-            </button>
-          </>
-        )}
+        <button
+          type="button"
+          disabled={loading || page <= 1}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-zinc-200 transition hover:border-white/25 hover:bg-white/10 disabled:opacity-50"
+        >
+          ← Назад
+        </button>
+        <span className="text-sm text-zinc-500">
+          {mode === "ready" && totalPages
+            ? `${page} / ${totalPages}`
+            : `стр. ${page}`}
+        </span>
+        <button
+          type="button"
+          disabled={loading || !hasMore}
+          onClick={() => setPage((p) => p + 1)}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-zinc-200 transition hover:border-white/25 hover:bg-white/10 disabled:opacity-50"
+        >
+          Вперёд →
+        </button>
       </div>
     </div>
   );

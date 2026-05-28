@@ -52,7 +52,7 @@ function stripRepeatMarker(prompt: string): string {
 }
 
 const MAX_RUNWAY_PROMPT_LEN = 1000;
-const DASHBOARD_GENERATIONS_LIMIT = 30;
+const DASHBOARD_GENERATIONS_LIMIT = 10;
 function normalizeApiErrorText(value: unknown): string {
   if (!value) return "";
   if (typeof value === "string") return value.trim();
@@ -1296,9 +1296,9 @@ export function DashboardHomePage({
         animate={{ opacity: 1, y: 0 }}
         className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur-2xl"
       >
-        <h3 className="text-lg font-semibold text-white">Мои генерации</h3>
+        <h3 className="text-lg font-semibold text-white">Последние 10 генераций</h3>
         <p className="mt-1 text-sm text-zinc-400">
-          Показаны 10 последних заявок. Полная история, поиск и постраничный просмотр — в разделе «Логи».
+          Показаны последние 10 заявок. Полная история, поиск и постраничный просмотр — в разделе «Логи».
         </p>
         <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {generations.length === 0 ? (
