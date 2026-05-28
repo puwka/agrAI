@@ -523,6 +523,12 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
+      if (modelId === "video" && inferredVideoVariant === "veo-3.1-relax" && prompt.trim().length < 9) {
+        return NextResponse.json(
+          { error: "Промпт для Veo 3.1 должен быть не менее 9 символов." },
+          { status: 400 },
+        );
+      }
     }
   }
 

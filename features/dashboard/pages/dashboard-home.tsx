@@ -732,6 +732,15 @@ export function DashboardHomePage({
         setGenerationSubmitError("Введите описание для режима «из текста».");
         return;
       }
+      if (
+        mediaInputMode === "TEXT" &&
+        selectedModel.id === "video" &&
+        videoModelVariant === "veo-3.1-relax" &&
+        prompt.trim().length < 9
+      ) {
+        setGenerationSubmitError("Промпт для Veo 3.1 должен быть не менее 9 символов.");
+        return;
+      }
       if (mediaInputMode === "IMAGE_REF") {
         if (referenceUploading) {
           return;
